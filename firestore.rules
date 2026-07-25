@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function approved() {
+      return request.auth != null
+        && request.auth.uid == get(/databases/$(database)/documents/config/access).data.approvedUid;
+    }
+
+    match /config/access { allow read, write: if false; }
+    match /users/{userId}/courses/{courseId} {
+      allow read, write: if approved() && userId == request.auth.uid;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

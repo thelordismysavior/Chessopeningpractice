@@ -1,0 +1,2 @@
+:root { font: 16px system-ui, sans-serif; color: #17202a; background: #f4f1ea; }
+body { margin: 0; } main { max-width: 720px; margin: 12vh auto; padding: 2rem; } header { display: flex; justify-content: space-between; align-items: start; gap: 2rem; } h1 { margin: 0 0 .5rem; } button { border: 0; border-radius: .5rem; padding: .75rem 1rem; cursor: pointer; background: #1e5b45; color: white; font: inherit; } .card { margin-top: 3rem; padding: 1.5rem; border-radius: .75rem; background: white; box-shadow: 0 1px 5px #0001; }

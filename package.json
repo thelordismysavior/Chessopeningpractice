@@ -1,0 +1,22 @@
+{
+  "name": "chess-opening-practice",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
+    "test:rules": "firebase emulators:exec --only firestore \"vitest run test/rules.test.ts\""
+  },
+  "dependencies": {
+    "firebase": "^12.1.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
+    "firebase-tools": "^14.10.1",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.6",
+    "vitest": "^3.2.4"
+  }
+}
