@@ -4,7 +4,7 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** implemented
+**Status:** ready-for-human
 
 - [x] The Vite and vanilla TypeScript application runs in a browser.
 - [x] Tauri v2 scaffolding is present and points at the same frontend build without adding native-only behavior.

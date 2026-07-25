@@ -22,4 +22,10 @@ describe('progress rules', () => {
     await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'users/owner/courses/london')));
     await assertFails(getDoc(doc(env.authenticatedContext('other').firestore(), 'users/owner/courses/london')));
   });
+  test('owner cannot access another user and owner writes own progress', async () => {
+    const owner = env.authenticatedContext('owner').firestore();
+    await assertSucceeds(setDoc(doc(owner, 'users/owner/courses/london'), { complete: true }));
+    await assertFails(getDoc(doc(owner, 'users/other/courses/london')));
+    await assertFails(setDoc(doc(owner, 'users/other/courses/london'), { complete: true }));
+  });
 });

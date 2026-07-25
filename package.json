@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "test:rules": "firebase emulators:exec --only firestore \"vitest run test/rules.test.ts\""
+    "test:emulators": "firebase emulators:exec --only auth,firestore \"vitest run test\""
   },
   "dependencies": {
     "firebase": "^12.1.0"
