@@ -190,6 +190,11 @@ dialog::backdrop { background: rgb(23 34 43 / .34); }
   .account > span { display: none; }
 }
 
+@media (max-width: 360px) {
+  .topbar { flex-wrap: wrap; }
+  .account { margin-left: auto; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .loading-line { animation: none; }
 }

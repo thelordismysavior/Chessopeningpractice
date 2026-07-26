@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "test": "vitest run",
+    "test": "vitest run --exclude test/browser/**",
+    "test:browser": "playwright test",
     "release:check": "npm run build && vitest run test/release-readiness.test.ts",
-    "test:emulators": "firebase emulators:exec --only auth,firestore \"vitest run test\""
+    "test:emulators": "firebase emulators:exec --only auth,firestore \"vitest run test --exclude test/browser/**\""
   },
   "dependencies": {
     "chess.js": "^1.4.0",
@@ -17,6 +18,7 @@
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.0",
     "firebase-tools": "^14.10.1",
+    "@playwright/test": "^1.55.0",
     "typescript": "^5.8.3",
     "vite": "^7.0.6",
     "vitest": "^3.2.4"

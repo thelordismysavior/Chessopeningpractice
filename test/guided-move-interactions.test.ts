@@ -90,6 +90,7 @@ describe('move transition plans', () => {
     const reply = planFenTransition(learnerPlan.afterFen, nextLine.fen);
 
     expect(reply).toBeNull();
+    expect(settleDisplayFen('learner', 'reply', 'next')).toBe('reply');
     expect(settleDisplayFen(learnerPlan.afterFen, reply?.afterFen ?? null, nextLine.fen)).toBe(nextLine.fen);
     expect(settleDisplayFen(learnerPlan.afterFen, null, null)).toBe(learnerPlan.afterFen);
   });
