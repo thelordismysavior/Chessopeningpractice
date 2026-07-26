@@ -1,6 +1,7 @@
-import type { SessionStatus } from './practice-session';
+import type { DrillPhase, DrillStatus } from './line-drill';
 
-export function shouldShowMoveGuide(isReview: boolean, status: SessionStatus): boolean {
-  if (status === 'complete' || status === 'needs-clean-run') return false;
-  return !isReview || status === 'retrying';
+export function shouldShowMoveGuide(phase: DrillPhase, status: DrillStatus, hintVisible: boolean): boolean {
+  if (status === 'complete') return false;
+  if (phase === 'teach') return true;
+  return hintVisible || status === 'retrying';
 }

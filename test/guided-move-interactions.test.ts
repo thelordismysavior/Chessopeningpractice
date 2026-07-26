@@ -44,15 +44,26 @@ describe('board input outcomes', () => {
 });
 
 describe('guided move policy', () => {
-  test('shows regular lesson guides and hides completed positions', () => {
-    expect(shouldShowMoveGuide(false, 'active')).toBe(true);
-    expect(shouldShowMoveGuide(false, 'retrying')).toBe(true);
-    expect(shouldShowMoveGuide(false, 'complete')).toBe(false);
+  test('always guides the teach pass', () => {
+    expect(shouldShowMoveGuide('teach', 'active', false)).toBe(true);
+    expect(shouldShowMoveGuide('teach', 'retrying', false)).toBe(true);
   });
 
-  test('reveals a review guide only after a scored mistake', () => {
-    expect(shouldShowMoveGuide(true, 'active')).toBe(false);
-    expect(shouldShowMoveGuide(true, 'retrying')).toBe(true);
+  test('withholds the guide during recall until it is earned', () => {
+    expect(shouldShowMoveGuide('recall', 'active', false)).toBe(false);
+    expect(shouldShowMoveGuide('recall', 'retrying', false)).toBe(true);
+    expect(shouldShowMoveGuide('recall', 'active', true)).toBe(true);
+  });
+
+  test('treats a review like a recall pass', () => {
+    expect(shouldShowMoveGuide('review', 'active', false)).toBe(false);
+    expect(shouldShowMoveGuide('review', 'retrying', false)).toBe(true);
+    expect(shouldShowMoveGuide('review', 'active', true)).toBe(true);
+  });
+
+  test('never guides a finished drill', () => {
+    expect(shouldShowMoveGuide('teach', 'complete', true)).toBe(false);
+    expect(shouldShowMoveGuide('recall', 'complete', true)).toBe(false);
   });
 });
 
