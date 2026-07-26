@@ -22,6 +22,6 @@ if (import.meta.env.VITE_FIREBASE_USE_EMULATORS === 'true') {
   connectFirestoreEmulator(db, '127.0.0.1', 8080);
 }
 
-export const watchUser = (callback: (user: User | null) => void) => onAuthStateChanged(auth, callback);
+export const watchUser = (callback: (user: User | null) => void, onError?: (error: Error) => void) => onAuthStateChanged(auth, callback, onError);
 export const signIn = () => signInWithPopup(auth, googleProvider).catch(() => signInWithRedirect(auth, googleProvider));
 export const signOutUser = () => signOut(auth);

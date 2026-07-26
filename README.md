@@ -14,3 +14,5 @@ Run rules checks with `npm run test:rules`.
 Before production use, create the server-managed Firestore document `config/access` with `{ "approvedUid": "..." }`. Rules deny all progress until it exists. The document is intentionally unreadable and unwritable by clients.
 
 Tauri v2 scaffolding lives in `src-tauri/`; install Rust and Tauri prerequisites before running it.
+
+Run the release checks with `npm run release:check`, build with `npm run build`, then deploy the browser build with `firebase deploy --only hosting`.

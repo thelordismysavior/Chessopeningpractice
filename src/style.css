@@ -32,6 +32,14 @@ h1 em { color: #b05b34; font-style: normal; }
 .intro-note { border-top: 1px solid #cfc9bd; padding-top: .9rem; color: #657078; font-size: .86rem; }
 .intro-note span { color: #b05b34; font-weight: 800; }
 .intro-note p { margin-top: 2rem; }
+.sources-page { max-width: 780px; margin: 11vh 0 4.5rem; }
+.sources-page h1 { max-width: 700px; margin-bottom: 1.5rem; }
+.source-list { display: grid; gap: .75rem; margin-top: 3.5rem; }
+.source-item { display: flex; align-items: center; justify-content: space-between; gap: 2rem; padding: 1.25rem 0; border-top: 1px solid #cfc9bd; }
+.source-item h2 { margin-bottom: .3rem; font-size: 1rem; letter-spacing: -.02em; }
+.source-item p { max-width: 37rem; margin-bottom: 0; color: #657078; font-size: .86rem; }
+.source-item a { flex: 0 0 auto; color: #b05b34; font-size: .8rem; font-weight: 750; text-decoration: none; }
+.source-item a:hover { text-decoration: underline; }
 .course-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
 .course-card { padding: 1.5rem; border: 1px solid #ded8cd; border-radius: 18px; background: #faf8f3; }
 .course-header { display: flex; justify-content: space-between; gap: 1rem; min-height: 126px; }
@@ -94,6 +102,8 @@ h1 em { color: #b05b34; font-style: normal; }
   .app-shell, .practice-shell { padding-inline: 1rem; }
   .dashboard-intro { grid-template-columns: 1fr; margin-top: 8vh; gap: 1.5rem; }
   .intro-note { max-width: 260px; }
+  .sources-page { margin-top: 8vh; }
+  .source-item { align-items: flex-start; flex-direction: column; gap: .75rem; }
   .course-grid, .practice-layout { grid-template-columns: 1fr; }
   .practice-layout { min-height: 0; gap: 2.5rem; margin-top: 8vh; }
   .lesson-copy { order: 2; max-width: none; }

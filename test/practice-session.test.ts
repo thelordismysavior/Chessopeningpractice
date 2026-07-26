@@ -3,6 +3,7 @@ import { COURSES } from '../src/courses';
 import { createPracticeSession } from '../src/practice-session';
 
 const lesson = COURSES[0].lessons.beginner;
+const blackLesson = COURSES.find((course) => course.id === 'classical-sicilian')!.lessons.beginner;
 
 describe('practice session boundary', () => {
   test('accepts the exact repertoire move and advances in course order', () => {
@@ -47,5 +48,12 @@ describe('practice session boundary', () => {
     expect(session.snapshot.position?.id).toBe('beginner-1');
     session.submitMove(lesson.positions[0].expectedMove);
     expect(session.snapshot.lessonComplete).toBe(false);
+  });
+
+  test('accepts the exact Black repertoire move', () => {
+    const session = createPracticeSession(blackLesson);
+    const feedback = session.submitMove(blackLesson.positions[0].expectedMove);
+    expect(feedback.kind).toBe('correct');
+    expect(session.snapshot.position?.id).toBe('beginner-2');
   });
 });
