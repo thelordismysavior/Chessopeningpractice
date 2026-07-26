@@ -9,6 +9,7 @@ import { createPracticeSession, type MoveFeedback, type SessionSnapshot } from '
 import { loadProgress, saveProgress, type CourseProgress } from './progress';
 import { applySessionProgress } from './progress-state';
 import { signIn, signOutUser, watchUser } from './firebase';
+import { routeArrowGeometry } from './route-arrow';
 import { planFenTransition, planMoveTransition, type MoveTransition } from './transition-plans';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
@@ -150,24 +151,13 @@ function renderRoute(route: SquareRoute | null, side: Course['side'], className:
   if (!route) return '';
   const from = squarePosition(route.from, side);
   const to = squarePosition(route.to, side);
-  const fromX = (from.x + .5) * 12.5;
-  const fromY = (from.y + .5) * 12.5;
-  const toX = (to.x + .5) * 12.5;
-  const toY = (to.y + .5) * 12.5;
-  const dx = toX - fromX;
-  const dy = toY - fromY;
-  const span = Math.hypot(dx, dy);
-  if (span === 0) return '';
-  const startInset = markers ? 0 : Math.min(4.2, span * .3);
-  const endInset = markers ? 0 : Math.min(2.8, span * .18);
-  const length = Math.max(span - startInset - endInset, 0);
-  const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-  const left = fromX + dx / span * startInset;
-  const top = fromY + dy / span * startInset;
+  const geometry = routeArrowGeometry((from.x + .5) * 12.5, (from.y + .5) * 12.5, (to.x + .5) * 12.5, (to.y + .5) * 12.5);
+  if (!geometry) return '';
+  const headPercent = geometry.width > 0 ? Math.min(100, geometry.head / geometry.width * 100) : 0;
   const markerMarkup = markers
     ? `<span class="route-origin" style="${markerPosition(route.from, side)}"></span><span class="route-target" style="${markerPosition(route.to, side)}"></span>`
     : '';
-  return `<div class="board-route ${className}" aria-hidden="true">${markerMarkup}<span class="route-arrow" style="left:${left}%;top:${top}%;width:${length}%;transform:translateY(-50%) rotate(${angle}deg)"></span></div>`;
+  return `<div class="board-route ${className}" aria-hidden="true">${markerMarkup}<span class="route-arrow" style="left:${geometry.left}%;top:${geometry.top}%;width:${geometry.width}%;--route-head:${headPercent}%;transform:translateY(-50%) rotate(${geometry.angle}deg)"></span></div>`;
 }
 
 function renderBoard(chess: Chess, selected: string | null, side: Course['side'], guide: SquareRoute | null, route: SquareRoute | null, animation: BoardAnimation | null, dragging: boolean, disabled: boolean, selectableColor: 'w' | 'b'): string {
