@@ -99,3 +99,22 @@ test('emulator-backed save failure remains recoverable after the final move', as
   await page.locator('#retry-save').click();
   await expect(page.locator('#proceed')).toBeEnabled();
 });
+
+test('Dashboard reset clears saved progress and preserves move duration', async ({ page }) => {
+  await openDashboard(page, 390);
+  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await completeLevel(page, 'beginner');
+  await page.locator('#back-dashboard').click();
+  await expect(page.locator('.course-count').first()).toHaveText('01 / 03');
+
+  await page.locator('#settings').click();
+  await page.locator('#move-duration').fill('350');
+  await page.locator('#move-duration').blur();
+  await page.locator('#show-reset-progress').click();
+  await page.locator('#confirm-reset-progress').click();
+
+  await expect(page.locator('.dashboard-intro')).toBeVisible();
+  await expect(page.locator('.course-count').first()).toHaveText('00 / 03');
+  await expect(page.locator('.course-card').first().locator('.lesson-row').nth(1)).toBeDisabled();
+  expect(await page.evaluate(() => localStorage.getItem('chess-practice.move-duration'))).toBe('350');
+});
