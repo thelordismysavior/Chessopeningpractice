@@ -107,11 +107,18 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
       void engine.evaluate(fen, row.course.side === 'white' ? 'w' : 'b').then((score) => {
         if (positions[index]?.fen !== fen) return;
         if (score === null) {
-          if (engine.status === 'unavailable') drawWalker();
-          return;
+          if (engine.status !== 'unavailable') return;
+          evalScore = null;
+        } else {
+          evalScore = score;
         }
-        evalScore = score;
-        drawWalker();
+        const panel = app.querySelector('.board-panel');
+        if (!panel) return;
+        const existing = panel.querySelector('.eval-bar, .eval-note');
+        const next = document.createRange().createContextualFragment(renderEvalBar(evalScore, engine.status)).firstElementChild;
+        if (!next) return;
+        if (existing) existing.replaceWith(next);
+        else panel.prepend(next);
       });
     };
 

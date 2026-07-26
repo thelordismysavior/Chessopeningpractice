@@ -4,6 +4,8 @@ import { COURSES } from '../../src/courses';
 declare global {
   // eslint-disable-next-line no-var
   var __progressByCourse: Map<string, unknown>;
+  // eslint-disable-next-line no-var
+  var __seedProgress: [string, unknown][];
 }
 
 export async function installAppStubs(page: Page): Promise<void> {
@@ -21,8 +23,9 @@ export async function installAppStubs(page: Page): Promise<void> {
   await page.route('**/src/progress.ts*', (route) => route.fulfill({
     contentType: 'application/javascript',
     body: `
-      const progressByCourse = globalThis.__progressByCourse ?? new Map();
+      const progressByCourse = new Map();
       globalThis.__progressByCourse = progressByCourse;
+      for (const [id, value] of (globalThis.__seedProgress ?? [])) progressByCourse.set(id, value);
       const emptyRecord = () => ({ attempts: 0, corrects: 0, misses: 0, hints: 0, reviewStreak: 0, due: false });
       const emptyProgress = () => ({ completedLevels: [], unlockedLevel: 0, completedVariationIds: [], positions: {}, practiceMs: 0 });
       const migrateProgress = (stored) => {
@@ -148,7 +151,13 @@ export function wrongLegalMove(expected: string): string {
 }
 
 export async function seedProgress(page: Page, courseId: string, progress: unknown): Promise<void> {
+  await page.addInitScript(([id, value]) => {
+    globalThis.__seedProgress = globalThis.__seedProgress ?? [];
+    globalThis.__seedProgress.push([id, value]);
+  }, [courseId, progress] as const);
   await page.evaluate(([id, value]) => {
-    globalThis.__progressByCourse.set(id, value);
+    globalThis.__seedProgress = globalThis.__seedProgress ?? [];
+    globalThis.__seedProgress.push([id, value]);
+    globalThis.__progressByCourse?.set(id, value);
   }, [courseId, progress] as const);
 }

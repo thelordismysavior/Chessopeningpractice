@@ -171,11 +171,18 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       void engine.evaluate(settledFen, selectableColor).then((score) => {
         if (leaving || evalFen !== settledFen) return;
         if (score === null) {
-          if (engine.status === 'unavailable') draw();
-          return;
+          if (engine.status !== 'unavailable') return;
+          evalScore = null;
+        } else {
+          evalScore = score;
         }
-        evalScore = score;
-        draw();
+        const panel = app.querySelector('.board-panel');
+        if (!panel) return;
+        const existing = panel.querySelector('.eval-bar, .eval-note');
+        const next = document.createRange().createContextualFragment(renderEvalBar(evalScore, engine.status)).firstElementChild;
+        if (!next) return;
+        if (existing) existing.replaceWith(next);
+        else panel.prepend(next);
       });
     }
 
