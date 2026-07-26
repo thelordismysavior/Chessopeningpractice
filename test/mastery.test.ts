@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { COURSES, type Course } from '../src/courses';
-import { courseMastery, overallMastery } from '../src/mastery';
+import { courseMastery, lineState, overallMastery } from '../src/mastery';
 import { emptyProgress, type CourseProgress } from '../src/progress';
 import { emptyRecord } from '../src/review-schedule';
 
@@ -55,5 +55,42 @@ describe('overall mastery', () => {
     const summary = overallMastery(byCourse);
     expect(summary.mastered).toBe(1);
     expect(summary.ratio).toBeCloseTo(1 / 36);
+  });
+});
+
+describe('lineState', () => {
+  const course = COURSES[0];
+  const variation = course.lessons.beginner.variations[0];
+
+  test('is untouched when the line is not banked, even with clean positions', () => {
+    const progress: CourseProgress = {
+      ...emptyProgress(),
+      positions: { [variation.positions[0].id]: { ...emptyRecord(), attempts: 1, corrects: 1 } },
+    };
+    expect(lineState(variation, progress)).toBe('untouched');
+  });
+
+  test('is banked when the line is banked but a position is due', () => {
+    const progress: CourseProgress = {
+      ...emptyProgress(),
+      completedVariationIds: [variation.id],
+      positions: { [variation.positions[1].id]: { ...emptyRecord(), due: true } },
+    };
+    expect(lineState(variation, progress)).toBe('banked');
+  });
+
+  test('is mastered when the line is banked with nothing due', () => {
+    const progress: CourseProgress = { ...emptyProgress(), completedVariationIds: [variation.id] };
+    expect(lineState(variation, progress)).toBe('mastered');
+  });
+
+  test('a due position in a different line does not affect this line', () => {
+    const other = course.lessons.beginner.variations[1];
+    const progress: CourseProgress = {
+      ...emptyProgress(),
+      completedVariationIds: [variation.id],
+      positions: { [other.positions[0].id]: { ...emptyRecord(), due: true } },
+    };
+    expect(lineState(variation, progress)).toBe('mastered');
   });
 });
