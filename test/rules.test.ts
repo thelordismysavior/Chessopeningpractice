@@ -1,5 +1,5 @@
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { deleteDoc, doc, setDoc, getDoc } from 'firebase/firestore';
 import { readFileSync } from 'node:fs';
 import { describe, afterAll, beforeAll, test } from 'vitest';
 
@@ -27,5 +27,15 @@ describe('progress rules', () => {
     await assertSucceeds(setDoc(doc(owner, 'users/owner/courses/london'), { complete: true }));
     await assertFails(getDoc(doc(owner, 'users/other/courses/london')));
     await assertFails(setDoc(doc(owner, 'users/other/courses/london'), { complete: true }));
+  });
+  test('owner deletes only their own progress', async () => {
+    const owner = env.authenticatedContext('owner').firestore();
+    await env.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'users/owner/courses/london'), { complete: true });
+      await setDoc(doc(context.firestore(), 'users/other/courses/london'), { complete: true });
+    });
+
+    await assertSucceeds(deleteDoc(doc(owner, 'users/owner/courses/london')));
+    await assertFails(deleteDoc(doc(owner, 'users/other/courses/london')));
   });
 });

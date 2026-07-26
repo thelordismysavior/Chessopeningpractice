@@ -1,4 +1,4 @@
-import { doc, getDoc, runTransaction } from 'firebase/firestore';
+import { doc, getDoc, runTransaction, writeBatch } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import type { LevelKey } from './courses';
 
@@ -38,4 +38,12 @@ export async function saveProgress(courseId: string, progress: CourseProgress, a
       reviewHistory: [...new Set([...current.reviewHistory, ...progress.reviewHistory])],
     });
   });
+}
+
+export async function resetAllProgress(courseIds: string[]): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Sign in before resetting progress.');
+  const batch = writeBatch(db);
+  courseIds.forEach((courseId) => batch.delete(doc(db, 'users', user.uid, 'courses', courseId)));
+  await batch.commit();
 }
