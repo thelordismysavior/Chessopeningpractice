@@ -394,7 +394,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
       liftEl.setAttribute('aria-hidden', 'true');
       liftEl.textContent = appearance.glyph;
       liftEl.style.fontSize = getComputedStyle(originButton).fontSize;
-      document.body.appendChild(liftEl);
+      app.appendChild(liftEl);
       positionLift(event);
     });
     const finishPointer = (event: PointerEvent, canceled = false) => {

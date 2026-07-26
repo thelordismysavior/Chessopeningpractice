@@ -84,6 +84,22 @@ test('click and drag moves work in Chromium', async ({ page }) => {
   await playMove(page, firstMove, 'drag');
 });
 
+test('drag lift is owned by the app render tree', async ({ page }) => {
+  await openDashboard(page);
+  const firstMove = lessonData().moves[0];
+  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  const origin = page.locator(`[data-square="${firstMove.slice(0, 2)}"]`);
+  const box = await origin.boundingBox();
+  if (!box) throw new Error('Origin square has no bounding box');
+
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width, box.y + box.height / 2);
+
+  await expect(page.locator('#app > .drag-lift')).toHaveCount(1);
+  await page.mouse.up();
+});
+
 test('completion focus is stable and Proceed opens the next lesson', async ({ page }) => {
   await openDashboard(page);
   const data = lessonData();
