@@ -19,6 +19,10 @@ const levelNames: Record<LevelKey, string> = { beginner: 'Beginner', intermediat
 const sideNames: Record<Course['side'], string> = { white: 'W / WHITE', black: 'B / BLACK' };
 let signedInEmail: string | null = null;
 
+function resetPageScroll(): void {
+  window.scrollTo(0, 0);
+}
+
 function escapeHtml(value: string | null): string {
   return (value ?? '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] ?? character);
 }
@@ -44,6 +48,7 @@ function bindSettings(onChange: (duration: number) => void): void {
 }
 
 function renderSignedOut(message = 'Private opening practice for one learner.') {
+  resetPageScroll();
   app.innerHTML = `<main class="auth-page"><div class="brand-mark">CP</div><p class="eyebrow">A quieter way to learn openings</p><h1>Chess Practice</h1><p class="lede">${escapeHtml(message)}</p><button id="sign-in">Sign in with Google <span aria-hidden="true">-&gt;</span></button></main>`;
   document.querySelector('#sign-in')!.addEventListener('click', async () => {
     try {
@@ -55,11 +60,13 @@ function renderSignedOut(message = 'Private opening practice for one learner.') 
 }
 
 function renderAuthError(message: string, retry: () => void) {
+  resetPageScroll();
   app.innerHTML = `<main class="error-page"><p class="eyebrow">Authentication unavailable</p><h1>We lost the signal.</h1><p class="lede">${escapeHtml(message)}</p><button id="retry-auth">Try again</button></main>`;
   document.querySelector('#retry-auth')!.addEventListener('click', retry);
 }
 
 function renderSources() {
+  resetPageScroll();
   app.innerHTML = `<main class="app-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="account"><span>${escapeHtml(signedInEmail) || 'owner'}</span><button id="sign-out" class="quiet-button">Sign out</button></div></header><section class="sources-page"><p class="eyebrow">Sources &amp; attribution</p><h1>Openings, with a paper trail.</h1><p class="lede">The courses are fixed, local content. These references document the opening metadata and research behind them.</p><div class="source-list">${ATTRIBUTION_SOURCES.map((source) => `<article class="source-item"><div><h2>${escapeHtml(source.name)}</h2><p>${escapeHtml(source.description)}</p></div><a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">Open source <span aria-hidden="true">-&gt;</span></a></article>`).join('')}</div></section></main>`;
   document.querySelector('#back-dashboard')!.addEventListener('click', () => void renderDashboard(signedInEmail));
   document.querySelector('#sign-out')!.addEventListener('click', () => void signOutUser());
@@ -85,6 +92,7 @@ function reviewIdsForLevel(course: Course, level: LevelKey, progress: CourseProg
 }
 
 async function renderDashboard(email: string | null) {
+  resetPageScroll();
   app.innerHTML = '<main class="loading-page"><p class="eyebrow">Loading your repertoire</p><div class="loading-line"></div></main>';
   try {
     const progressEntries = await Promise.all(COURSES.map(async (course) => [course.id, await loadProgress(course.id)] as const));
@@ -188,6 +196,7 @@ function renderBoard(chess: Chess, selected: string | null, side: Course['side']
 }
 
 async function startPractice(course: Course, level: LevelKey, progress: CourseProgress, reviewPositionIds: string[] = []) {
+  resetPageScroll();
   const lesson = course.lessons[level];
   const bankedVariationIds = (progress.completedVariationIds ?? []).filter((id) => lesson.variations.some((variation) => variation.id === id));
   const session = createPracticeSession(lesson, { reviewPositionIds, bankedVariationIds });
@@ -298,7 +307,6 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
       pointerMoved = false;
       pressX = event.clientX;
       pressY = event.clientY;
-      board.setPointerCapture(event.pointerId);
     });
     board.addEventListener('pointermove', (event) => {
       if (pointerId !== event.pointerId || !pointerOrigin) return;
@@ -310,6 +318,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
       const originButton = app.querySelector<HTMLButtonElement>(`[data-square="${pointerOrigin}"]`);
       const boardPiece = displayedChess.get(pointerOrigin as Parameters<Chess['get']>[0]);
       if (!originButton || !boardPiece) return;
+      board.setPointerCapture(event.pointerId);
       pointerMoved = true;
       selected = pointerOrigin;
       dragging = true;
