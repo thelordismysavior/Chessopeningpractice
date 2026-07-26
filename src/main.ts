@@ -1,9 +1,10 @@
 import { Chess } from 'chess.js';
 import './style.css';
-import { resolveBoardDrop } from './board-input';
+import { isDragPastThreshold, resolveBoardDrop } from './board-input';
 import { ATTRIBUTION_SOURCES, COURSES, LEVELS, coursesById, type Course, type LevelKey } from './courses';
 import { shouldShowMoveGuide } from './guide-policy';
 import { effectiveMoveDuration, loadMoveDuration, saveMoveDuration } from './move-settings';
+import { pieceAppearance, pieceCode } from './piece-appearance';
 import { createPracticeSession, type MoveFeedback, type SessionSnapshot } from './practice-session';
 import { loadProgress, saveProgress, type CourseProgress } from './progress';
 import { applySessionProgress } from './progress-state';
@@ -11,10 +12,8 @@ import { signIn, signOutUser, watchUser } from './firebase';
 import { planFenTransition, planMoveTransition, type MoveTransition } from './transition-plans';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
-const pieceSymbols: Record<string, string> = {
-  wK: '\u2654', wQ: '\u2655', wR: '\u2656', wB: '\u2657', wN: '\u2658', wP: '\u2659',
-  bK: '\u265A', bQ: '\u265B', bR: '\u265C', bB: '\u265D', bN: '\u265E', bP: '\u265F',
-};
+const DRAG_THRESHOLD_PX = 6;
+const TOUCH_LIFT_OFFSET_PX = -48;
 const levelNames: Record<LevelKey, string> = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' };
 const sideNames: Record<Course['side'], string> = { white: 'W / WHITE', black: 'B / BLACK' };
 let signedInEmail: string | null = null;
@@ -160,7 +159,7 @@ function renderRoute(route: SquareRoute | null, side: Course['side'], className:
   return `<div class="board-route ${className}" aria-hidden="true"><span class="route-origin" style="${markerPosition(route.from, side)}"></span><span class="route-target" style="${markerPosition(route.to, side)}"></span><span class="route-arrow" style="left:${fromX}%;top:${fromY}%;width:${length}%;transform:rotate(${angle}deg)"></span></div>`;
 }
 
-function renderBoard(chess: Chess, selected: string | null, side: Course['side'], guide: SquareRoute | null, route: SquareRoute | null, animation: BoardAnimation | null, dragging: boolean, disabled: boolean): string {
+function renderBoard(chess: Chess, selected: string | null, side: Course['side'], guide: SquareRoute | null, route: SquareRoute | null, animation: BoardAnimation | null, dragging: boolean, disabled: boolean, selectableColor: 'w' | 'b'): string {
   const board = chess.board();
   const rows = side === 'black' ? board.slice().reverse().map((row) => row.slice().reverse()) : board;
   const hiddenPieces = new Set<string>(animation?.plan.pieces.map((piece) => piece.from));
@@ -169,15 +168,22 @@ function renderBoard(chess: Chess, selected: string | null, side: Course['side']
     const dark = (rowIndex + columnIndex) % 2 === 1;
     const selectedClass = selected === square ? 'is-selected' : '';
     const visiblePiece = hiddenPieces.has(square) ? null : piece;
-    const symbol = visiblePiece ? pieceSymbols[`${visiblePiece.color}${visiblePiece.type.toUpperCase()}`] : '';
-    return `<button type="button" class="board-square ${dark ? 'is-dark' : 'is-light'} ${selectedClass}" data-square="${square}" aria-pressed="${selected === square}" aria-label="${square}${visiblePiece ? `, ${visiblePiece.color === 'w' ? 'white' : 'black'} ${visiblePiece.type}` : ''}"${disabled ? ' disabled' : ''}><span>${symbol}</span></button>`;
+    const appearance = visiblePiece ? pieceAppearance(pieceCode(visiblePiece.color, visiblePiece.type)) : null;
+    const movable = !disabled && piece?.color === selectableColor;
+    const fileLabel = rowIndex === 7 ? `<span class="coord-file" aria-hidden="true">${square[0]}</span>` : '';
+    const rankLabel = columnIndex === 0 ? `<span class="coord-rank" aria-hidden="true">${square[1]}</span>` : '';
+    const pieceMarkup = appearance
+      ? `<span class="piece piece-side-${appearance.side}">${appearance.glyph}</span>`
+      : '<span class="piece"></span>';
+    return `<button type="button" class="board-square ${dark ? 'is-dark' : 'is-light'} ${selectedClass}${movable ? ' is-movable' : ''}" data-square="${square}" aria-pressed="${selected === square}" aria-label="${square}${visiblePiece ? `, ${visiblePiece.color === 'w' ? 'white' : 'black'} ${visiblePiece.type}` : ''}"${disabled ? ' disabled' : ''}>${fileLabel}${rankLabel}${pieceMarkup}</button>`;
   })).join('');
   const animatedPieces = animation ? animation.plan.pieces.map((piece) => {
     const from = squarePosition(piece.from, side);
     const to = squarePosition(piece.to, side);
-    return `<span class="animated-piece ${animation.arrived ? 'is-arrived' : ''}" style="--move-duration:${animation.duration}ms;--from-x:${from.x};--from-y:${from.y};--to-x:${to.x};--to-y:${to.y}">${pieceSymbols[piece.piece]}</span>`;
+    const appearance = pieceAppearance(piece.piece);
+    return `<span class="animated-piece piece-side-${appearance.side} ${animation.arrived ? 'is-arrived' : ''}" style="--move-duration:${animation.duration}ms;--from-x:${from.x};--from-y:${from.y};--to-x:${to.x};--to-y:${to.y}">${appearance.glyph}</span>`;
   }).join('') : '';
-  return `<div class="board ${dragging ? 'is-dragging' : ''}" role="group" aria-label="Chess board" aria-busy="${disabled}">${squares}<div class="piece-layer" aria-hidden="true">${animatedPieces}</div>${renderRoute(guide, side, 'guide-overlay')}${renderRoute(route, side, 'feedback-overlay')}</div>`;
+  return `<div class="board ${dragging ? 'is-dragging' : ''}" role="group" aria-label="Chess board" aria-busy="${disabled}">${squares}${renderRoute(guide, side, 'guide-overlay')}<div class="piece-layer" aria-hidden="true">${animatedPieces}</div>${renderRoute(route, side, 'feedback-overlay')}</div>`;
 }
 
 async function startPractice(course: Course, level: LevelKey, progress: CourseProgress, reviewPositionIds: string[] = []) {
@@ -241,7 +247,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     const status = sequenceActive ? 'Playing move' : snapshot.status === 'complete' ? (snapshot.lessonComplete ? 'Lesson complete' : 'Review complete') : snapshot.status === 'needs-clean-run' ? 'Clean run required' : snapshot.status === 'retrying' ? 'Retry this position' : `${course.side === 'white' ? 'White' : 'Black'} to move`;
     const showGuide = !sequenceActive && shouldShowMoveGuide(session.reviewMode, snapshot.status);
     const expectedRoute = showGuide ? { from: position.expectedMove.slice(0, 2), to: position.expectedMove.slice(2, 4) } : null;
-    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy"><p class="eyebrow">${levelNames[level]} lesson - ${Math.min(snapshot.positionIndex + 1, lesson.positions.length)} of ${lesson.positions.length}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lede">${escapeHtml(lesson.summary)}</p><div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${feedback ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>` : ''}</div>` : `<p class="move-hint">Select a ${course.side} piece, then select its destination.</p>`}<div class="practice-actions">${snapshot.status === 'needs-clean-run' ? '<button id="restart-run">Start clean run</button>' : snapshot.status === 'complete' ? '<button id="back-after-complete">Back to dashboard</button>' : ''}<button id="exit-practice" class="quiet-button">Exit lesson</button></div></section><section class="board-panel"><div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.attempts} attempt${snapshot.attempts === 1 ? '' : 's'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;
+    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy"><p class="eyebrow">${levelNames[level]} lesson - ${Math.min(snapshot.positionIndex + 1, lesson.positions.length)} of ${lesson.positions.length}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lede">${escapeHtml(lesson.summary)}</p><div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${feedback ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>` : ''}</div>` : `<p class="move-hint">Select a ${course.side} piece, then select its destination.</p>`}<div class="practice-actions">${snapshot.status === 'needs-clean-run' ? '<button id="restart-run">Start clean run</button>' : snapshot.status === 'complete' ? '<button id="back-after-complete">Back to dashboard</button>' : ''}<button id="exit-practice" class="quiet-button">Exit lesson</button></div></section><section class="board-panel"><div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy, selectableColor)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.attempts} attempt${snapshot.attempts === 1 ? '' : 's'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;
     bindSettings((duration) => { moveDuration = duration; });
     if (focusedSquare && !busy) window.requestAnimationFrame(() => app.querySelector<HTMLButtonElement>(`[data-square="${focusedSquare}"]`)?.focus());
     document.querySelector('#back-dashboard')!.addEventListener('click', () => void leavePractice());
@@ -260,26 +266,54 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     let pointerOrigin: string | null = null;
     let pointerId: number | null = null;
     let pointerMoved = false;
+    let pressX = 0;
+    let pressY = 0;
+    let liftEl: HTMLElement | null = null;
+    const clearLift = () => {
+      liftEl?.remove();
+      liftEl = null;
+    };
+    const positionLift = (event: PointerEvent) => {
+      if (!liftEl) return;
+      const offsetY = event.pointerType === 'touch' ? TOUCH_LIFT_OFFSET_PX : 0;
+      liftEl.style.transform = `translate(${event.clientX}px, ${event.clientY + offsetY}px) translate(-50%, -50%) scale(1.18)`;
+    };
     board.addEventListener('pointerdown', (event) => {
       if (busy || (event.pointerType === 'mouse' && event.button !== 0)) return;
+      suppressClick = false;
       const button = (event.target as Element).closest<HTMLButtonElement>('[data-square]');
       const square = button?.dataset.square;
       if (!square || displayedChess.get(square as Parameters<Chess['get']>[0])?.color !== selectableColor) return;
       pointerOrigin = square;
       pointerId = event.pointerId;
       pointerMoved = false;
+      pressX = event.clientX;
+      pressY = event.clientY;
       board.setPointerCapture(event.pointerId);
     });
     board.addEventListener('pointermove', (event) => {
-      if (pointerId !== event.pointerId || !pointerOrigin || pointerMoved) return;
+      if (pointerId !== event.pointerId || !pointerOrigin) return;
+      if (pointerMoved) {
+        positionLift(event);
+        return;
+      }
+      if (!isDragPastThreshold(pressX, pressY, event.clientX, event.clientY, DRAG_THRESHOLD_PX)) return;
       const originButton = app.querySelector<HTMLButtonElement>(`[data-square="${pointerOrigin}"]`);
-      const originRect = originButton?.getBoundingClientRect();
-      if (!originRect || Math.hypot(event.clientX - (originRect.left + originRect.width / 2), event.clientY - (originRect.top + originRect.height / 2)) < 6) return;
+      const boardPiece = displayedChess.get(pointerOrigin as Parameters<Chess['get']>[0]);
+      if (!originButton || !boardPiece) return;
       pointerMoved = true;
       selected = pointerOrigin;
       dragging = true;
-      originButton?.classList.add('is-selected');
+      originButton.classList.add('is-selected', 'is-vacated');
       board.classList.add('is-dragging');
+      const appearance = pieceAppearance(pieceCode(boardPiece.color, boardPiece.type));
+      liftEl = document.createElement('span');
+      liftEl.className = `drag-lift piece-side-${appearance.side}`;
+      liftEl.setAttribute('aria-hidden', 'true');
+      liftEl.textContent = appearance.glyph;
+      liftEl.style.fontSize = getComputedStyle(originButton).fontSize;
+      document.body.appendChild(liftEl);
+      positionLift(event);
     });
     const finishPointer = (event: PointerEvent, canceled = false) => {
       if (pointerId !== event.pointerId || !pointerOrigin) return;
@@ -290,6 +324,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
       pointerId = null;
       pointerMoved = false;
       dragging = false;
+      clearLift();
       board.classList.remove('is-dragging');
       if (!moved) return;
       suppressClick = !canceled;

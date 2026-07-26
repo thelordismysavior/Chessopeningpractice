@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { resolveBoardDrop } from '../src/board-input';
+import { isDragPastThreshold, resolveBoardDrop } from '../src/board-input';
 import { COURSES } from '../src/courses';
 import { shouldShowMoveGuide } from '../src/guide-policy';
 import {
@@ -22,6 +22,24 @@ describe('board input outcomes', () => {
   test('submits only a moved drop while input is unlocked', () => {
     expect(resolveBoardDrop('e2', 'e4', true)).toBe('e2e4');
     expect(resolveBoardDrop('e2', 'e4', true, true)).toBeNull();
+  });
+
+  test('treats movement within the threshold of the press point as not a drag', () => {
+    expect(isDragPastThreshold(100, 100, 103, 102, 6)).toBe(false);
+    expect(isDragPastThreshold(20, 80, 24, 83, 6)).toBe(false);
+  });
+
+  test('anchors the threshold to the press point, not the square centre', () => {
+    const squareCentre = { x: 50, y: 50 };
+    const pressNearEdge = { x: 8, y: 12 };
+    const tinyJitter = { x: pressNearEdge.x + 2, y: pressNearEdge.y + 1 };
+    expect(Math.hypot(tinyJitter.x - squareCentre.x, tinyJitter.y - squareCentre.y)).toBeGreaterThan(6);
+    expect(isDragPastThreshold(pressNearEdge.x, pressNearEdge.y, tinyJitter.x, tinyJitter.y, 6)).toBe(false);
+  });
+
+  test('promotes to a drag once movement from the press point meets the threshold', () => {
+    expect(isDragPastThreshold(100, 100, 106, 100, 6)).toBe(true);
+    expect(isDragPastThreshold(20, 80, 20, 88, 6)).toBe(true);
   });
 });
 
