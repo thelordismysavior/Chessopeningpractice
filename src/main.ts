@@ -6,6 +6,7 @@ import { shouldShowMoveGuide } from './guide-policy';
 import { effectiveMoveDuration, loadMoveDuration, saveMoveDuration } from './move-settings';
 import { pieceAppearance, pieceCode } from './piece-appearance';
 import { LessonRunner, type RunnerFeedback, type RunnerSnapshot } from './lesson-runner';
+import { courseMastery } from './mastery';
 import { diffProgress, loadProgress, resetAllProgress, saveProgress, type CourseProgress } from './progress';
 import { duePositionIds } from './review-schedule';
 import { signIn, signOutUser, watchUser } from './firebase';
@@ -234,6 +235,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
   resetPageScroll();
   const lesson = course.lessons[level];
   const session = new LessonRunner(lesson, progress, { reviewPositionIds });
+  const masteryBefore = courseMastery(course, progress);
   let selected: string | null = null;
   let feedback: RunnerFeedback | null = null;
   let savedProgress: CourseProgress = progress;
@@ -329,14 +331,28 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
       ? `<div class="line-handoff" role="status" aria-live="polite"><strong>Banked: ${escapeHtml(handoff.banked)}</strong><span>Next up: ${escapeHtml(handoff.next)}</span></div>`
       : '';
     const feedbackMarkup = lessonComplete
-      ? `<div class="feedback feedback-complete" role="status" aria-live="polite"><strong>${completionMessage}</strong></div>`
+      ? (() => {
+          const summary = session.summary();
+          const masteryAfter = courseMastery(course, session.progressFor(level));
+          const minutes = Math.max(1, Math.round(summary.elapsedMs / 60000));
+          const missedMarkup = summary.missed.length
+            ? `<ul class="summary-missed">${summary.missed.map((entry) => `<li><strong>${escapeHtml(entry.expectedSan)}</strong><span>${escapeHtml(entry.lineTitle)}</span></li>`).join('')}</ul>`
+            : '<p class="summary-clean">Nothing missed. Nothing queued for review.</p>';
+          return `<div class="summary-panel" role="status" aria-live="polite"><strong>${escapeHtml(completionMessage)}</strong><dl class="summary-stats"><div><dt>Lines banked</dt><dd>${summary.bankedLines.length}</dd></div><div><dt>Hints used</dt><dd>${summary.hints}</dd></div><div><dt>Time</dt><dd>${minutes} min</dd></div><div><dt>Course mastery</dt><dd>${Math.round(masteryBefore.ratio * 100)}% &rarr; ${Math.round(masteryAfter.ratio * 100)}%</dd></div></dl><h2 class="summary-heading">To review</h2>${missedMarkup}</div>`;
+        })()
       : feedback
         ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>` : ''}</div>`
         : `<p class="move-hint">${snapshot.phase === 'teach' ? 'Follow the arrow to learn the line.' : `Select a ${course.side} piece, then select its destination.`}</p>`;
+    const dueAfterLesson = lessonComplete
+      ? duePositionIds(session.progressFor(level).positions, lesson.positions.map((entry) => entry.id))
+      : [];
+    const reviewNowMarkup = dueAfterLesson.length
+      ? `<button id="review-now" class="quiet-button">Review ${dueAfterLesson.length} position${dueAfterLesson.length === 1 ? '' : 's'}</button>`
+      : '';
     const canHint = !sequenceActive && snapshot.status !== 'complete' && snapshot.phase !== 'teach' && !snapshot.hintVisible;
     const hintMarkup = canHint ? '<button id="show-hint" class="quiet-button">Show me</button>' : '';
     const actionMarkup = lessonComplete
-      ? `<button id="proceed"${saveError ? ' disabled' : ''}>Proceed</button>`
+      ? `<button id="proceed"${saveError ? ' disabled' : ''}>Proceed</button>${reviewNowMarkup}`
       : snapshot.status === 'complete'
         ? '<button id="back-after-complete">Back to dashboard</button>'
         : `${hintMarkup}<button id="exit-practice" class="quiet-button">Exit lesson</button>`;
@@ -353,6 +369,19 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     document.querySelector('#exit-practice')?.addEventListener('click', () => void leavePractice());
     document.querySelector('#back-after-complete')?.addEventListener('click', () => void leavePractice());
     document.querySelector('#proceed')?.addEventListener('click', () => void proceedAfterLesson());
+    document.querySelector('#review-now')?.addEventListener('click', () => void (async () => {
+      if (leaving) return;
+      leaving = true;
+      if (handoffTimer !== null) window.clearTimeout(handoffTimer);
+      try {
+        await pendingSave;
+        await startPractice(course, level, liveProgress, dueAfterLesson);
+      } catch {
+        leaving = false;
+        saveError = true;
+        draw();
+      }
+    })());
     document.querySelector('#show-hint')?.addEventListener('click', () => { session.requestHint(); draw(); });
     document.querySelector('#retry-save')?.addEventListener('click', () => void persist().then(draw).catch(() => { saveError = true; draw(); }));
     const board = app.querySelector<HTMLDivElement>('.board');
