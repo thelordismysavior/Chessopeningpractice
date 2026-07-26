@@ -10,6 +10,7 @@ export type EngineStatus = 'idle' | 'starting' | 'ready' | 'unavailable';
 export type WorkerLike = {
   postMessage(message: string): void;
   onmessage: ((event: { data: string }) => void) | null;
+  onerror?: ((event: { message?: string }) => void) | null;
   terminate(): void;
 };
 
@@ -84,6 +85,7 @@ export class EngineClient {
     }
     this.state = 'starting';
     this.worker.onmessage = (event) => this.receive(String(event.data));
+    this.worker.onerror = () => this.fail();
     this.worker.postMessage('uci');
     this.deadline = setTimeout(() => this.fail(), this.startupTimeoutMs);
     return true;
