@@ -121,9 +121,10 @@ Today's lesson behaviour is the teach pass. The recall pass is what is being add
 
 The learner plays each move of the line with the guide arrow shown, exactly as a lesson behaves
 today. A wrong move is rejected and retried, but does not touch the mistake budget, does not
-increment `misses`, and does not queue the position for review. Teach-pass moves do count toward
-the position's `attempts`, since they are real effort and the accuracy denominator should include
-them.
+increment `misses` or `corrects`, and does not queue the position for review. Teach-pass moves do
+count toward the position's `attempts`, which is a raw effort counter rather than a scoring input.
+Accuracy is `corrects / (corrects + misses)`, so it is computed only from scored passes and the
+teach pass cannot flatter or damage it.
 
 The hint button is absent during the teach pass, because the arrow is already shown.
 
@@ -204,8 +205,13 @@ type CourseProgress = {
 The counters have two different granularities and tests depend on the distinction. `attempts`
 counts submitted moves, so a position fumbled three times before being solved records three
 attempts. `misses` and `corrects` count *positions*, incremented once each time a position is
-finished, according to whether the first attempt on it was right. That position fumbled three
-times records one miss, not three.
+finished in a scored pass, according to whether it was recalled cleanly. That position fumbled
+three times records one miss, not three.
+
+"Cleanly" means solved on the first attempt without a hint. A hinted position therefore counts as a
+miss and also increments `hints`. This is deliberately not the same as the mistake budget, which
+counts only wrong moves, so a hint costs accuracy and queues a review without pushing the line
+toward a replay.
 
 `due` is stored explicitly rather than derived so the queue is readable directly from the document.
 `missedPositionIds`, `completedPositionIds`, and `reviewHistory` are removed. The course-level
