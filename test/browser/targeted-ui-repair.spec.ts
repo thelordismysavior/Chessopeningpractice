@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { COURSES } from '../../src/courses';
 
-type LessonData = { moves: string[]; nextTitle: string };
+type LessonData = { lines: string[][]; nextTitle: string };
 
 async function installAppStubs(page: Page, failCompleteSave = false): Promise<void> {
   await page.addInitScript((fail) => {
@@ -21,11 +21,87 @@ async function installAppStubs(page: Page, failCompleteSave = false): Promise<vo
     body: `
       const progressByCourse = new Map();
       globalThis.__progressByCourse = progressByCourse;
-      const emptyProgress = () => ({ completedLevels: [], unlockedLevel: 0, attempts: 0, missedPositionIds: [], completedPositionIds: [], completedVariationIds: [], reviewHistory: [] });
-      export async function loadProgress(courseId) { return { ...emptyProgress(), ...(progressByCourse.get(courseId) ?? {}) }; }
-      export async function saveProgress(courseId, nextProgress) {
-        if (globalThis.__failCompleteSave && nextProgress.completedLevels.includes('beginner')) throw new Error('save failed');
-        progressByCourse.set(courseId, { ...nextProgress });
+      const emptyRecord = () => ({ attempts: 0, corrects: 0, misses: 0, hints: 0, reviewStreak: 0, due: false });
+      const emptyProgress = () => ({ completedLevels: [], unlockedLevel: 0, completedVariationIds: [], positions: {}, practiceMs: 0 });
+      const migrateProgress = (stored) => {
+        if (!stored) return emptyProgress();
+        if (stored.positions && !stored.completedPositionIds && !stored.missedPositionIds) {
+          return {
+            completedLevels: stored.completedLevels ?? [],
+            unlockedLevel: stored.unlockedLevel ?? 0,
+            completedVariationIds: stored.completedVariationIds ?? [],
+            positions: { ...(stored.positions ?? {}) },
+            practiceMs: stored.practiceMs ?? 0,
+          };
+        }
+        const positions = { ...(stored.positions ?? {}) };
+        for (const id of stored.completedPositionIds ?? []) {
+          positions[id] = { ...emptyRecord(), ...positions[id], attempts: 1, corrects: 1 };
+        }
+        for (const id of stored.missedPositionIds ?? []) {
+          const before = positions[id] ?? emptyRecord();
+          positions[id] = { ...before, attempts: Math.max(before.attempts, 1), corrects: 0, misses: 1, reviewStreak: 0, due: true };
+        }
+        return {
+          completedLevels: stored.completedLevels ?? [],
+          unlockedLevel: stored.unlockedLevel ?? 0,
+          completedVariationIds: stored.completedVariationIds ?? [],
+          positions,
+          practiceMs: stored.practiceMs ?? 0,
+        };
+      };
+      export function diffProgress(saved, current) {
+        const positions = {};
+        for (const [id, record] of Object.entries(current.positions)) {
+          const before = saved.positions[id] ?? emptyRecord();
+          const delta = {
+            attempts: record.attempts - before.attempts,
+            corrects: record.corrects - before.corrects,
+            misses: record.misses - before.misses,
+            hints: record.hints - before.hints,
+            reviewStreak: record.reviewStreak,
+            due: record.due,
+          };
+          const changed = delta.attempts !== 0 || delta.corrects !== 0 || delta.misses !== 0 || delta.hints !== 0
+            || before.reviewStreak !== record.reviewStreak || before.due !== record.due;
+          if (changed) positions[id] = delta;
+        }
+        return {
+          completedLevels: current.completedLevels,
+          unlockedLevel: current.unlockedLevel,
+          completedVariationIds: current.completedVariationIds,
+          practiceMs: current.practiceMs - saved.practiceMs,
+          positions,
+        };
+      }
+      export function mergeProgress(stored, delta) {
+        const positions = { ...stored.positions };
+        for (const [id, entry] of Object.entries(delta.positions)) {
+          const before = positions[id] ?? emptyRecord();
+          positions[id] = {
+            attempts: before.attempts + entry.attempts,
+            corrects: before.corrects + entry.corrects,
+            misses: before.misses + entry.misses,
+            hints: before.hints + entry.hints,
+            reviewStreak: entry.reviewStreak,
+            due: entry.due,
+          };
+        }
+        return {
+          completedLevels: [...new Set([...stored.completedLevels, ...delta.completedLevels])],
+          unlockedLevel: Math.max(stored.unlockedLevel, delta.unlockedLevel),
+          completedVariationIds: [...new Set([...stored.completedVariationIds, ...delta.completedVariationIds])],
+          positions,
+          practiceMs: stored.practiceMs + delta.practiceMs,
+        };
+      }
+      export async function loadProgress(courseId) {
+        return migrateProgress(progressByCourse.get(courseId));
+      }
+      export async function saveProgress(courseId, delta) {
+        if (globalThis.__failCompleteSave && delta.completedLevels.includes('beginner')) throw new Error('save failed');
+        const stored = migrateProgress(progressByCourse.get(courseId));
+        progressByCourse.set(courseId, mergeProgress(stored, delta));
       }
       export async function resetAllProgress(courseIds) {
         if (globalThis.__failProgressReset) throw new Error('reset failed');
@@ -44,7 +120,7 @@ async function openDashboard(page: Page, failCompleteSave = false): Promise<void
 function lessonData(level: 'beginner' | 'intermediate' = 'beginner'): LessonData {
   const lesson = COURSES[0].lessons[level];
   return {
-    moves: lesson.variations.flatMap((variation) => variation.positions.map((position) => position.expectedMove)),
+    lines: lesson.variations.map((variation) => variation.positions.map((position) => position.expectedMove)),
     nextTitle: COURSES[0].lessons.intermediate.variations[0].title,
   };
 }
@@ -61,14 +137,17 @@ async function playMove(page: Page, move: string, mode: 'click' | 'drag' = 'clic
   await expect(page.locator('.board')).toHaveAttribute('aria-busy', 'false');
 }
 
-async function playLesson(page: Page, moves: string[]): Promise<void> {
-  for (const move of moves) await playMove(page, move);
+async function playLesson(page: Page, lines: string[][]): Promise<void> {
+  for (const moves of lines) {
+    for (const move of moves) await playMove(page, move);
+    for (const move of moves) await playMove(page, move);
+  }
 }
 
 test('click and drag moves work in Chromium', async ({ page }) => {
   await openDashboard(page);
   const data = lessonData();
-  const firstMove = data.moves[0];
+  const firstMove = data.lines[0][0];
 
   await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
   const origin = page.locator(`[data-square="${firstMove.slice(0, 2)}"]`);
@@ -86,7 +165,7 @@ test('click and drag moves work in Chromium', async ({ page }) => {
 
 test('drag lift is owned by the app render tree', async ({ page }) => {
   await openDashboard(page);
-  const firstMove = lessonData().moves[0];
+  const firstMove = lessonData().lines[0][0];
   await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
   const origin = page.locator(`[data-square="${firstMove.slice(0, 2)}"]`);
   const box = await origin.boundingBox();
@@ -104,7 +183,7 @@ test('completion focus is stable and Proceed opens the next lesson', async ({ pa
   await openDashboard(page);
   const data = lessonData();
   await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
-  await playLesson(page, data.moves);
+  await playLesson(page, data.lines);
 
   await expect(page.locator('#proceed')).toBeVisible();
   await expect(page.locator('#proceed')).toBeFocused();
@@ -116,11 +195,11 @@ test('save failure keeps completion recoverable without stealing focus', async (
   await openDashboard(page, true);
   const data = lessonData();
   await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
-  await playLesson(page, data.moves);
+  await playLesson(page, data.lines);
 
   await expect(page.locator('#retry-save')).toBeVisible();
   await expect(page.locator('#proceed')).toBeDisabled();
-  await expect(page.locator('.feedback-complete')).toContainText('Save progress to unlock Intermediate.');
+  await expect(page.locator('.summary-panel')).toContainText('Save progress to unlock Intermediate.');
   await page.locator('#retry-save').focus();
   await page.locator('#retry-save').click();
   await expect(page.locator('#proceed')).not.toBeFocused();
@@ -146,11 +225,9 @@ test('Dashboard settings confirm reset and preserve move duration', async ({ pag
     courseIds.forEach((courseId) => state.__progressByCourse.set(courseId, {
       completedLevels: ['beginner'],
       unlockedLevel: 1,
-      attempts: 4,
-      missedPositionIds: [],
-      completedPositionIds: [],
       completedVariationIds: [],
-      reviewHistory: [],
+      positions: {},
+      practiceMs: 0,
     }));
   }, COURSES.map((course) => course.id));
 
@@ -180,7 +257,7 @@ test('failed reset stays open and can be retried', async ({ page }) => {
       __progressByCourse: Map<string, object>;
     };
     state.__failProgressReset = true;
-    state.__progressByCourse.set(courseId, { completedLevels: ['beginner'], unlockedLevel: 1 });
+    state.__progressByCourse.set(courseId, { completedLevels: ['beginner'], unlockedLevel: 1, completedVariationIds: [], positions: {}, practiceMs: 0 });
   }, COURSES[0].id);
 
   await page.locator('#settings').click();

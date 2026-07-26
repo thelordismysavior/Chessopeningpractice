@@ -36,12 +36,15 @@ async function playMove(page: Page, move: string, drag = false): Promise<void> {
 }
 
 async function completeLevel(page: Page, level: LevelKey, useDrag = false): Promise<void> {
-  const moves = COURSES[0].lessons[level].variations.flatMap((variation) => variation.positions.map((position) => position.expectedMove));
-  for (const [index, move] of moves.entries()) {
+  const sequence = COURSES[0].lessons[level].variations.flatMap((variation) => {
+    const moves = variation.positions.map((position) => position.expectedMove);
+    return [...moves, ...moves];
+  });
+  for (const [index, move] of sequence.entries()) {
     await playMove(page, move, useDrag && index === 0);
-    if (index < moves.length - 1) await expect(page.locator('#proceed')).toHaveCount(0);
+    if (index < sequence.length - 1) await expect(page.locator('#proceed')).toHaveCount(0);
   }
-  await expect(page.locator('.feedback-complete')).toBeVisible();
+  await expect(page.locator('.summary-panel')).toBeVisible();
   await expect(page.locator('#proceed')).toBeFocused();
 }
 
@@ -50,6 +53,7 @@ async function proceed(page: Page): Promise<void> {
 }
 
 test('emulator-backed Chromium journey covers desktop and mobile progression', async ({ page }) => {
+  test.setTimeout(240_000);
   for (const width of [1440, 390]) {
     if (width === 390) await resetEmulatorProgress();
     await openDashboard(page, width);
@@ -80,21 +84,23 @@ test('emulator-backed Chromium journey covers desktop and mobile progression', a
 });
 
 test('emulator-backed save failure remains recoverable after the final move', async ({ page }) => {
+  test.setTimeout(120_000);
   await openDashboard(page, 390);
   await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
-  const moves = COURSES[0].lessons.beginner.variations.flatMap((variation) => variation.positions.map((position) => position.expectedMove));
-  for (const move of moves.slice(0, -1)) await playMove(page, move);
+  const lines = COURSES[0].lessons.beginner.variations.map((variation) => variation.positions.map((position) => position.expectedMove));
+  const sequence = lines.flatMap((moves) => [...moves, ...moves]);
+  for (const move of sequence.slice(0, -1)) await playMove(page, move);
 
   await page.waitForTimeout(300);
   await page.context().setOffline(true);
-  await playMove(page, moves.at(-1)!);
+  await playMove(page, sequence.at(-1)!);
 
   await expect(page.locator('#proceed')).toBeVisible();
   await page.locator('#proceed').dispatchEvent('click');
   await expect(page.locator('#proceed')).toHaveText('Saving...');
   await expect(page.locator('#retry-save')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#proceed')).toBeDisabled();
-  await expect(page.locator('.feedback-complete')).toContainText('Save progress to unlock Intermediate.');
+  await expect(page.locator('.summary-panel')).toContainText('Save progress to unlock Intermediate.');
   await page.context().setOffline(false);
   await page.locator('#retry-save').click();
   await expect(page.locator('#proceed')).toBeEnabled();
