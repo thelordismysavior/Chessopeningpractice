@@ -4,6 +4,7 @@ import { app, escapeHtml, resetPageScroll } from './screens/shell';
 import { renderDashboard } from './screens/dashboard';
 import { renderSources } from './screens/sources';
 import { startPractice } from './screens/practice';
+import { renderReviewQueue } from './screens/review-queue';
 import type { Navigate, Screen } from './screens/navigation';
 
 let signedInEmail: string | null = null;
@@ -16,6 +17,8 @@ const navigate: Navigate = async (screen: Screen) => {
       return renderSources(navigate, signedInEmail);
     case 'practice':
       return startPractice(navigate, signedInEmail, screen);
+    case 'review-queue':
+      return renderReviewQueue(navigate, signedInEmail);
     default:
       return renderDashboard(navigate, signedInEmail);
   }
