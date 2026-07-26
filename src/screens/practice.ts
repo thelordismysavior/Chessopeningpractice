@@ -10,7 +10,9 @@ import { diffProgress, loadProgress, saveProgress, type CourseProgress } from '.
 import { duePositionIds } from '../review-schedule';
 import { signOutUser } from '../firebase';
 import { planFenTransition, planMoveTransition, settleDisplayFen, type MoveTransition } from '../transition-plans';
-import { renderBoard, type BoardAnimation, type SquareRoute } from '../board-view';
+import { renderBoard, renderEvalBar, type BoardAnimation, type SquareRoute } from '../board-view';
+import { engine } from '../engine/engine-client';
+import { centipawnLoss, costPhrase, type EvalScore } from '../engine/eval-scale';
 import { app, bindSettings, escapeHtml, levelNames, resetPageScroll, settingsDialogMarkup, sideNames } from './shell';
 import type { Navigate, PracticeScreen } from './navigation';
 
@@ -20,6 +22,7 @@ const TOUCH_LIFT_OFFSET_PX = -48;
 export async function startPractice(navigate: Navigate, email: string | null, options: PracticeScreen): Promise<void> {
   const { course, level, progress, reviewPositionIds = [], run, entryHandoff } = options;
   resetPageScroll();
+  engine.reset();
   const lesson = course.lessons[level];
   const session = new LessonRunner(lesson, progress, { reviewPositionIds });
   const masteryBefore = courseMastery(course, progress);
@@ -47,6 +50,9 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   let handoffTimer: number | null = entryHandoff
     ? window.setTimeout(() => { handoff = null; handoffTimer = null; if (!leaving) draw(); }, 1600)
     : null;
+  let evalScore: EvalScore | null = null;
+  let evalFen: string | null = null;
+  let moveCost: string | null = null;
   const selectableColor = course.side === 'white' ? 'w' : 'b';
   const nextLevel = LEVELS[LEVELS.indexOf(level) + 1];
 
@@ -130,7 +136,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
           return `<div class="summary-panel" role="status" aria-live="polite"><strong>${escapeHtml(completionMessage)}</strong><dl class="summary-stats"><div><dt>Lines banked</dt><dd>${summary.bankedLines.length}</dd></div><div><dt>Hints used</dt><dd>${summary.hints}</dd></div><div><dt>Time</dt><dd>${minutes} min</dd></div><div><dt>Course mastery</dt><dd>${Math.round(masteryBefore.ratio * 100)}% &rarr; ${Math.round(masteryAfter.ratio * 100)}%</dd></div></dl><h2 class="summary-heading">To review</h2>${missedMarkup}</div>`;
         })()
       : feedback
-        ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>` : ''}</div>`
+        ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>${moveCost ? `<span class="move-cost">${escapeHtml(moveCost)}</span>` : ''}` : ''}</div>`
         : `<p class="move-hint">${snapshot.phase === 'teach' ? 'Follow the arrow to learn the line.' : `Select a ${course.side} piece, then select its destination.`}</p>`;
     const dueAfterLesson = lessonComplete
       ? duePositionIds(session.progressFor(level).positions, lesson.positions.map((entry) => entry.id))
@@ -151,7 +157,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
             ? '<button id="back-to-queue">Back to review queue</button>'
             : '<button id="back-after-complete">Back to dashboard</button>'
         : `${hintMarkup}<button id="exit-practice" class="quiet-button">Exit lesson</button>`;
-    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel"><div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy, selectableColor)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;    bindSettings((duration) => { moveDuration = duration; });
+    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy, selectableColor)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;    bindSettings((duration) => { moveDuration = duration; });
     if (!lessonComplete) completionFocusRequested = false;
     if (lessonComplete && !completionFocusRequested) {
       completionFocusRequested = true;
@@ -159,6 +165,16 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     } else if (focusedSquare && !busy) {
       window.requestAnimationFrame(() => app.querySelector<HTMLButtonElement>(`[data-square="${focusedSquare}"]`)?.focus());
     }
+    const settledFen = sequenceActive || animation ? null : chess.fen();
+    if (settledFen && settledFen !== evalFen) {
+      evalFen = settledFen;
+      void engine.evaluate(settledFen, selectableColor).then((score) => {
+        if (leaving || score === null || evalFen !== settledFen) return;
+        evalScore = score;
+        draw();
+      });
+    }
+
     document.querySelector('#back-dashboard')!.addEventListener('click', () => void leavePractice());
     document.querySelector('#practice-sign-out')!.addEventListener('click', () => void leavePractice(true));
     document.querySelector('#exit-practice')?.addEventListener('click', () => void leavePractice());
@@ -386,6 +402,19 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     draw();
   };
 
+
+  const explainCost = async (fen: string, playedMove: string, expectedMove: string, expectedSan: string) => {
+    const playedPlan = planMoveTransition(fen, playedMove);
+    const expectedPlan = planMoveTransition(fen, expectedMove);
+    if (!playedPlan || !expectedPlan) return;
+    const playedScore = await engine.evaluate(playedPlan.afterFen, selectableColor);
+    const expectedScore = await engine.evaluate(expectedPlan.afterFen, selectableColor);
+    if (leaving || !playedScore || !expectedScore) return;
+    const playedSan = new Chess(fen).move({ from: playedMove.slice(0, 2), to: playedMove.slice(2, 4), promotion: 'q' }).san;
+    moveCost = costPhrase(playedSan, expectedSan, centipawnLoss(expectedScore, playedScore));
+    draw();
+  };
+
   function submitAttempt(move: string, options: { fromDrag?: boolean } = {}) {
     if (busy) return;
     const before = session.snapshot;
@@ -398,9 +427,13 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       showHandoff(before.lineTitle, after.lineTitle);
     }
     const attemptedRoute = { from: move.slice(0, 2), to: move.slice(2, 4) };
+    moveCost = null;
     if (result.kind === 'illegal' || result.kind === 'incorrect') {
       flashRoute(attemptedRoute);
-      if (result.kind === 'incorrect') void persist().catch(() => { saveError = true; if (!leaving) draw(); });
+      if (result.kind === 'incorrect') {
+        void persist().catch(() => { saveError = true; if (!leaving) draw(); });
+        void explainCost(position.fen, move, position.expectedMove, position.expectedSan);
+      }
       draw();
       return;
     }

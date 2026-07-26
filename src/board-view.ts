@@ -3,6 +3,8 @@ import type { Course } from './courses';
 import { pieceAppearance, pieceCode } from './piece-appearance';
 import { routeArrowGeometry } from './route-arrow';
 import type { MoveTransition } from './transition-plans';
+import { evalLabel, fillFraction, type EvalScore } from './engine/eval-scale';
+import type { EngineStatus } from './engine/engine-client';
 
 export function squareName(row: number, column: number, side: Course['side']): string {
   const boardRow = side === 'black' ? 7 - row : row;
@@ -62,4 +64,11 @@ export function renderBoard(chess: Chess, selected: string | null, side: Course[
     return `<span class="animated-piece piece-side-${appearance.side} ${animation.arrived ? 'is-arrived' : ''}" style="--move-duration:${animation.duration}ms;--from-x:${from.x};--from-y:${from.y};--to-x:${to.x};--to-y:${to.y}">${appearance.glyph}</span>`;
   }).join('') : '';
   return `<div class="board ${dragging ? 'is-dragging' : ''}" role="group" aria-label="Chess board" aria-busy="${disabled}">${squares}${renderRoute(guide, side, 'guide-overlay', false)}<div class="piece-layer" aria-hidden="true">${animatedPieces}</div>${renderRoute(route, side, 'feedback-overlay')}</div>`;
+}
+
+export function renderEvalBar(score: EvalScore | null, status: EngineStatus): string {
+  if (status === 'unavailable') return '<p class="eval-note">Engine unavailable</p>';
+  const percent = score ? fillFraction(score) * 100 : 50;
+  const value = score ? evalLabel(score) : '--';
+  return `<div class="eval-bar ${score ? '' : 'is-pending'}"><span class="eval-track" aria-hidden="true"><span class="eval-fill" style="--eval-fill:${percent.toFixed(1)}%"></span></span><span class="eval-value">${value}</span></div>`;
 }
