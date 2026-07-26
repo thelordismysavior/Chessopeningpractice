@@ -1,4 +1,4 @@
-import { Chess, type Move, type Square } from 'chess.js';
+import { Chess, type Move } from 'chess.js';
 
 export type LevelKey = 'beginner' | 'intermediate' | 'advanced';
 export const LEVELS: LevelKey[] = ['beginner', 'intermediate', 'advanced'];
@@ -11,10 +11,22 @@ export type PracticePosition = {
   explanation: string;
 };
 
+export type VariationKind = 'main' | 'alternative' | 'punish';
+
+export type Variation = {
+  id: string;
+  kind: VariationKind;
+  title: string;
+  summary: string;
+  evalCp: number;
+  positions: PracticePosition[];
+};
+
 export type Lesson = {
   level: LevelKey;
   title: string;
   summary: string;
+  variations: Variation[];
   positions: PracticePosition[];
 };
 
@@ -41,6 +53,15 @@ export const ATTRIBUTION_SOURCES: AttributionSource[] = [
   { name: 'Lichess open database', description: 'CC0 database reference for reproducible opening research.', url: 'https://database.lichess.org/' },
   { name: 'Wikibooks Chess Opening Theory', description: 'Linked explanatory reference; all lesson explanations in this app are original.', url: 'https://en.wikibooks.org/wiki/Chess_Opening_Theory' },
 ];
+
+type VariationDraft = {
+  kind: VariationKind;
+  title: string;
+  summary: string;
+  evalCp: number;
+  moves: string[];
+  explanations: string[];
+};
 
 function toUci(move: Move): string {
   return `${move.from}${move.to}${move.promotion ?? ''}`;
@@ -69,151 +90,23 @@ function positionLine(idPrefix: string, side: Course['side'], moves: string[], e
   return positions;
 }
 
-function lesson(side: Course['side'], level: LevelKey, title: string, summary: string, moves: string[], explanations: string[]): Lesson {
-  return { level, title, summary, positions: positionLine(`${level}`, side, moves, explanations) };
+function lesson(side: Course['side'], level: LevelKey, title: string, summary: string, drafts: VariationDraft[]): Lesson {
+  const variations = drafts.map((draft) => ({
+    id: `${level}-${draft.kind}`,
+    kind: draft.kind,
+    title: draft.title,
+    summary: draft.summary,
+    evalCp: draft.evalCp,
+    positions: positionLine(`${level}-${draft.kind}`, side, draft.moves, draft.explanations),
+  }));
+  return {
+    level,
+    title,
+    summary,
+    variations,
+    positions: variations.flatMap((variation) => variation.positions),
+  };
 }
-
-const jobavaExplanations = [
-  'Claim the centre with a pawn and prepare active piece play.',
-  'Develop the queen knight to pressure d5 and make the opening immediately active.',
-  'Develop the bishop outside the pawn chain before playing e3.',
-  'Support the centre and open the f1 bishop without losing flexibility.',
-  'Bring the other knight toward the centre and connect the pieces.',
-  'Trade or challenge the active bishop when it offers itself on d3.',
-  'Castle before launching a flank plan; the king is ready for the middlegame.',
-  'Coordinate the queen with the bishops and keep pressure on the centre.',
-];
-
-jobavaExplanations[5] = 'Develop the bishop to d3 to challenge the active setup and prepare castling.';
-
-const jobavaIntermediateExplanations = [
-  'Claim the centre with a pawn and prepare active piece play.',
-  'Develop the queen knight to pressure d5 immediately.',
-  'Develop the bishop outside the pawn chain before e3.',
-  'Support the centre while keeping the f1 bishop free.',
-  'Bring the king knight toward the centre and keep castling available.',
-  'Question the bishop pin before it can disturb your development.',
-  'Recapture toward the centre and restore control of the key squares.',
-  'Develop the bishop to d3 and prepare safe castling.',
-];
-
-const jobavaAdvancedExplanations = [
-  'Claim the centre while keeping the position flexible against ...Nf6.',
-  'Develop the queen knight and support pressure on d5.',
-  'Place the bishop outside the pawn chain before Black settles.',
-  'Build a stable centre and open the f1 bishop.',
-  'Offer the bishop trade to remove Black’s active defender.',
-  'Develop the king knight and prepare to castle; avoid spending tempi on a premature flank pawn.',
-  'Recapture with the queen to keep the centre supported.',
-  'Castle now that the king-side pieces are developed; delaying the king is the common mistake.',
-];
-
-const londonBeginnerExplanations = [
-  'Start with a stable central pawn and make the intended structure clear.',
-  'Develop the king knight to control e5 and support a flexible setup.',
-  'Place the dark-square bishop outside the pawn chain before e3.',
-  'Build a solid centre while keeping the c1 bishop active on f4.',
-  'Develop the f1 bishop and prepare to castle.',
-  'Castle to finish the basic setup and keep the king safe.',
-  'Use c3 to support d4 and prepare a calm central expansion.',
-  'Complete development and connect the rooks before choosing a plan.',
-];
-
-const londonIntermediateExplanations = [
-  'Start with a stable central pawn and keep the plan flexible.',
-  'Develop the king knight to control e5 and support the centre.',
-  'Place the bishop outside the pawn chain before e3.',
-  'Build the structure while watching Black’s central break.',
-  'Support d4 and prepare a solid response to ...c5.',
-  'Develop the queen knight and keep the bishop pair coordinated.',
-  'Develop the f1 bishop before castling.',
-  'Castle once the king-side pieces are ready.',
-];
-
-const londonAdvancedExplanations = [
-  'Start with a stable central pawn while keeping options against ...Nf6.',
-  'Develop the king knight and prepare the dark-square bishop’s route.',
-  'Place the bishop outside the pawn chain before e3.',
-  'Build the structure and keep the f1 bishop active; avoid closing it with a premature e3.',
-  'Develop the f1 bishop and invite ...Be7; if ...Bxd3 comes, Qxd3 keeps central pressure.',
-  'Castle before ...c5 opens the centre; the common mistake is leaving the king in the middle.',
-  'Develop the queen knight and support the centre.',
-  'Use c3 to reinforce d4 and prepare e4 after ...c5 and ...d5; do not rush the break.',
-];
-londonAdvancedExplanations[2] = 'Meet ...b6 with Bf4 before e3, keeping the c1 bishop active and pressuring c7.';
-
-const sicilianBeginnerExplanations = [
-  'Meet 1.e4 with the immediate central break that defines the Sicilian.',
-  'Develop the queen knight and support pressure on the d4 square.',
-  'Exchange on d4 to challenge White\'s centre before it can advance.',
-  'Develop with tempo against the e4 pawn and prepare to castle.',
-  'Keep the position flexible with ...d6 and support a sound central structure.',
-  'Play ...e6 to secure d5 and open the king bishop.',
-  'Develop the king bishop and prepare safe castling.',
-  'Castle to connect the king and rook before the middlegame opens.',
-  'Place the rook on the open e-file and keep pressure on White\'s centre.',
-  'Recapture toward the centre and accept a useful open file for Black.',
-];
-
-const sicilianIntermediateExplanations = [
-  'Choose the Sicilian break and fight for the initiative from move one.',
-  'Develop the knight to its most active square and keep ...d5 available.',
-  'Remove the d4 pawn so White cannot build an unchecked centre.',
-  'Hit e4 while completing development toward castling.',
-  'Use ...e5 to claim space and make the c3 knight find a precise route.',
-  'Support the centre and prepare to challenge White\'s active pieces.',
-  'Ask the b5 knight a question and gain time for queenside expansion.',
-  'Advance ...b5 to gain space and support a dynamic Sicilian structure.',
-];
-
-const sicilianAdvancedExplanations = [
-  'Start the Sicilian and accept a dynamic position where Black contests the centre immediately.',
-  'Develop with pressure on d4 and keep the option of ...e5.',
-  'Exchange on d4 before White can consolidate the central pawns.',
-  'Develop actively against e4 and prepare the standard ...e5 break.',
-  'Take space with ...e5, accepting a backward development tempo for central control.',
-  'Support the advanced centre and make the b5 square part of the plan.',
-  'Gain time against the knight and prepare a queenside pawn storm.',
-  'Use ...b5 to gain space before White can complete a quiet setup.',
-  'Open the a-file and remove the b5 pawn from White\'s advanced knight.',
-  'Accept doubled f-pawns to open lines and keep the bishop pair under pressure.',
-];
-
-const caroKannBeginnerExplanations = [
-  'Support the d5 break with a solid structure rather than exposing the king early.',
-  'Claim the centre while keeping the light-square bishop free.',
-  'Recapture on e4 and make White spend a tempo before developing.',
-  'Develop the light-square bishop outside the pawn chain, the Caro-Kann\'s key idea.',
-  'Develop the queen knight and reinforce the central squares.',
-  'Keep the bishop safe while preparing ...e6 and a complete setup.',
-  'Build a sturdy chain and open the dark-square bishop.',
-  'Complete development and prepare to challenge White\'s centre.',
-];
-
-const caroKannIntermediateExplanations = [
-  'Choose the resilient Caro-Kann structure and prepare a healthy central break.',
-  'Take space with ...d5 while preserving the c8 bishop\'s diagonal.',
-  'Recover the pawn with a developing move and make White reveal the plan.',
-  'Develop the bishop actively before closing it with ...e6.',
-  'Retreat to g6 when challenged, keeping the bishop useful on the long diagonal.',
-  'Develop the b8 knight and support ...e6 and ...Ngf6.',
-  'Close the centre only after the bishop has escaped the pawn chain.',
-  'Develop the king knight and contest White\'s central outpost.',
-  'Prepare to castle and coordinate the king-side pieces.',
-];
-
-const caroKannAdvancedExplanations = [
-  'Use the Caro-Kann to build a durable centre and keep the c8 bishop active.',
-  'Establish the central pawn before White can choose a quieter setup.',
-  'Accept the temporary pawn sacrifice and plan to regain it with development.',
-  'Develop outside the chain so the bishop does not become a passive defender.',
-  'Keep the bishop on the g6 diagonal after White questions it with Ng3.',
-  'Develop the king knight without blocking the c8 bishop or the queen.',
-  'Place the queen knight on d7 to support ...e6 and control e5.',
-  'Play ...e6 only after the bishop is safe, preserving the opening\'s central logic.',
-  'Use ...Bb4 to pin the knight and make White spend time on the queenside.',
-  'Retreat to a5 while preserving the pin and the bishop\'s active diagonal.',
-];
 
 export const COURSES: Course[] = [
   {
@@ -225,9 +118,152 @@ export const COURSES: Course[] = [
     eco: 'D00',
     sources: ['https://github.com/lichess-org/chess-openings', 'https://en.wikibooks.org/wiki/Chess_Opening_Theory'],
     lessons: {
-      beginner: lesson('white', 'beginner', 'Build the setup', 'Learn the three core moves and the shape of the position.', ['d4', 'd5', 'Nc3', 'Nf6', 'Bf4', 'e6', 'e3', 'c5', 'Nf3', 'Nc6', 'Bd3', 'Bd6', 'O-O', 'O-O', 'Qd2', 'Re8'], jobavaExplanations),
-      intermediate: lesson('white', 'intermediate', 'Meet the active defence', 'Keep your pieces active when Black develops with ...Bb4.', ['d4', 'd5', 'Nc3', 'Nf6', 'Bf4', 'e6', 'e3', 'Bb4', 'Nge2', 'O-O', 'a3', 'Bxc3+', 'Nxc3', 'c5', 'Bd3', 'Nc6'], jobavaIntermediateExplanations),
-      advanced: lesson('white', 'advanced', 'Play for the initiative', 'Recognise the tactical bishop trade and keep a useful lead in development.', ['d4', 'Nf6', 'Nc3', 'd5', 'Bf4', 'Bf5', 'e3', 'e6', 'Bd3', 'Be7', 'Nf3', 'Bxd3', 'Qxd3', 'c5', 'O-O', 'Nc6'], jobavaAdvancedExplanations),
+      beginner: lesson('white', 'beginner', 'Build the setup', 'Learn the three core moves and the shape of the position.', [
+        {
+          kind: 'main',
+          title: 'Main line 3...e6',
+          summary: 'Black plays the solid 3...e6; support with e3, hit c7 with Nb5, develop Bd3, and castle into a playable middlegame.',
+          evalCp: 18,
+          moves: ['d4', 'd5', 'Nc3', 'Nf6', 'Bf4', 'e6', 'e3', 'c5', 'Nb5', 'Na6', 'c3', 'Bd6', 'Bd3', 'O-O', 'Nf3', 'Re8', 'O-O'],
+          explanations: [
+            'Claim the centre with a pawn and prepare active piece play.',
+            'Develop the queen knight to pressure d5 and make the opening immediately active.',
+            'Develop the bishop outside the pawn chain before playing e3.',
+            'Support the centre and open the f1 bishop without losing flexibility.',
+            'Jump to b5 and threaten the fork on c7 while Black’s knight is still on b8.',
+            'Reinforce d4 with c3 once the c7 idea is answered, keeping a normal Jobava shape.',
+            'Develop the bishop to d3 and prepare safe castling.',
+            'Bring the king knight toward the centre and keep castling available.',
+            'Castle before launching a flank plan; the king is ready for the middlegame.',
+          ],
+        },
+        {
+          kind: 'alternative',
+          title: 'Meet 3...c6',
+          summary: 'Black chooses the solid 3...c6; play e3 and develop against the quieter queenside structure.',
+          evalCp: 12,
+          moves: ['d4', 'd5', 'Nc3', 'Nf6', 'Bf4', 'c6', 'e3', 'Bf5', 'Bd3'],
+          explanations: [
+            'Claim the centre with a pawn and prepare active piece play.',
+            'Develop the queen knight to pressure d5 immediately.',
+            'Develop the bishop outside the pawn chain before e3.',
+            'Support the centre and open the f1 bishop against Black’s solid setup.',
+            'Challenge the active bishop on f5 and keep a calm queenside plan.',
+          ],
+        },
+        {
+          kind: 'punish',
+          title: 'Punish 3...Bf5?!',
+          summary: 'Black develops the bishop too early; answer with f3 and e4 to kick it and seize the centre.',
+          evalCp: 110,
+          moves: ['d4', 'd5', 'Nc3', 'Nf6', 'Bf4', 'Bf5', 'f3', 'e6', 'e4'],
+          explanations: [
+            'Claim the centre with a pawn and prepare active piece play.',
+            'Develop the queen knight to pressure d5 immediately.',
+            'Develop the bishop outside the pawn chain before e3.',
+            'Play f3 at once so e4 can arrive with tempo against the loose bishop.',
+            'Take the centre with e4 and force Black to deal with the kicked bishop.',
+          ],
+        },
+      ]),
+      intermediate: lesson('white', 'intermediate', 'Meet the active defence', 'Keep your pieces active when Black chooses among the main third-move replies.', [
+        {
+          kind: 'main',
+          title: 'Main line 3...e6',
+          summary: 'Against 3...e6, play e3, hit c7 with Nb5, and finish development into a playable middlegame.',
+          evalCp: 22,
+          moves: ['d4', 'd5', 'Nc3', 'Nf6', 'Bf4', 'e6', 'e3', 'c5', 'Nb5', 'Na6', 'c3', 'Bd7', 'a4', 'Be7', 'Nf3', 'O-O', 'Bd3', 'Qc7', 'O-O'],
+          explanations: [
+            'Claim the centre with a pawn and prepare active piece play.',
+            'Develop the queen knight to pressure d5 immediately.',
+            'Develop the bishop outside the pawn chain before e3.',
+            'Support the centre while keeping the f1 bishop free.',
+            'Jump to b5 and threaten c7 while Black’s knight is undeveloped.',
+            'Reinforce d4 with c3 once the fork is stopped and keep the Jobava structure.',
+            'Gain space on the queenside and keep the a6 knight awkward.',
+            'Bring the king knight out and keep castling available.',
+            'Develop the bishop to d3 and prepare safe castling.',
+            'Castle now that the king-side pieces are ready for the middlegame.',
+          ],
+        },
+        {
+          kind: 'alternative',
+          title: 'Meet 3...c6',
+          summary: 'Against 3...c6 and ...Qb6, stay calm with e3 and a3, then develop against the bishop.',
+          evalCp: 8,
+          moves: ['d4', 'd5', 'Nc3', 'Nf6', 'Bf4', 'c6', 'e3', 'Qb6', 'a3', 'Bf5'],
+          explanations: [
+            'Claim the centre with a pawn and prepare active piece play.',
+            'Develop the queen knight to pressure d5 immediately.',
+            'Develop the bishop outside the pawn chain before e3.',
+            'Support the centre and blunt ...Qb6 ideas against b2.',
+            'Prevent ...Bb4 pins and prepare to meet ...Bf5 with a solid setup.',
+          ],
+        },
+        {
+          kind: 'punish',
+          title: 'Punish 3...Bf5?!',
+          summary: 'When Black plays 3...Bf5?!, drive the bishop with f3 and e4 before it settles.',
+          evalCp: 125,
+          moves: ['d4', 'd5', 'Nc3', 'Nf6', 'Bf4', 'Bf5', 'f3', 'e6', 'e4', 'Bb4'],
+          explanations: [
+            'Claim the centre with a pawn and prepare active piece play.',
+            'Develop the queen knight to pressure d5 immediately.',
+            'Develop the bishop outside the pawn chain before e3.',
+            'Play f3 so the e4 break arrives with tempo on the bishop.',
+            'Seize the centre with e4 and keep the initiative against the early bishop.',
+          ],
+        },
+      ]),
+      advanced: lesson('white', 'advanced', 'Play for the initiative', 'Push the main line into the resulting middlegame plan and keep punishing early ...Bf5.', [
+        {
+          kind: 'main',
+          title: 'Main line 3...e6',
+          summary: 'Against 3...e6, play e3 and Nb5, then castle into the resulting middlegame plan.',
+          evalCp: 16,
+          moves: ['d4', 'd5', 'Nc3', 'Nf6', 'Bf4', 'e6', 'e3', 'c5', 'Nb5', 'Na6', 'c3', 'Bd6', 'Nf3', 'O-O', 'Bd3', 'Qc7', 'O-O', 'Rd8', 'Qe2'],
+          explanations: [
+            'Claim the centre while keeping the position flexible against ...Nf6.',
+            'Develop the queen knight and support pressure on d5.',
+            'Place the bishop outside the pawn chain before Black settles.',
+            'Build a stable centre and open the f1 bishop.',
+            'Jump to b5 and force Black to spend time defending c7.',
+            'Reinforce d4 with c3 and keep the Jobava structure intact.',
+            'Develop the king knight and prepare to castle.',
+            'Place the bishop on d3 so the kingside can finish cleanly.',
+            'Castle now that the king-side pieces are developed; delaying the king is the common mistake.',
+            'Bring the queen into the game and begin the middlegame with connected pieces.',
+          ],
+        },
+        {
+          kind: 'alternative',
+          title: 'Meet 3...c6',
+          summary: 'Against the solid 3...c6, develop simply with e3 and Nf3 and keep a queenside plan ready.',
+          evalCp: 10,
+          moves: ['d4', 'd5', 'Nc3', 'Nf6', 'Bf4', 'c6', 'e3', 'Bf5', 'Nf3'],
+          explanations: [
+            'Claim the centre while keeping the position flexible.',
+            'Develop the queen knight and support pressure on d5.',
+            'Place the bishop outside the pawn chain before Black settles.',
+            'Support the centre and open the f1 bishop against the solid setup.',
+            'Bring the king knight out and keep castling and queenside play available.',
+          ],
+        },
+        {
+          kind: 'punish',
+          title: 'Punish 3...Bf5?!',
+          summary: 'Punish early ...Bf5 with f3 and e4, forcing the bishop to move again while you take the centre.',
+          evalCp: 140,
+          moves: ['d4', 'd5', 'Nc3', 'Nf6', 'Bf4', 'Bf5', 'f3', 'e6', 'e4', 'Bg6'],
+          explanations: [
+            'Claim the centre while keeping the position flexible.',
+            'Develop the queen knight and support pressure on d5.',
+            'Place the bishop outside the pawn chain before Black settles.',
+            'Play f3 immediately so e4 hits the loose bishop with tempo.',
+            'Take the centre with e4 and leave Black’s bishop stepping again.',
+          ],
+        },
+      ]),
     },
   },
   {
@@ -239,9 +275,149 @@ export const COURSES: Course[] = [
     eco: 'D02',
     sources: ['https://github.com/lichess-org/chess-openings', 'https://en.wikibooks.org/wiki/Chess_Opening_Theory'],
     lessons: {
-      beginner: lesson('white', 'beginner', 'Build the system', 'Learn the reliable setup that makes the London easy to repeat.', ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'e6', 'e3', 'Bd6', 'Bd3', 'O-O', 'O-O', 'c5', 'c3', 'Nc6', 'Nbd2', 'Re8'], londonBeginnerExplanations),
-      intermediate: lesson('white', 'intermediate', 'Handle central tension', 'Develop naturally while watching for ...c5 and ...Bd6.', ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'e6', 'e3', 'c5', 'c3', 'Nc6', 'Nbd2', 'Bd6', 'Bd3', 'O-O', 'O-O', 'Re8'], londonIntermediateExplanations),
-      advanced: lesson('white', 'advanced', 'Use the full structure', 'Finish development and prepare the central break that gives the system bite.', ['d4', 'Nf6', 'Nf3', 'e6', 'Bf4', 'b6', 'e3', 'Bb7', 'Bd3', 'Be7', 'O-O', 'O-O', 'Nbd2', 'c5', 'c3', 'd5'], londonAdvancedExplanations),
+      beginner: lesson('white', 'beginner', 'Build the system', 'Learn the reliable setup that makes the London easy to repeat.', [
+        {
+          kind: 'main',
+          title: 'Main line 3...e6',
+          summary: 'Black plays 3...e6; complete the classic London setup and connect the pieces.',
+          evalCp: 14,
+          moves: ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'e6', 'e3', 'Bd6', 'Bd3', 'O-O', 'O-O', 'c5', 'c3', 'Nc6', 'Nbd2', 'Re8'],
+          explanations: [
+            'Start with a stable central pawn and make the intended structure clear.',
+            'Develop the king knight to control e5 and support a flexible setup.',
+            'Place the dark-square bishop outside the pawn chain before e3.',
+            'Build a solid centre while keeping the c1 bishop active on f4.',
+            'Develop the f1 bishop and prepare to castle.',
+            'Castle to finish the basic setup and keep the king safe.',
+            'Use c3 to support d4 and prepare a calm central expansion.',
+            'Complete development and connect the rooks before choosing a plan.',
+          ],
+        },
+        {
+          kind: 'alternative',
+          title: 'Meet 3...c5',
+          summary: 'Black challenges the centre with 3...c5; keep the London structure with e3 and c3.',
+          evalCp: 6,
+          moves: ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'c5', 'e3', 'Nc6', 'c3'],
+          explanations: [
+            'Start with a stable central pawn and make the intended structure clear.',
+            'Develop the king knight to control e5 and support a flexible setup.',
+            'Place the dark-square bishop outside the pawn chain before e3.',
+            'Support d4 immediately when Black hits the centre with ...c5.',
+            'Reinforce d4 with c3 and keep the solid London triangle.',
+          ],
+        },
+        {
+          kind: 'punish',
+          title: 'Punish 3...Bf5?!',
+          summary: 'Early ...Bf5 lets you strike with c4 and develop with tempo against the loose setup.',
+          evalCp: 95,
+          moves: ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'Bf5', 'c4', 'e6', 'Nc3'],
+          explanations: [
+            'Start with a stable central pawn and make the intended structure clear.',
+            'Develop the king knight to control e5 and support a flexible setup.',
+            'Place the dark-square bishop outside the pawn chain before e3.',
+            'Strike with c4 while Black’s bishop is already committed on f5.',
+            'Develop the queen knight and increase pressure on the opened centre.',
+          ],
+        },
+      ]),
+      intermediate: lesson('white', 'intermediate', 'Handle central tension', 'Develop naturally while watching for ...c5 and premature bishop moves.', [
+        {
+          kind: 'main',
+          title: 'Main line 3...e6',
+          summary: 'Against 3...e6 and ...c5, keep the London triangle and finish development.',
+          evalCp: 20,
+          moves: ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'e6', 'e3', 'c5', 'c3', 'Nc6', 'Nbd2', 'Bd6', 'Bd3', 'O-O', 'O-O', 'Re8', 'Qe2'],
+          explanations: [
+            'Start with a stable central pawn and keep the plan flexible.',
+            'Develop the king knight to control e5 and support the centre.',
+            'Place the bishop outside the pawn chain before e3.',
+            'Build the structure while watching Black’s central break.',
+            'Support d4 and prepare a solid response to ...c5.',
+            'Develop the queen knight and keep the bishop pair coordinated.',
+            'Develop the f1 bishop before castling.',
+            'Castle once the king-side pieces are ready.',
+            'Bring the queen into the game and keep the London setup connected.',
+          ],
+        },
+        {
+          kind: 'alternative',
+          title: 'Meet 3...c5',
+          summary: 'Against an early ...c5 and ...Qb6, support the centre and develop without panic.',
+          evalCp: 4,
+          moves: ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'c5', 'e3', 'Qb6', 'Nc3'],
+          explanations: [
+            'Start with a stable central pawn and keep the plan flexible.',
+            'Develop the king knight to control e5 and support the centre.',
+            'Place the bishop outside the pawn chain before e3.',
+            'Support d4 when Black hits the centre immediately.',
+            'Develop the queen knight and cover b2 without abandoning the London plan.',
+          ],
+        },
+        {
+          kind: 'punish',
+          title: 'Punish 3...Bf5?!',
+          summary: 'Meet early ...Bf5 with c4 and rapid development while Black’s bishop is exposed.',
+          evalCp: 100,
+          moves: ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'Bf5', 'c4', 'c6', 'Nc3', 'e6'],
+          explanations: [
+            'Start with a stable central pawn and keep the plan flexible.',
+            'Develop the king knight to control e5 and support the centre.',
+            'Place the bishop outside the pawn chain before e3.',
+            'Open the centre with c4 while the f5 bishop is an early target.',
+            'Develop the queen knight and keep pressure on the loose structure.',
+          ],
+        },
+      ]),
+      advanced: lesson('white', 'advanced', 'Use the full structure', 'Finish development and prepare the central plan that gives the system bite.', [
+        {
+          kind: 'main',
+          title: 'Main line 3...e6',
+          summary: 'Complete the London setup against 3...e6 and place the queen where the middlegame plan starts.',
+          evalCp: 18,
+          moves: ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'e6', 'e3', 'Bd6', 'Bd3', 'O-O', 'O-O', 'c5', 'c3', 'Nc6', 'Nbd2', 'Qc7', 'Qe2', 'Re8'],
+          explanations: [
+            'Start with a stable central pawn while keeping options against ...Nf6.',
+            'Develop the king knight and prepare the dark-square bishop’s route.',
+            'Place the bishop outside the pawn chain before e3.',
+            'Build the structure and keep the f1 bishop active.',
+            'Develop the f1 bishop and invite a calm London middlegame.',
+            'Castle before ...c5 opens the centre; the common mistake is leaving the king in the middle.',
+            'Use c3 to reinforce d4 and prepare e4 after ...c5 and ...d5.',
+            'Develop the queen knight and support the centre.',
+            'Place the queen on e2 so the rooks can connect and the e-file plan begins.',
+          ],
+        },
+        {
+          kind: 'alternative',
+          title: 'Meet 3...c5',
+          summary: 'Against 3...c5 and ...Qb6, keep the triangle and refuse to panic over b2.',
+          evalCp: 2,
+          moves: ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'c5', 'e3', 'Nc6', 'c3', 'Qb6'],
+          explanations: [
+            'Start with a stable central pawn while keeping options against ...Nf6.',
+            'Develop the king knight and prepare the dark-square bishop’s route.',
+            'Place the bishop outside the pawn chain before e3.',
+            'Support d4 when Black hits the centre with ...c5.',
+            'Reinforce the London triangle and leave ...Qb6 without a real target.',
+          ],
+        },
+        {
+          kind: 'punish',
+          title: 'Punish 3...Nh5?!',
+          summary: 'When Black hunts the bishop with ...Nh5, step aside with Bg5 and keep a lead in development.',
+          evalCp: 90,
+          moves: ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'Nh5', 'Bg5', 'h6', 'Bh4'],
+          explanations: [
+            'Start with a stable central pawn while keeping options against ...Nf6.',
+            'Develop the king knight and prepare the dark-square bishop’s route.',
+            'Place the bishop outside the pawn chain before e3.',
+            'Refuse to trade on h5; keep the bishop and gain time as Black’s knight wanders.',
+            'Retreat along the diagonal and leave Black a tempo down for the middlegame.',
+          ],
+        },
+      ]),
     },
   },
   {
@@ -253,9 +429,146 @@ export const COURSES: Course[] = [
     eco: 'B32',
     sources: ['https://github.com/lichess-org/chess-openings', 'https://lichess.org/api#tag/Opening-Explorer', 'https://database.lichess.org/', 'https://en.wikibooks.org/wiki/Chess_Opening_Theory/Sicilian_Defence'],
     lessons: {
-      beginner: lesson('black', 'beginner', 'Build the Sicilian', 'Learn the core move order and a reliable first setup for Black.', ['e4', 'c5', 'Nf3', 'Nc6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'd6', 'Be2', 'e6', 'O-O', 'Be7', 'f4', 'O-O', 'Qd2', 'Re8', 'Nxc6', 'bxc6'], sicilianBeginnerExplanations),
-      intermediate: lesson('black', 'intermediate', 'Take dynamic space', 'Use ...e5 and queenside expansion to meet White\'s active pieces.', ['e4', 'c5', 'Nf3', 'Nc6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'e5', 'Ndb5', 'd6', 'Bg5', 'a6', 'Na3', 'b5'], sicilianIntermediateExplanations),
-      advanced: lesson('black', 'advanced', 'Play the open Sicilian', 'Recognise the tempo-gaining ...a6 and ...b5 plan before opening lines.', ['e4', 'c5', 'Nf3', 'Nc6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'e5', 'Ndb5', 'd6', 'Bg5', 'a6', 'Na3', 'b5', 'Naxb5', 'axb5', 'Bxf6', 'gxf6'], sicilianAdvancedExplanations),
+      beginner: lesson('black', 'beginner', 'Build the Sicilian', 'Learn the core Open Sicilian move order and the first reliable setups.', [
+        {
+          kind: 'main',
+          title: 'Main line Open Sicilian',
+          summary: 'White opens with 3.d4; build the Classical shell with ...d6, ...e6, and castling.',
+          evalCp: 10,
+          moves: ['e4', 'c5', 'Nf3', 'Nc6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'd6', 'Bg5', 'e6', 'Qd2', 'Be7', 'O-O-O', 'O-O', 'f4'],
+          explanations: [
+            'Meet 1.e4 with the immediate central break that defines the Sicilian.',
+            'Develop the queen knight and support pressure on the d4 square.',
+            'Exchange on d4 to challenge White’s centre before it can advance.',
+            'Develop with tempo against the e4 pawn and prepare to castle.',
+            'Keep the position flexible with ...d6 and support a sound central structure.',
+            'Play ...e6 to secure d5 and open the king bishop.',
+            'Develop the king bishop and prepare safe castling.',
+            'Castle to connect the king and rook before the middlegame opens.',
+          ],
+        },
+        {
+          kind: 'alternative',
+          title: 'Meet 3.Bb5',
+          summary: 'White chooses the Rossolimo; fianchetto and keep a solid kingside plan.',
+          evalCp: 5,
+          moves: ['e4', 'c5', 'Nf3', 'Nc6', 'Bb5', 'g6', 'O-O', 'Bg7'],
+          explanations: [
+            'Meet 1.e4 with the immediate central break that defines the Sicilian.',
+            'Develop the queen knight and support pressure on the d4 square.',
+            'Answer the Rossolimo with ...g6 and prepare a dark-square fianchetto.',
+            'Complete the fianchetto and keep a flexible Sicilian structure.',
+          ],
+        },
+        {
+          kind: 'punish',
+          title: 'Punish 3.Bc4?!',
+          summary: 'White develops the bishop to c4 too early; play ...e6 and ...Nf6 and keep easy development.',
+          evalCp: 85,
+          moves: ['e4', 'c5', 'Nf3', 'Nc6', 'Bc4', 'e6', 'O-O', 'Nf6', 'd3'],
+          explanations: [
+            'Meet 1.e4 with the immediate central break that defines the Sicilian.',
+            'Develop the queen knight and support pressure on the d4 square.',
+            'Meet the early Bc4 with ...e6 and blunt the bishop’s diagonal.',
+            'Develop with tempo against e4 and keep a clear lead in useful moves.',
+          ],
+        },
+      ]),
+      intermediate: lesson('black', 'intermediate', 'Take dynamic space', 'Use the Open Sicilian main line and keep answers ready for quieter or inaccurate tries.', [
+        {
+          kind: 'main',
+          title: 'Main line 5...e5',
+          summary: 'In the Open Sicilian, take space with ...e5 and expand on the queenside.',
+          evalCp: -8,
+          moves: ['e4', 'c5', 'Nf3', 'Nc6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'e5', 'Ndb5', 'd6', 'Bg5', 'a6', 'Na3', 'b5', 'Bxf6', 'gxf6'],
+          explanations: [
+            'Choose the Sicilian break and fight for the initiative from move one.',
+            'Develop the knight to its most active square and keep ...d5 available.',
+            'Remove the d4 pawn so White cannot build an unchecked centre.',
+            'Hit e4 while completing development toward castling.',
+            'Use ...e5 to claim space and make the c3 knight find a precise route.',
+            'Support the centre and prepare to challenge White’s active pieces.',
+            'Ask the b5 knight a question and gain time for queenside expansion.',
+            'Advance ...b5 to gain space and support a dynamic Sicilian structure.',
+            'Accept doubled f-pawns to open lines and keep the bishop pair under pressure.',
+          ],
+        },
+        {
+          kind: 'alternative',
+          title: 'Meet 3.Bb5',
+          summary: 'Against the Rossolimo, choose ...e6 and ...Nge7 and keep development compact.',
+          evalCp: 0,
+          moves: ['e4', 'c5', 'Nf3', 'Nc6', 'Bb5', 'e6', 'O-O', 'Nge7', 'Re1'],
+          explanations: [
+            'Choose the Sicilian break and fight for the initiative from move one.',
+            'Develop the knight to its most active square and keep ...d5 available.',
+            'Meet Bb5 with ...e6 and prepare a short development scheme.',
+            'Bring the king knight out without blocking the dark-square bishop for long.',
+          ],
+        },
+        {
+          kind: 'punish',
+          title: 'Punish 3.Bc4?!',
+          summary: 'When White plays an early Bc4, blunt it with ...e6 and develop toward ...Nf6.',
+          evalCp: 105,
+          moves: ['e4', 'c5', 'Nf3', 'Nc6', 'Bc4', 'e6', 'd3', 'Nf6', 'O-O'],
+          explanations: [
+            'Choose the Sicilian break and fight for the initiative from move one.',
+            'Develop the knight to its most active square and keep ...d5 available.',
+            'Meet the early bishop with ...e6 and keep the centre flexible.',
+            'Hit e4 while completing development toward castling.',
+          ],
+        },
+      ]),
+      advanced: lesson('black', 'advanced', 'Play the open Sicilian', 'Push the ...e5 Classical plan into the middlegame and keep refutations ready.', [
+        {
+          kind: 'main',
+          title: 'Main line 5...e5',
+          summary: 'Drive the ...e5 and ...b5 plan into the resulting middlegame with ...Bg7.',
+          evalCp: -12,
+          moves: ['e4', 'c5', 'Nf3', 'Nc6', 'd4', 'cxd4', 'Nxd4', 'Nf6', 'Nc3', 'e5', 'Ndb5', 'd6', 'Bg5', 'a6', 'Na3', 'b5', 'Bxf6', 'gxf6', 'Nd5', 'Bg7'],
+          explanations: [
+            'Start the Sicilian and accept a dynamic position where Black contests the centre immediately.',
+            'Develop with pressure on d4 and keep the option of ...e5.',
+            'Exchange on d4 before White can consolidate the central pawns.',
+            'Develop actively against e4 and prepare the standard ...e5 break.',
+            'Take space with ...e5, accepting a backward development tempo for central control.',
+            'Support the advanced centre and make the b5 square part of the plan.',
+            'Gain time against the knight and prepare a queenside pawn storm.',
+            'Use ...b5 to gain space before White can complete a quiet setup.',
+            'Accept doubled f-pawns to open lines and keep the bishop pair under pressure.',
+            'Fianchetto the king bishop and begin the middlegame from a dynamic Classical shell.',
+          ],
+        },
+        {
+          kind: 'alternative',
+          title: 'Meet 3.Bb5',
+          summary: 'Against the Rossolimo, fianchetto and claim space with ...e5 once development is ready.',
+          evalCp: 8,
+          moves: ['e4', 'c5', 'Nf3', 'Nc6', 'Bb5', 'g6', 'O-O', 'Bg7', 'Re1', 'e5'],
+          explanations: [
+            'Start the Sicilian and accept a dynamic position where Black contests the centre immediately.',
+            'Develop with pressure on d4 and keep flexible answers to Bb5.',
+            'Answer the Rossolimo with ...g6 and prepare the fianchetto.',
+            'Complete the fianchetto before expanding in the centre.',
+            'Take space with ...e5 once the king bishop is developed.',
+          ],
+        },
+        {
+          kind: 'punish',
+          title: 'Punish 3.Bc4?!',
+          summary: 'Punish the early Bc4 with ...e6 and ...a6, keeping easy development and a healthy structure.',
+          evalCp: 92,
+          moves: ['e4', 'c5', 'Nf3', 'Nc6', 'Bc4', 'e6', 'O-O', 'a6', 'a4', 'Nf6'],
+          explanations: [
+            'Start the Sicilian and accept a dynamic position where Black contests the centre immediately.',
+            'Develop with pressure on d4 and keep flexible answers to Bc4.',
+            'Blunt the bishop with ...e6 before White can use the a2-g8 diagonal.',
+            'Prepare queenside expansion and ask the bishop what it is doing on c4.',
+            'Develop the king knight and keep a clear lead in useful moves.',
+          ],
+        },
+      ]),
     },
   },
   {
@@ -267,9 +580,146 @@ export const COURSES: Course[] = [
     eco: 'B18',
     sources: ['https://github.com/lichess-org/chess-openings', 'https://lichess.org/api#tag/Opening-Explorer', 'https://database.lichess.org/', 'https://en.wikibooks.org/wiki/Chess_Opening_Theory/Caro-Kann_Defence'],
     lessons: {
-      beginner: lesson('black', 'beginner', 'Build the Caro-Kann', 'Learn the solid structure and the bishop development that define the defence.', ['e4', 'c6', 'd4', 'd5', 'Nc3', 'dxe4', 'Nxe4', 'Bf5', 'Nf3', 'Nd7', 'Bd3', 'Bg6', 'O-O', 'e6', 'Re1', 'Ngf6'], caroKannBeginnerExplanations),
-      intermediate: lesson('black', 'intermediate', 'Keep the bishop active', 'Meet natural development while preserving the Caro-Kann\'s best piece.', ['e4', 'c6', 'd4', 'd5', 'Nc3', 'dxe4', 'Nxe4', 'Bf5', 'Nf3', 'Bg6', 'Bd3', 'Nd7', 'O-O', 'e6', 'Re1', 'Ngf6', 'Bf4', 'Be7'], caroKannIntermediateExplanations),
-      advanced: lesson('black', 'advanced', 'Use the full structure', 'Combine active bishop play with a flexible king-side and queenside plan.', ['e4', 'c6', 'd4', 'd5', 'Nc3', 'dxe4', 'Nxe4', 'Bf5', 'Ng3', 'Bg6', 'N1e2', 'Nd7', 'Bf4', 'e6', 'Qd2', 'Ngf6', 'O-O-O', 'Bb4', 'a3', 'Ba5'], caroKannAdvancedExplanations),
+      beginner: lesson('black', 'beginner', 'Build the Caro-Kann', 'Learn the solid structure and the bishop development that define the defence.', [
+        {
+          kind: 'main',
+          title: 'Main line Classical',
+          summary: 'White chooses 3.Nc3; develop the bishop outside the chain and meet the h-pawn probe.',
+          evalCp: 6,
+          moves: ['e4', 'c6', 'd4', 'd5', 'Nc3', 'dxe4', 'Nxe4', 'Bf5', 'Ng3', 'Bg6', 'Nf3', 'Nd7', 'h4', 'h6', 'h5', 'Bh7', 'Bd3', 'Bxd3'],
+          explanations: [
+            'Support the d5 break with a solid structure rather than exposing the king early.',
+            'Claim the centre while keeping the light-square bishop free.',
+            'Recapture on e4 and make White spend a tempo before developing.',
+            'Develop the light-square bishop outside the pawn chain, the Caro-Kann’s key idea.',
+            'Retreat to g6 when challenged, keeping the bishop useful on the long diagonal.',
+            'Develop the queen knight and reinforce the central squares.',
+            'Meet the h-pawn thrust with ...h6 and keep a square for the bishop.',
+            'Step to h7 so the bishop stays safe and useful.',
+            'Trade on d3 and accept a clean Classical structure for the middlegame.',
+          ],
+        },
+        {
+          kind: 'alternative',
+          title: 'Meet 3.exd5',
+          summary: 'White chooses the Exchange; recapture and develop naturally against the open centre.',
+          evalCp: 0,
+          moves: ['e4', 'c6', 'd4', 'd5', 'exd5', 'cxd5', 'Bd3', 'Nc6'],
+          explanations: [
+            'Support the d5 break with a solid structure rather than exposing the king early.',
+            'Claim the centre while keeping the light-square bishop free.',
+            'Recapture toward the centre and keep a healthy pawn structure.',
+            'Develop the queen knight and contest the open centre.',
+          ],
+        },
+        {
+          kind: 'punish',
+          title: 'Punish 3.Bd3?!',
+          summary: 'White develops the bishop too early; take on e4 and develop with tempo against the loose piece.',
+          evalCp: 88,
+          moves: ['e4', 'c6', 'd4', 'd5', 'Bd3', 'dxe4', 'Bxe4', 'Nf6', 'Bd3'],
+          explanations: [
+            'Support the d5 break with a solid structure rather than exposing the king early.',
+            'Claim the centre while keeping the light-square bishop free.',
+            'Capture on e4 and force the early bishop to move again.',
+            'Develop with tempo against the bishop and keep a clear lead in useful moves.',
+          ],
+        },
+      ]),
+      intermediate: lesson('black', 'intermediate', 'Keep the bishop active', 'Meet natural development while preserving the Caro-Kann’s best piece.', [
+        {
+          kind: 'main',
+          title: 'Main line Classical',
+          summary: 'In the Classical, keep the bishop active, close with ...e6, and finish kingside development.',
+          evalCp: 12,
+          moves: ['e4', 'c6', 'd4', 'd5', 'Nc3', 'dxe4', 'Nxe4', 'Bf5', 'Ng3', 'Bg6', 'Nf3', 'Nd7', 'Bd3', 'e6', 'O-O', 'Ngf6', 'Re1', 'Be7'],
+          explanations: [
+            'Choose the resilient Caro-Kann structure and prepare a healthy central break.',
+            'Take space with ...d5 while preserving the c8 bishop’s diagonal.',
+            'Recover the pawn with a developing move and make White reveal the plan.',
+            'Develop the bishop actively before closing it with ...e6.',
+            'Retreat to g6 when challenged, keeping the bishop useful on the long diagonal.',
+            'Develop the b8 knight and support ...e6 and ...Ngf6.',
+            'Close the centre only after the bishop has escaped the pawn chain.',
+            'Develop the king knight and contest White’s central outpost.',
+            'Prepare to castle and coordinate the king-side pieces.',
+          ],
+        },
+        {
+          kind: 'alternative',
+          title: 'Meet 3.exd5',
+          summary: 'Against the Exchange, recapture and meet c4 with natural piece development.',
+          evalCp: -4,
+          moves: ['e4', 'c6', 'd4', 'd5', 'exd5', 'cxd5', 'c4', 'Nf6', 'Nc3'],
+          explanations: [
+            'Choose the resilient Caro-Kann structure and prepare a healthy central break.',
+            'Take space with ...d5 while preserving the c8 bishop’s diagonal.',
+            'Recapture toward the centre and keep a healthy pawn structure.',
+            'Develop the king knight and prepare to meet the c4 break calmly.',
+          ],
+        },
+        {
+          kind: 'punish',
+          title: 'Punish 3.Bd3?!',
+          summary: 'When White plays an early Bd3, take on e4 and hit the bishop with ...Nf6.',
+          evalCp: 96,
+          moves: ['e4', 'c6', 'd4', 'd5', 'Bd3', 'dxe4', 'Bxe4', 'Nf6', 'Bf3'],
+          explanations: [
+            'Choose the resilient Caro-Kann structure and prepare a healthy central break.',
+            'Take space with ...d5 while preserving the c8 bishop’s diagonal.',
+            'Capture on e4 and force the early bishop to spend another tempo.',
+            'Develop with tempo against the bishop and keep the initiative.',
+          ],
+        },
+      ]),
+      advanced: lesson('black', 'advanced', 'Use the full structure', 'Combine active bishop play with a flexible king-side and queenside plan.', [
+        {
+          kind: 'main',
+          title: 'Main line Classical',
+          summary: 'Push the Classical into queenside castling territory and meet it with ...Bb4.',
+          evalCp: 15,
+          moves: ['e4', 'c6', 'd4', 'd5', 'Nc3', 'dxe4', 'Nxe4', 'Bf5', 'Ng3', 'Bg6', 'N1e2', 'Nd7', 'Bf4', 'e6', 'Qd2', 'Ngf6', 'O-O-O', 'Bb4'],
+          explanations: [
+            'Use the Caro-Kann to build a durable centre and keep the c8 bishop active.',
+            'Establish the central pawn before White can choose a quieter setup.',
+            'Accept the temporary pawn sacrifice and plan to regain it with development.',
+            'Develop outside the chain so the bishop does not become a passive defender.',
+            'Keep the bishop on the g6 diagonal after White questions it with Ng3.',
+            'Place the queen knight on d7 to support ...e6 and control e5.',
+            'Play ...e6 only after the bishop is safe, preserving the opening’s central logic.',
+            'Develop the king knight without blocking the c8 bishop or the queen.',
+            'Use ...Bb4 to pin the knight and make White spend time on the queenside.',
+          ],
+        },
+        {
+          kind: 'alternative',
+          title: 'Meet 3.exd5',
+          summary: 'Against the Exchange and c4, develop both knights and keep a healthy centre.',
+          evalCp: 2,
+          moves: ['e4', 'c6', 'd4', 'd5', 'exd5', 'cxd5', 'c4', 'Nf6', 'Nc3', 'Nc6'],
+          explanations: [
+            'Use the Caro-Kann to build a durable centre and keep the c8 bishop active.',
+            'Establish the central pawn before White can choose a quieter setup.',
+            'Recapture toward the centre and keep a healthy pawn structure.',
+            'Develop the king knight and prepare to meet the c4 break.',
+            'Bring the queen knight out and contest the open centre.',
+          ],
+        },
+        {
+          kind: 'punish',
+          title: 'Punish 3.Bd3?!',
+          summary: 'Punish the early Bd3 by taking on e4 and developing both knights with tempo.',
+          evalCp: 150,
+          moves: ['e4', 'c6', 'd4', 'd5', 'Bd3', 'dxe4', 'Bxe4', 'Nf6', 'Nc3', 'Nbd7'],
+          explanations: [
+            'Use the Caro-Kann to build a durable centre and keep the c8 bishop active.',
+            'Establish the central pawn before White can choose a quieter setup.',
+            'Capture on e4 and force the early bishop to move again.',
+            'Develop with tempo against the bishop and keep the initiative.',
+            'Bring the queen knight out and complete a clean development lead.',
+          ],
+        },
+      ]),
     },
   },
 ];

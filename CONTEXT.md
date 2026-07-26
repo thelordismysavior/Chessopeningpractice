@@ -4,6 +4,14 @@ Chess Practice teaches a fixed opening repertoire through guided positions and c
 
 ## Language
 
+**Variation**:
+One continuous line of play within a lesson, from the starting position to a playable middlegame. A lesson holds three: the main line, the alternative, and the punish line.
+_Avoid_: Branch, sub-line, path
+
+**Banked variation**:
+A variation the learner has finished without a mistake. Banking is per variation: a slip replays only that variation, and a lesson completes when all three are banked.
+_Avoid_: Cleared, passed, mastered
+
 **Move guide**:
 A persistent visual preview of the repertoire move, shown before every move in a regular lesson as a green directional arrow from the origin square to the destination. It is hidden when a review position first appears.
 _Avoid_: Hint, suggestion, answer

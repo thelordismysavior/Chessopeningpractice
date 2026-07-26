@@ -58,17 +58,21 @@ describe('guided move policy', () => {
 
 describe('move transition plans', () => {
   test('plans castling as king and rook travel', () => {
-    const position = COURSES[0].lessons.beginner.positions[6];
-    const plan = planMoveTransition(position.fen, position.expectedMove);
+    const position = COURSES[0].lessons.beginner.positions.find((entry) => entry.expectedSan === 'O-O');
+    expect(position).toBeDefined();
+    const plan = planMoveTransition(position!.fen, position!.expectedMove);
     expect(plan?.isCastle).toBe(true);
     expect(plan?.pieces.map(({ from, to }) => [from, to]).sort()).toEqual(['e1-g1', 'h1-f1'].map((move) => move.split('-')));
   });
 
   test('keeps a captured piece in the plan until landing', () => {
-    const position = COURSES.find((course) => course.id === 'classical-sicilian')!.lessons.advanced.positions[8];
-    const plan = planMoveTransition(position.fen, position.expectedMove);
-    expect(plan?.pieces[0].captured).toBe('wN');
-    expect(plan?.pieces[0].captureSquare).toBe('b5');
+    const position = COURSES.find((course) => course.id === 'classical-sicilian')!.lessons.beginner.variations
+      .find((variation) => variation.kind === 'main')!.positions
+      .find((entry) => entry.expectedSan === 'cxd4');
+    expect(position).toBeDefined();
+    const plan = planMoveTransition(position!.fen, position!.expectedMove);
+    expect(plan?.pieces[0].captured).toBe('wP');
+    expect(plan?.pieces[0].captureSquare).toBe('d4');
   });
 
   test('infers the opponent reply from adjacent position FENs', () => {

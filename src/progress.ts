@@ -8,10 +8,11 @@ export type CourseProgress = {
   attempts: number;
   missedPositionIds: string[];
   completedPositionIds: string[];
+  completedVariationIds: string[];
   reviewHistory: string[];
 };
 
-export const emptyProgress = (): CourseProgress => ({ completedLevels: [], unlockedLevel: 0, attempts: 0, missedPositionIds: [], completedPositionIds: [], reviewHistory: [] });
+export const emptyProgress = (): CourseProgress => ({ completedLevels: [], unlockedLevel: 0, attempts: 0, missedPositionIds: [], completedPositionIds: [], completedVariationIds: [], reviewHistory: [] });
 
 export async function loadProgress(courseId: string): Promise<CourseProgress> {
   const user = auth.currentUser;
@@ -33,6 +34,7 @@ export async function saveProgress(courseId: string, progress: CourseProgress, a
       attempts: current.attempts + attemptsDelta,
       missedPositionIds: [...new Set([...current.missedPositionIds, ...progress.missedPositionIds])],
       completedPositionIds: [...new Set([...current.completedPositionIds, ...progress.completedPositionIds])],
+      completedVariationIds: [...new Set([...current.completedVariationIds, ...progress.completedVariationIds])],
       reviewHistory: [...new Set([...current.reviewHistory, ...progress.reviewHistory])],
     });
   });

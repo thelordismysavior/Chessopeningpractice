@@ -70,7 +70,9 @@ h1 em { color: #b05b34; font-style: normal; }
 .practice-meta { justify-content: center; color: #17222b; font-weight: 700; }
 .practice-layout { display: grid; grid-template-columns: minmax(260px, .75fr) minmax(420px, 1.25fr); align-items: center; gap: clamp(2rem, 8vw, 8rem); min-height: calc(100dvh - 100px); }
 .lesson-copy { max-width: 450px; }
-.lesson-copy h1 { font-size: clamp(3rem, 6vw, 5.6rem); }
+.lesson-copy .line-title { margin: 0 0 .75rem; font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800; line-height: 1.15; }
+.lesson-copy h1 { font-size: clamp(2.2rem, 4.5vw, 3.6rem); }
+.lesson-summary { margin: -.25rem 0 0; color: #657078; font-size: .98rem; line-height: 1.6; }
 .explanation { display: flex; gap: 1rem; margin: 2.25rem 0 1.5rem; padding-top: 1rem; border-top: 1px solid #cfc9bd; }
 .explanation-mark { flex: 0 0 auto; color: #b05b34; font-size: .7rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .explanation p { color: #49565e; }

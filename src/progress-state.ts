@@ -8,6 +8,7 @@ export function applySessionProgress(progress: CourseProgress, level: LevelKey, 
     attempts: progress.attempts + attemptsDelta,
     missedPositionIds: [...new Set([...progress.missedPositionIds, ...snapshot.missedPositionIds])],
     completedPositionIds: [...new Set([...progress.completedPositionIds, ...snapshot.completedPositionIds])],
+    completedVariationIds: [...new Set([...progress.completedVariationIds, ...snapshot.bankedVariationIds])],
     reviewHistory: [...new Set([...progress.reviewHistory, ...reviewPositionIds])],
   };
   const levelIndex = LEVELS.indexOf(level);
