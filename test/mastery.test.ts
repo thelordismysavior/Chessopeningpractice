@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { COURSES } from '../src/courses';
+import { COURSES, type Course } from '../src/courses';
 import { courseMastery, overallMastery } from '../src/mastery';
 import { emptyProgress, type CourseProgress } from '../src/progress';
 import { emptyRecord } from '../src/review-schedule';
@@ -43,14 +43,14 @@ describe('course mastery', () => {
 
 describe('overall mastery', () => {
   test('sums every course', () => {
-    const byCourse = Object.fromEntries(COURSES.map((entry) => [entry.id, emptyProgress()]));
+    const byCourse = Object.fromEntries(COURSES.map((entry) => [entry.id, emptyProgress()])) as Record<Course['id'], CourseProgress>;
     const summary = overallMastery(byCourse);
     expect(summary.total).toBe(36);
     expect(summary.mastered).toBe(0);
   });
 
   test('reports the ratio across courses', () => {
-    const byCourse = Object.fromEntries(COURSES.map((entry) => [entry.id, emptyProgress()]));
+    const byCourse = Object.fromEntries(COURSES.map((entry) => [entry.id, emptyProgress()])) as Record<Course['id'], CourseProgress>;
     byCourse[course.id] = progressWith({ completedVariationIds: [beginnerMain.id] });
     const summary = overallMastery(byCourse);
     expect(summary.mastered).toBe(1);

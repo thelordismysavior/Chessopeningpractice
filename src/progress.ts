@@ -32,6 +32,8 @@ export type ProgressDelta = {
 type StoredProgress = Partial<CourseProgress> & {
   completedPositionIds?: string[];
   missedPositionIds?: string[];
+  attempts?: number;
+  reviewHistory?: string[];
 };
 
 export const emptyProgress = (): CourseProgress => ({

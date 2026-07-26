@@ -5,9 +5,9 @@ import { ATTRIBUTION_SOURCES, COURSES, LEVELS, coursesById, type Course, type Le
 import { shouldShowMoveGuide } from './guide-policy';
 import { effectiveMoveDuration, loadMoveDuration, saveMoveDuration } from './move-settings';
 import { pieceAppearance, pieceCode } from './piece-appearance';
-import { createPracticeSession, type MoveFeedback, type SessionSnapshot } from './practice-session';
-import { loadProgress, resetAllProgress, saveProgress, type CourseProgress } from './progress';
-import { applySessionProgress } from './progress-state';
+import { LessonRunner, type RunnerFeedback, type RunnerSnapshot } from './lesson-runner';
+import { diffProgress, loadProgress, resetAllProgress, saveProgress, type CourseProgress } from './progress';
+import { duePositionIds } from './review-schedule';
 import { signIn, signOutUser, watchUser } from './firebase';
 import { routeArrowGeometry } from './route-arrow';
 import { planFenTransition, planMoveTransition, settleDisplayFen, type MoveTransition } from './transition-plans';
@@ -116,15 +116,12 @@ function levelButton(course: Course, level: LevelKey, progress: CourseProgress):
   return `<button class="lesson-row ${unlocked ? '' : 'is-locked'}" ${unlocked ? `data-course="${course.id}" data-level="${level}"` : 'disabled'}><span class="lesson-index">${String(index + 1).padStart(2, '0')}</span><span><strong>${levelNames[level]}</strong><small>${detail}</small></span><span class="lesson-arrow" aria-hidden="true">${complete ? '&#10003;' : unlocked ? '-&gt;' : '&#128274;'}</span></button>`;
 }
 
-function reviewIds(progress: CourseProgress): string[] {
-  const missed = progress.missedPositionIds;
-  const completed = progress.completedPositionIds.filter((id) => !missed.includes(id));
-  return Array.from({ length: Math.max(missed.length, completed.length) }, (_, index) => [missed[index], completed[index]]).flat().filter((id): id is string => Boolean(id));
+function reviewIdsForLevel(course: Course, level: LevelKey, progress: CourseProgress): string[] {
+  return duePositionIds(progress.positions, course.lessons[level].positions.map((position) => position.id));
 }
 
-function reviewIdsForLevel(course: Course, level: LevelKey, progress: CourseProgress): string[] {
-  const positionIds = new Set(course.lessons[level].positions.map((position) => position.id));
-  return reviewIds(progress).filter((id) => positionIds.has(id));
+function allReviewIdsFor(course: Course, progress: CourseProgress): string[] {
+  return LEVELS.flatMap((level) => reviewIdsForLevel(course, level, progress));
 }
 
 async function renderDashboard(email: string | null) {
@@ -137,8 +134,7 @@ async function renderDashboard(email: string | null) {
       const progress = progressByCourse[course.id];
       const completed = progress.completedLevels.length;
       const nextLevel = LEVELS[Math.min(progress.unlockedLevel, LEVELS.length - 1)];
-      const allReviewIds = reviewIds(progress);
-      const reviewLevel = LEVELS.find((candidate) => allReviewIds.some((id) => course.lessons[candidate].positions.some((position) => position.id === id)));
+      const reviewLevel = LEVELS.find((candidate) => reviewIdsForLevel(course, candidate, progress).length > 0);
       const reviewPositionIds = reviewLevel ? reviewIdsForLevel(course, reviewLevel, progress) : [];
       const nextCopy = completed === LEVELS.length ? 'All three lessons complete' : `Next up: <strong>${levelNames[nextLevel]}</strong>`;
       return `<article class="course-card"><div class="course-header"><div><span class="side-tag">${sideNames[course.side]}</span><h2>${escapeHtml(course.name)}</h2><p>${escapeHtml(course.description)}</p></div><span class="course-count">${String(completed).padStart(2, '0')} / 03</span></div><div class="core-line"><span>Core line - ${escapeHtml(course.eco)}</span><code>${escapeHtml(course.coreLine)}</code></div><div class="lesson-list">${LEVELS.map((level) => levelButton(course, level, progress)).join('')}</div><div class="course-footer"><span>${nextCopy}</span>${reviewLevel && reviewPositionIds.length ? `<button class="review-link" data-review-course="${course.id}" data-review-level="${reviewLevel}">Review ${reviewPositionIds.length} positions</button>` : '<span class="muted">Clean practice builds recall</span>'}</div></article>`;
@@ -237,11 +233,10 @@ function renderBoard(chess: Chess, selected: string | null, side: Course['side']
 async function startPractice(course: Course, level: LevelKey, progress: CourseProgress, reviewPositionIds: string[] = []) {
   resetPageScroll();
   const lesson = course.lessons[level];
-  const bankedVariationIds = (progress.completedVariationIds ?? []).filter((id) => lesson.variations.some((variation) => variation.id === id));
-  const session = createPracticeSession(lesson, { reviewPositionIds, bankedVariationIds });
+  const session = new LessonRunner(lesson, progress, { reviewPositionIds });
   let selected: string | null = null;
-  let feedback: MoveFeedback | null = null;
-  let savedAttempts = 0;
+  let feedback: RunnerFeedback | null = null;
+  let savedProgress: CourseProgress = progress;
   let liveProgress = { ...progress };
   let saveError = false;
   let saveQueue: Promise<void> = Promise.resolve();
@@ -262,13 +257,13 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
   const selectableColor = course.side === 'white' ? 'w' : 'b';
   const nextLevel = LEVELS[LEVELS.indexOf(level) + 1];
 
-  const persist = (snapshot: SessionSnapshot) => {
+  const persist = () => {
     const write = saveQueue.catch(() => undefined).then(async () => {
-      const newAttempts = snapshot.attempts - savedAttempts;
-      const nextProgress = applySessionProgress(liveProgress, level, snapshot, newAttempts, reviewPositionIds);
-      await saveProgress(course.id, nextProgress, newAttempts);
-      liveProgress = nextProgress;
-      savedAttempts = snapshot.attempts;
+      const current = session.progressFor(level);
+      const delta = diffProgress(savedProgress, current);
+      await saveProgress(course.id, delta);
+      savedProgress = current;
+      liveProgress = current;
       saveError = false;
     });
     pendingSave = write;
@@ -293,37 +288,38 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
   };
 
   const draw = () => {
-    const snapshot = session.snapshot;
+    const snapshot: RunnerSnapshot = session.snapshot;
     const lessonComplete = snapshot.lessonComplete && !sequenceActive;
     const completionMessage = saveError
       ? nextLevel ? `Save progress to unlock ${levelNames[nextLevel]}.` : 'Save progress before leaving the course.'
       : nextLevel ? `${levelNames[level]} complete. ${levelNames[nextLevel]} unlocked.` : `${levelNames[level]} complete. Course complete.`;
     const position = sequenceActive && sequencePosition ? sequencePosition : snapshot.position ?? lesson.positions[lesson.positions.length - 1];
     const chess = new Chess(animation?.plan.fromFen ?? displayFen ?? position.fen);
-    const status = sequenceActive ? 'Playing move' : snapshot.status === 'complete' ? (snapshot.lessonComplete ? 'Lesson complete' : 'Review complete') : snapshot.status === 'needs-clean-run' ? 'Clean run required' : snapshot.status === 'retrying' ? 'Retry this position' : `${course.side === 'white' ? 'White' : 'Black'} to move`;
-    const showGuide = !sequenceActive && shouldShowMoveGuide(session.reviewMode, snapshot.status);
+    const status = sequenceActive
+      ? 'Playing move'
+      : snapshot.status === 'complete'
+        ? (snapshot.lessonComplete ? 'Lesson complete' : 'Review complete')
+        : snapshot.status === 'retrying'
+          ? 'Retry this position'
+          : `${course.side === 'white' ? 'White' : 'Black'} to move`;
+    const showGuide = !sequenceActive && shouldShowMoveGuide(snapshot.phase, snapshot.status, snapshot.hintVisible);
     const expectedRoute = showGuide ? { from: position.expectedMove.slice(0, 2), to: position.expectedMove.slice(2, 4) } : null;
-    const variation = snapshot.variation;
-    const variationCount = lesson.variations.length;
-    const variationOrdinal = variation ? lesson.variations.findIndex((entry) => entry.id === variation.id) + 1 : 0;
-    const moveCount = variation?.positions.length ?? lesson.positions.length;
-    const moveOrdinal = variation ? Math.min(snapshot.variationIndex + 1, moveCount) : Math.min(snapshot.positionIndex + 1, lesson.positions.length);
-    const copyHeader = session.reviewMode || !variation
+    const moveCount = snapshot.positionCount || lesson.positions.length;
+    const moveOrdinal = Math.min(snapshot.positionIndex + 1, moveCount);
+    const copyHeader = session.reviewMode || !snapshot.lineTitle
       ? `<p class="eyebrow">${levelNames[level]} review - ${moveOrdinal} of ${moveCount}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lede">${escapeHtml(lesson.summary)}</p>`
-      : `<p class="eyebrow">Line ${variationOrdinal} of ${variationCount} · move ${moveOrdinal} of ${moveCount}</p><p class="line-title">${escapeHtml(variation.title)}</p><p class="lede">${escapeHtml(variation.summary)}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lesson-summary">${escapeHtml(lesson.summary)}</p>`;
+      : `<p class="eyebrow">Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount} &middot; move ${moveOrdinal} of ${moveCount}</p><p class="line-title">${escapeHtml(snapshot.lineTitle)}</p><p class="lede">${escapeHtml(snapshot.lineSummary)}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lesson-summary">${escapeHtml(lesson.summary)}</p>`;
     const feedbackMarkup = lessonComplete
       ? `<div class="feedback feedback-complete" role="status" aria-live="polite"><strong>${completionMessage}</strong></div>`
       : feedback
         ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>` : ''}</div>`
         : `<p class="move-hint">Select a ${course.side} piece, then select its destination.</p>`;
-    const actionMarkup = snapshot.status === 'needs-clean-run'
-      ? '<button id="restart-run">Replay this line</button><button id="exit-practice" class="quiet-button">Exit lesson</button>'
-      : lessonComplete
-        ? `<button id="proceed"${saveError ? ' disabled' : ''}>Proceed</button>`
-        : snapshot.status === 'complete'
-          ? '<button id="back-after-complete">Back to dashboard</button>'
-          : '<button id="exit-practice" class="quiet-button">Exit lesson</button>';
-    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel"><div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy, selectableColor)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.attempts} attempt${snapshot.attempts === 1 ? '' : 's'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;    bindSettings((duration) => { moveDuration = duration; });
+    const actionMarkup = lessonComplete
+      ? `<button id="proceed"${saveError ? ' disabled' : ''}>Proceed</button>`
+      : snapshot.status === 'complete'
+        ? '<button id="back-after-complete">Back to dashboard</button>'
+        : '<button id="exit-practice" class="quiet-button">Exit lesson</button>';
+    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel"><div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy, selectableColor)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;    bindSettings((duration) => { moveDuration = duration; });
     if (!lessonComplete) completionFocusRequested = false;
     if (lessonComplete && !completionFocusRequested) {
       completionFocusRequested = true;
@@ -336,8 +332,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     document.querySelector('#exit-practice')?.addEventListener('click', () => void leavePractice());
     document.querySelector('#back-after-complete')?.addEventListener('click', () => void leavePractice());
     document.querySelector('#proceed')?.addEventListener('click', () => void proceedAfterLesson());
-    document.querySelector('#restart-run')?.addEventListener('click', () => { session.restartCleanRun(); feedback = null; selected = null; displayFen = null; clearRouteFlash(); draw(); });
-    document.querySelector('#retry-save')?.addEventListener('click', () => void persist(session.snapshot).then(draw).catch(() => { saveError = true; draw(); }));
+    document.querySelector('#retry-save')?.addEventListener('click', () => void persist().then(draw).catch(() => { saveError = true; draw(); }));
     const board = app.querySelector<HTMLDivElement>('.board');
     if (!board) return;
     const displayedChess = chess;
@@ -512,7 +507,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     const attemptedRoute = { from: move.slice(0, 2), to: move.slice(2, 4) };
     if (result.kind === 'illegal' || result.kind === 'incorrect') {
       flashRoute(attemptedRoute);
-      if (result.kind === 'incorrect') void persist(result.snapshot).catch(() => { saveError = true; if (!leaving) draw(); });
+      if (result.kind === 'incorrect') void persist().catch(() => { saveError = true; if (!leaving) draw(); });
       draw();
       return;
     }
@@ -524,7 +519,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     const replyPlan = learnerPlan && result.snapshot.position ? planFenTransition(learnerPlan.afterFen, result.snapshot.position.fen) : null;
     if (!learnerPlan) {
       displayFen = result.snapshot.position?.fen ?? position.fen;
-      void persist(result.snapshot).catch(() => { saveError = true; if (!leaving) draw(); });
+      void persist().catch(() => { saveError = true; if (!leaving) draw(); });
       draw();
       return;
     }
@@ -532,7 +527,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     sequenceActive = true;
     busy = true;
     displayFen = null;
-    void persist(result.snapshot).catch(() => { saveError = true; if (!leaving) draw(); });
+    void persist().catch(() => { saveError = true; if (!leaving) draw(); });
     void playSequence(learnerPlan, replyPlan, Boolean(options.fromDrag));
   }
 
