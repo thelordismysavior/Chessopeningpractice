@@ -10,7 +10,7 @@ import { loadProgress, saveProgress, type CourseProgress } from './progress';
 import { applySessionProgress } from './progress-state';
 import { signIn, signOutUser, watchUser } from './firebase';
 import { routeArrowGeometry } from './route-arrow';
-import { planFenTransition, planMoveTransition, type MoveTransition } from './transition-plans';
+import { planFenTransition, planMoveTransition, settleDisplayFen, type MoveTransition } from './transition-plans';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 const DRAG_THRESHOLD_PX = 6;
@@ -18,6 +18,10 @@ const TOUCH_LIFT_OFFSET_PX = -48;
 const levelNames: Record<LevelKey, string> = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' };
 const sideNames: Record<Course['side'], string> = { white: 'W / WHITE', black: 'B / BLACK' };
 let signedInEmail: string | null = null;
+
+function resetPageScroll(): void {
+  window.scrollTo(0, 0);
+}
 
 function escapeHtml(value: string | null): string {
   return (value ?? '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] ?? character);
@@ -44,6 +48,7 @@ function bindSettings(onChange: (duration: number) => void): void {
 }
 
 function renderSignedOut(message = 'Private opening practice for one learner.') {
+  resetPageScroll();
   app.innerHTML = `<main class="auth-page"><div class="brand-mark">CP</div><p class="eyebrow">A quieter way to learn openings</p><h1>Chess Practice</h1><p class="lede">${escapeHtml(message)}</p><button id="sign-in">Sign in with Google <span aria-hidden="true">-&gt;</span></button></main>`;
   document.querySelector('#sign-in')!.addEventListener('click', async () => {
     try {
@@ -55,11 +60,13 @@ function renderSignedOut(message = 'Private opening practice for one learner.') 
 }
 
 function renderAuthError(message: string, retry: () => void) {
+  resetPageScroll();
   app.innerHTML = `<main class="error-page"><p class="eyebrow">Authentication unavailable</p><h1>We lost the signal.</h1><p class="lede">${escapeHtml(message)}</p><button id="retry-auth">Try again</button></main>`;
   document.querySelector('#retry-auth')!.addEventListener('click', retry);
 }
 
 function renderSources() {
+  resetPageScroll();
   app.innerHTML = `<main class="app-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="account"><span>${escapeHtml(signedInEmail) || 'owner'}</span><button id="sign-out" class="quiet-button">Sign out</button></div></header><section class="sources-page"><p class="eyebrow">Sources &amp; attribution</p><h1>Openings, with a paper trail.</h1><p class="lede">The courses are fixed, local content. These references document the opening metadata and research behind them.</p><div class="source-list">${ATTRIBUTION_SOURCES.map((source) => `<article class="source-item"><div><h2>${escapeHtml(source.name)}</h2><p>${escapeHtml(source.description)}</p></div><a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">Open source <span aria-hidden="true">-&gt;</span></a></article>`).join('')}</div></section></main>`;
   document.querySelector('#back-dashboard')!.addEventListener('click', () => void renderDashboard(signedInEmail));
   document.querySelector('#sign-out')!.addEventListener('click', () => void signOutUser());
@@ -85,6 +92,7 @@ function reviewIdsForLevel(course: Course, level: LevelKey, progress: CourseProg
 }
 
 async function renderDashboard(email: string | null) {
+  resetPageScroll();
   app.innerHTML = '<main class="loading-page"><p class="eyebrow">Loading your repertoire</p><div class="loading-line"></div></main>';
   try {
     const progressEntries = await Promise.all(COURSES.map(async (course) => [course.id, await loadProgress(course.id)] as const));
@@ -188,6 +196,7 @@ function renderBoard(chess: Chess, selected: string | null, side: Course['side']
 }
 
 async function startPractice(course: Course, level: LevelKey, progress: CourseProgress, reviewPositionIds: string[] = []) {
+  resetPageScroll();
   const lesson = course.lessons[level];
   const bankedVariationIds = (progress.completedVariationIds ?? []).filter((id) => lesson.variations.some((variation) => variation.id === id));
   const session = createPracticeSession(lesson, { reviewPositionIds, bankedVariationIds });
@@ -209,8 +218,10 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
   let dragging = false;
   let suppressClick = false;
   let focusedSquare: string | null = null;
+  let completionFocusRequested = false;
   let leaving = false;
   const selectableColor = course.side === 'white' ? 'w' : 'b';
+  const nextLevel = LEVELS[LEVELS.indexOf(level) + 1];
 
   const persist = (snapshot: SessionSnapshot) => {
     const write = saveQueue.catch(() => undefined).then(async () => {
@@ -244,6 +255,10 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
 
   const draw = () => {
     const snapshot = session.snapshot;
+    const lessonComplete = snapshot.lessonComplete && !sequenceActive;
+    const completionMessage = saveError
+      ? nextLevel ? `Save progress to unlock ${levelNames[nextLevel]}.` : 'Save progress before leaving the course.'
+      : nextLevel ? `${levelNames[level]} complete. ${levelNames[nextLevel]} unlocked.` : `${levelNames[level]} complete. Course complete.`;
     const position = sequenceActive && sequencePosition ? sequencePosition : snapshot.position ?? lesson.positions[lesson.positions.length - 1];
     const chess = new Chess(animation?.plan.fromFen ?? displayFen ?? position.fen);
     const status = sequenceActive ? 'Playing move' : snapshot.status === 'complete' ? (snapshot.lessonComplete ? 'Lesson complete' : 'Review complete') : snapshot.status === 'needs-clean-run' ? 'Clean run required' : snapshot.status === 'retrying' ? 'Retry this position' : `${course.side === 'white' ? 'White' : 'Black'} to move`;
@@ -257,12 +272,31 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     const copyHeader = session.reviewMode || !variation
       ? `<p class="eyebrow">${levelNames[level]} review - ${moveOrdinal} of ${moveCount}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lede">${escapeHtml(lesson.summary)}</p>`
       : `<p class="eyebrow">Line ${variationOrdinal} of ${variationCount} · move ${moveOrdinal} of ${moveCount}</p><p class="line-title">${escapeHtml(variation.title)}</p><p class="lede">${escapeHtml(variation.summary)}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lesson-summary">${escapeHtml(lesson.summary)}</p>`;
-    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${feedback ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>` : ''}</div>` : `<p class="move-hint">Select a ${course.side} piece, then select its destination.</p>`}<div class="practice-actions">${snapshot.status === 'needs-clean-run' ? '<button id="restart-run">Replay this line</button>' : snapshot.status === 'complete' ? '<button id="back-after-complete">Back to dashboard</button>' : ''}<button id="exit-practice" class="quiet-button">Exit lesson</button></div></section><section class="board-panel"><div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy, selectableColor)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.attempts} attempt${snapshot.attempts === 1 ? '' : 's'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;    bindSettings((duration) => { moveDuration = duration; });
-    if (focusedSquare && !busy) window.requestAnimationFrame(() => app.querySelector<HTMLButtonElement>(`[data-square="${focusedSquare}"]`)?.focus());
+    const feedbackMarkup = lessonComplete
+      ? `<div class="feedback feedback-complete" role="status" aria-live="polite"><strong>${completionMessage}</strong></div>`
+      : feedback
+        ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>` : ''}</div>`
+        : `<p class="move-hint">Select a ${course.side} piece, then select its destination.</p>`;
+    const actionMarkup = snapshot.status === 'needs-clean-run'
+      ? '<button id="restart-run">Replay this line</button><button id="exit-practice" class="quiet-button">Exit lesson</button>'
+      : lessonComplete
+        ? `<button id="proceed"${saveError ? ' disabled' : ''}>Proceed</button>`
+        : snapshot.status === 'complete'
+          ? '<button id="back-after-complete">Back to dashboard</button>'
+          : '<button id="exit-practice" class="quiet-button">Exit lesson</button>';
+    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel"><div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy, selectableColor)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.attempts} attempt${snapshot.attempts === 1 ? '' : 's'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;    bindSettings((duration) => { moveDuration = duration; });
+    if (!lessonComplete) completionFocusRequested = false;
+    if (lessonComplete && !completionFocusRequested) {
+      completionFocusRequested = true;
+      window.requestAnimationFrame(() => app.querySelector<HTMLButtonElement>('#proceed')?.focus());
+    } else if (focusedSquare && !busy) {
+      window.requestAnimationFrame(() => app.querySelector<HTMLButtonElement>(`[data-square="${focusedSquare}"]`)?.focus());
+    }
     document.querySelector('#back-dashboard')!.addEventListener('click', () => void leavePractice());
     document.querySelector('#practice-sign-out')!.addEventListener('click', () => void leavePractice(true));
-    document.querySelector('#exit-practice')!.addEventListener('click', () => void leavePractice());
+    document.querySelector('#exit-practice')?.addEventListener('click', () => void leavePractice());
     document.querySelector('#back-after-complete')?.addEventListener('click', () => void leavePractice());
+    document.querySelector('#proceed')?.addEventListener('click', () => void proceedAfterLesson());
     document.querySelector('#restart-run')?.addEventListener('click', () => { session.restartCleanRun(); feedback = null; selected = null; displayFen = null; clearRouteFlash(); draw(); });
     document.querySelector('#retry-save')?.addEventListener('click', () => void persist(session.snapshot).then(draw).catch(() => { saveError = true; draw(); }));
     const board = app.querySelector<HTMLDivElement>('.board');
@@ -298,7 +332,6 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
       pointerMoved = false;
       pressX = event.clientX;
       pressY = event.clientY;
-      board.setPointerCapture(event.pointerId);
     });
     board.addEventListener('pointermove', (event) => {
       if (pointerId !== event.pointerId || !pointerOrigin) return;
@@ -310,6 +343,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
       const originButton = app.querySelector<HTMLButtonElement>(`[data-square="${pointerOrigin}"]`);
       const boardPiece = displayedChess.get(pointerOrigin as Parameters<Chess['get']>[0]);
       if (!originButton || !boardPiece) return;
+      board.setPointerCapture(event.pointerId);
       pointerMoved = true;
       selected = pointerOrigin;
       dragging = true;
@@ -419,7 +453,11 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     }
     if (leaving) return;
     animation = null;
-    displayFen = replyPlan?.afterFen ?? learnerPlan.afterFen;
+    displayFen = settleDisplayFen(
+      learnerPlan.afterFen,
+      replyPlan?.afterFen ?? null,
+      session.snapshot.position?.fen ?? null,
+    );
     sequenceActive = false;
     busy = false;
     selected = null;
@@ -458,6 +496,25 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     void persist(result.snapshot).catch(() => { saveError = true; if (!leaving) draw(); });
     void playSequence(learnerPlan, replyPlan, Boolean(options.fromDrag));
   }
+
+  const proceedAfterLesson = async () => {
+    if (leaving) return;
+    leaving = true;
+    const button = app.querySelector<HTMLButtonElement>('#proceed');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Saving...';
+    }
+    try {
+      await pendingSave;
+      if (nextLevel) await startPractice(course, nextLevel, liveProgress);
+      else await renderDashboard(signedInEmail);
+    } catch {
+      leaving = false;
+      saveError = true;
+      draw();
+    }
+  };
 
   const leavePractice = async (signOut = false) => {
     leaving = true;

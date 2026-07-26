@@ -17,7 +17,8 @@ h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: 1.25rem; font-size: clamp(3rem, 8vw, 6.6rem); line-height: .93; letter-spacing: -.07em; }
 h1 em { color: #b05b34; font-style: normal; }
 .lede { max-width: 35rem; color: #657078; font-size: 1.06rem; line-height: 1.7; }
-.auth-page button, .error-page button, #restart-run { margin-top: 1.5rem; padding: .9rem 1.15rem; border-radius: 999px; background: #b05b34; color: white; font-weight: 750; }
+.auth-page button, .error-page button, #restart-run, #proceed, #back-after-complete { margin-top: 1.5rem; padding: .9rem 1.15rem; border-radius: 999px; background: #b05b34; color: white; font-weight: 750; }
+#proceed:disabled { cursor: wait; opacity: .7; }
 .auth-page button span { margin-left: 1rem; font-size: 1.2rem; }
 
 .app-shell, .practice-shell { max-width: 1240px; margin: auto; padding: 1.25rem 2.5rem 5rem; }
@@ -26,6 +27,8 @@ h1 em { color: #b05b34; font-style: normal; }
 .wordmark span { color: #b05b34; }
 .account, .practice-meta { display: flex; align-items: center; gap: 1rem; color: #657078; font-size: .84rem; }
 .quiet-button, .back-button { padding: .55rem .75rem; border-radius: 999px; background: transparent; color: #657078; }
+.quiet-button, .back-button, .course-count { white-space: nowrap; }
+.course-count { flex: 0 0 auto; }
 .quiet-button:hover, .back-button:hover { background: #e7e2d7; color: #17222b; }
 .quiet-button:active, .back-button:active, .practice-actions button:active { transform: translateY(1px); }
 .dashboard-intro { display: grid; grid-template-columns: minmax(0, 1fr) 220px; align-items: end; gap: 3rem; margin: 11vh 0 4.5rem; }
@@ -84,7 +87,7 @@ h1 em { color: #b05b34; font-style: normal; }
 .feedback-complete { border-color: #477b63; }
 .save-alert { display: flex; justify-content: space-between; gap: 1rem; margin: 1.5rem 0 -1rem; padding: .75rem 1rem; border: 1px solid #d6a15f; background: #f4e8d5; color: #6f4b27; font-size: .85rem; }
 .save-alert button { padding: 0; background: transparent; color: #b05b34; font-weight: 750; }
-.practice-actions { display: flex; align-items: center; gap: 1rem; margin-top: 2rem; }
+.practice-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; margin-top: 2rem; }
 .board-panel { width: min(100%, 650px); justify-self: end; }
 .board-frame { padding: 12px; background: #17222b; box-shadow: 18px 22px 0 #d8d1c4; }
 .board { position: relative; display: grid; grid-template-columns: repeat(8, 1fr); aspect-ratio: 1; overflow: hidden; touch-action: none; }
@@ -125,9 +128,9 @@ h1 em { color: #b05b34; font-style: normal; }
   clip-path: polygon(0 25%, calc(100% - var(--route-head)) 25%, calc(100% - var(--route-head)) 0, 100% 50%, calc(100% - var(--route-head)) 100%, calc(100% - var(--route-head)) 75%, 0 75%);
 }
 .guide-overlay .route-arrow {
-  height: 11px;
-  background: #4f8f55;
-  box-shadow: 0 1px 0 rgb(23 34 43 / .12);
+  height: 6px;
+  background: #5f8664;
+  opacity: .78;
 }
 .feedback-overlay .route-origin { width: 64%; height: 64%; border: 4px solid #a4473e; border-radius: 50%; }
 .feedback-overlay .route-target { width: 38%; height: 38%; border: 5px solid #a4473e; border-radius: 50%; }
@@ -171,6 +174,12 @@ dialog::backdrop { background: rgb(23 34 43 / .34); }
 }
 
 @media (max-width: 520px) {
+  .topbar { gap: .35rem; }
+  .account, .practice-meta { gap: .25rem; }
+  .quiet-button, .back-button { padding-inline: .4rem; }
+  .practice-meta .side-tag { margin-bottom: 0; }
+  .course-footer { align-items: flex-start; flex-direction: column; }
+  .review-links { justify-content: flex-start; }
   .practice-shell { padding-inline: .5rem; }
   .course-grid { gap: .8rem; }
   .course-card { padding: 1.1rem; }
@@ -179,6 +188,11 @@ dialog::backdrop { background: rgb(23 34 43 / .34); }
   .board-frame { padding: 6px; box-shadow: 8px 10px 0 #d8d1c4; }
   .board-square, .animated-piece { font-size: clamp(1.65rem, 10vw, 3rem); }
   .account > span { display: none; }
+}
+
+@media (max-width: 360px) {
+  .topbar { flex-wrap: wrap; }
+  .account { margin-left: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
