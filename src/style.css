@@ -212,3 +212,27 @@ dialog::backdrop { background: rgb(23 34 43 / .34); }
 @media (prefers-reduced-motion: reduce) {
   .loading-line { animation: none; }
 }
+
+.mistake-budget {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin: .75rem 0 0;
+}
+
+.budget-slot {
+  width: .6rem;
+  height: .6rem;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: .45;
+}
+
+.budget-slot.is-spent {
+  background: currentColor;
+  opacity: 1;
+}
+
+.mistake-budget small {
+  opacity: .7;
+}

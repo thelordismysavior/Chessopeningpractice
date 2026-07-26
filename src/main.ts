@@ -306,19 +306,25 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     const expectedRoute = showGuide ? { from: position.expectedMove.slice(0, 2), to: position.expectedMove.slice(2, 4) } : null;
     const moveCount = snapshot.positionCount || lesson.positions.length;
     const moveOrdinal = Math.min(snapshot.positionIndex + 1, moveCount);
+    const phaseLabel = session.reviewMode ? 'Review' : snapshot.phase === 'teach' ? 'Learn the line' : 'Recall';
+    const budgetMarkup = snapshot.mistakeBudget === null
+      ? ''
+      : `<p class="mistake-budget" aria-label="${snapshot.mistakes} of ${snapshot.mistakeBudget} mistakes used">${Array.from({ length: snapshot.mistakeBudget }, (_, slot) => `<span class="budget-slot ${slot < snapshot.mistakes ? 'is-spent' : ''}"></span>`).join('')}<small>${snapshot.mistakes} of ${snapshot.mistakeBudget} slips used</small></p>`;
     const copyHeader = session.reviewMode || !snapshot.lineTitle
       ? `<p class="eyebrow">${levelNames[level]} review - ${moveOrdinal} of ${moveCount}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lede">${escapeHtml(lesson.summary)}</p>`
-      : `<p class="eyebrow">Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount} &middot; move ${moveOrdinal} of ${moveCount}</p><p class="line-title">${escapeHtml(snapshot.lineTitle)}</p><p class="lede">${escapeHtml(snapshot.lineSummary)}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lesson-summary">${escapeHtml(lesson.summary)}</p>`;
+      : `<p class="eyebrow">${phaseLabel} &middot; line ${snapshot.lineIndex + 1} of ${snapshot.lineCount} &middot; move ${moveOrdinal} of ${moveCount}</p><p class="line-title">${escapeHtml(snapshot.lineTitle)}</p><p class="lede">${escapeHtml(snapshot.lineSummary)}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lesson-summary">${escapeHtml(lesson.summary)}</p>${budgetMarkup}`;
     const feedbackMarkup = lessonComplete
       ? `<div class="feedback feedback-complete" role="status" aria-live="polite"><strong>${completionMessage}</strong></div>`
       : feedback
         ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>` : ''}</div>`
-        : `<p class="move-hint">Select a ${course.side} piece, then select its destination.</p>`;
+        : `<p class="move-hint">${snapshot.phase === 'teach' ? 'Follow the arrow to learn the line.' : `Select a ${course.side} piece, then select its destination.`}</p>`;
+    const canHint = !sequenceActive && snapshot.status !== 'complete' && snapshot.phase !== 'teach' && !snapshot.hintVisible;
+    const hintMarkup = canHint ? '<button id="show-hint" class="quiet-button">Show me</button>' : '';
     const actionMarkup = lessonComplete
       ? `<button id="proceed"${saveError ? ' disabled' : ''}>Proceed</button>`
       : snapshot.status === 'complete'
         ? '<button id="back-after-complete">Back to dashboard</button>'
-        : '<button id="exit-practice" class="quiet-button">Exit lesson</button>';
+        : `${hintMarkup}<button id="exit-practice" class="quiet-button">Exit lesson</button>`;
     app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel"><div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy, selectableColor)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;    bindSettings((duration) => { moveDuration = duration; });
     if (!lessonComplete) completionFocusRequested = false;
     if (lessonComplete && !completionFocusRequested) {
@@ -332,6 +338,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     document.querySelector('#exit-practice')?.addEventListener('click', () => void leavePractice());
     document.querySelector('#back-after-complete')?.addEventListener('click', () => void leavePractice());
     document.querySelector('#proceed')?.addEventListener('click', () => void proceedAfterLesson());
+    document.querySelector('#show-hint')?.addEventListener('click', () => { session.requestHint(); draw(); });
     document.querySelector('#retry-save')?.addEventListener('click', () => void persist().then(draw).catch(() => { saveError = true; draw(); }));
     const board = app.querySelector<HTMLDivElement>('.board');
     if (!board) return;
