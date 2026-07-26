@@ -147,12 +147,26 @@ dialog::backdrop { background: rgb(23 34 43 / .34); }
 .settings-form input:focus-visible { outline: 3px solid #d46b3d; outline-offset: 2px; }
 .settings-help { margin: 0 0 .6rem; color: #879097; font-size: .78rem; }
 .settings-form button { justify-self: start; padding: .7rem 1rem; border-radius: 999px; background: #b05b34; color: #fbf7ef; font-weight: 750; }
+.reset-progress { display: grid; gap: .65rem; margin-top: .5rem; padding-top: 1rem; border-top: 1px solid #cfc9bd; }
+.reset-progress h3, .reset-progress p { margin: 0; }
+.reset-progress h3 { font-size: .9rem; }
+.reset-progress p { color: #657078; font-size: .78rem; }
+.reset-confirmation { display: grid; gap: .65rem; }
+.reset-confirmation[hidden], #show-reset-progress[hidden], #reset-progress-error[hidden] { display: none; }
+.settings-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.settings-form .danger-button { background: #a4473e; color: #fbf7ef; }
+.settings-form .settings-actions .quiet-button { background: transparent; color: #657078; }
+#reset-progress-error { color: #a4473e; font-weight: 700; }
 
 @media (prefers-color-scheme: dark) {
   dialog { border-color: #49565e; background: #17222b; color: #f3f0e8; }
   .settings-form label { color: #d8d1c4; }
   .settings-form input { border-color: #657078; background: #24333d; color: #f3f0e8; }
   .settings-help { color: #aeb7b9; }
+  .reset-progress { border-color: #49565e; }
+  .reset-progress p { color: #aeb7b9; }
+  .settings-form .settings-actions .quiet-button { color: #d8d1c4; }
+  #reset-progress-error { color: #e09a91; }
 }
 
 .loading-page { padding-top: 20vh; }

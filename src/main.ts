@@ -6,7 +6,7 @@ import { shouldShowMoveGuide } from './guide-policy';
 import { effectiveMoveDuration, loadMoveDuration, saveMoveDuration } from './move-settings';
 import { pieceAppearance, pieceCode } from './piece-appearance';
 import { createPracticeSession, type MoveFeedback, type SessionSnapshot } from './practice-session';
-import { loadProgress, saveProgress, type CourseProgress } from './progress';
+import { loadProgress, resetAllProgress, saveProgress, type CourseProgress } from './progress';
 import { applySessionProgress } from './progress-state';
 import { signIn, signOutUser, watchUser } from './firebase';
 import { routeArrowGeometry } from './route-arrow';
@@ -27,11 +27,14 @@ function escapeHtml(value: string | null): string {
   return (value ?? '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] ?? character);
 }
 
-function settingsDialogMarkup(duration: number): string {
-  return `<dialog id="settings-dialog" aria-labelledby="settings-title"><form method="dialog" class="settings-form"><p class="eyebrow">Device preference</p><h2 id="settings-title">Settings</h2><label for="move-duration">Move duration (ms)</label><input id="move-duration" name="move-duration" type="number" min="0" max="2000" step="50" value="${duration}"><p class="settings-help">Used for learner moves, opponent replies, captures, and castling.</p><button value="close">Done</button></form></dialog>`;
+function settingsDialogMarkup(duration: number, includeProgressReset = false): string {
+  const reset = includeProgressReset
+    ? `<section class="reset-progress" aria-labelledby="reset-progress-title"><h3 id="reset-progress-title">Progress</h3><p>Clear every course and start again from Beginner. Move duration stays unchanged.</p><button type="button" id="show-reset-progress" class="danger-button">Reset all progress</button><div id="reset-progress-confirmation" class="reset-confirmation" hidden><p>This cannot be undone.</p><div class="settings-actions"><button type="button" id="cancel-reset-progress" class="quiet-button">Cancel</button><button type="button" id="confirm-reset-progress" class="danger-button">Reset progress</button></div></div><p id="reset-progress-error" role="alert" hidden>Progress could not be reset. Check your connection and try again.</p></section>`
+    : '';
+  return `<dialog id="settings-dialog" aria-labelledby="settings-title"><form method="dialog" class="settings-form"><p class="eyebrow">Device preference</p><h2 id="settings-title">Settings</h2><label for="move-duration">Move duration (ms)</label><input id="move-duration" name="move-duration" type="number" min="0" max="2000" step="50" value="${duration}"><p class="settings-help">Used for learner moves, opponent replies, captures, and castling.</p>${reset}<button value="close">Done</button></form></dialog>`;
 }
 
-function bindSettings(onChange: (duration: number) => void): void {
+function bindSettings(onChange: (duration: number) => void, resetProgress?: () => Promise<void>): void {
   const dialog = app.querySelector<HTMLDialogElement>('#settings-dialog');
   const button = app.querySelector<HTMLButtonElement>('#settings');
   const input = app.querySelector<HTMLInputElement>('#move-duration');
@@ -45,6 +48,39 @@ function bindSettings(onChange: (duration: number) => void): void {
     onChange(duration);
   };
   input.addEventListener('change', update);
+  const showReset = app.querySelector<HTMLButtonElement>('#show-reset-progress');
+  const confirmation = app.querySelector<HTMLElement>('#reset-progress-confirmation');
+  const cancelReset = app.querySelector<HTMLButtonElement>('#cancel-reset-progress');
+  const confirmReset = app.querySelector<HTMLButtonElement>('#confirm-reset-progress');
+  const resetError = app.querySelector<HTMLElement>('#reset-progress-error');
+  if (!resetProgress || !showReset || !confirmation || !cancelReset || !confirmReset || !resetError) return;
+
+  showReset.addEventListener('click', () => {
+    showReset.hidden = true;
+    confirmation.hidden = false;
+    confirmReset.focus();
+  });
+  cancelReset.addEventListener('click', () => {
+    confirmation.hidden = true;
+    showReset.hidden = false;
+    resetError.hidden = true;
+    showReset.focus();
+  });
+  confirmReset.addEventListener('click', async () => {
+    cancelReset.disabled = true;
+    confirmReset.disabled = true;
+    resetError.hidden = true;
+    try {
+      await resetProgress();
+      dialog.close();
+      await renderDashboard(signedInEmail);
+    } catch {
+      resetError.hidden = false;
+      cancelReset.disabled = false;
+      confirmReset.disabled = false;
+      confirmReset.focus();
+    }
+  });
 }
 
 function renderSignedOut(message = 'Private opening practice for one learner.') {
@@ -106,7 +142,7 @@ async function renderDashboard(email: string | null) {
       const reviewPositionIds = reviewLevel ? reviewIdsForLevel(course, reviewLevel, progress) : [];
       const nextCopy = completed === LEVELS.length ? 'All three lessons complete' : `Next up: <strong>${levelNames[nextLevel]}</strong>`;
       return `<article class="course-card"><div class="course-header"><div><span class="side-tag">${sideNames[course.side]}</span><h2>${escapeHtml(course.name)}</h2><p>${escapeHtml(course.description)}</p></div><span class="course-count">${String(completed).padStart(2, '0')} / 03</span></div><div class="core-line"><span>Core line - ${escapeHtml(course.eco)}</span><code>${escapeHtml(course.coreLine)}</code></div><div class="lesson-list">${LEVELS.map((level) => levelButton(course, level, progress)).join('')}</div><div class="course-footer"><span>${nextCopy}</span>${reviewLevel && reviewPositionIds.length ? `<button class="review-link" data-review-course="${course.id}" data-review-level="${reviewLevel}">Review ${reviewPositionIds.length} positions</button>` : '<span class="muted">Clean practice builds recall</span>'}</div></article>`;
-    }).join('')}</section>${settingsDialogMarkup(loadMoveDuration())}</main>`;
+    }).join('')}</section>${settingsDialogMarkup(loadMoveDuration(), true)}</main>`;
     const courseCards = app.querySelectorAll<HTMLElement>('.course-card');
     COURSES.forEach((course, index) => {
       const footer = courseCards[index]?.querySelector<HTMLElement>('.course-footer');
@@ -118,7 +154,10 @@ async function renderDashboard(email: string | null) {
       if (links) footer.insertAdjacentHTML('beforeend', `<div class="review-links">${links}</div>`);
     });
     document.querySelector('#sources')!.addEventListener('click', renderSources);
-    bindSettings(() => undefined);
+    bindSettings(
+      () => undefined,
+      () => resetAllProgress(COURSES.map((course) => course.id)),
+    );
     document.querySelector('#sign-out')!.addEventListener('click', () => void signOutUser());
     document.querySelectorAll<HTMLButtonElement>('[data-course][data-level]').forEach((button) => button.addEventListener('click', () => {
       const course = coursesById[button.dataset.course as Course['id']];

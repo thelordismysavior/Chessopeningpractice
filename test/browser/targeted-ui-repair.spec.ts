@@ -20,11 +20,16 @@ async function installAppStubs(page: Page, failCompleteSave = false): Promise<vo
     contentType: 'application/javascript',
     body: `
       const progressByCourse = new Map();
+      globalThis.__progressByCourse = progressByCourse;
       const emptyProgress = () => ({ completedLevels: [], unlockedLevel: 0, attempts: 0, missedPositionIds: [], completedPositionIds: [], completedVariationIds: [], reviewHistory: [] });
       export async function loadProgress(courseId) { return { ...emptyProgress(), ...(progressByCourse.get(courseId) ?? {}) }; }
       export async function saveProgress(courseId, nextProgress) {
         if (globalThis.__failCompleteSave && nextProgress.completedLevels.includes('beginner')) throw new Error('save failed');
         progressByCourse.set(courseId, { ...nextProgress });
+      }
+      export async function resetAllProgress(courseIds) {
+        if (globalThis.__failProgressReset) throw new Error('reset failed');
+        courseIds.forEach((courseId) => progressByCourse.delete(courseId));
       }
     `,
   }));
@@ -116,4 +121,67 @@ test('dashboard and practice stay within a narrow viewport', async ({ page }) =>
   await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
   await expect(page.locator('.board')).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('Dashboard settings confirm reset and preserve move duration', async ({ page }) => {
+  await openDashboard(page);
+  await page.evaluate((courseIds) => {
+    const state = globalThis as typeof globalThis & { __progressByCourse: Map<string, object> };
+    courseIds.forEach((courseId) => state.__progressByCourse.set(courseId, {
+      completedLevels: ['beginner'],
+      unlockedLevel: 1,
+      attempts: 4,
+      missedPositionIds: [],
+      completedPositionIds: [],
+      completedVariationIds: [],
+      reviewHistory: [],
+    }));
+  }, COURSES.map((course) => course.id));
+
+  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await page.locator('#settings').click();
+  await expect(page.locator('#show-reset-progress')).toHaveCount(0);
+  await page.locator('#settings-dialog').getByRole('button', { name: 'Done' }).click();
+  await page.locator('#back-dashboard').click();
+  await expect(page.locator('.course-count')).toHaveText(['01 / 03', '01 / 03', '01 / 03', '01 / 03']);
+
+  await page.locator('#settings').click();
+  await page.locator('#show-reset-progress').click();
+  await expect(page.locator('#confirm-reset-progress')).toBeFocused();
+  await page.locator('#confirm-reset-progress').click();
+
+  await expect(page.locator('.dashboard-intro')).toBeVisible();
+  await expect(page.locator('.course-count')).toHaveText(['00 / 03', '00 / 03', '00 / 03', '00 / 03']);
+  await expect(page.locator('.lesson-row').nth(1)).toBeDisabled();
+  expect(await page.evaluate(() => localStorage.getItem('chess-practice.move-duration'))).toBe('0');
+});
+
+test('failed reset stays open and can be retried', async ({ page }) => {
+  await openDashboard(page);
+  await page.evaluate((courseId) => {
+    const state = globalThis as typeof globalThis & {
+      __failProgressReset?: boolean;
+      __progressByCourse: Map<string, object>;
+    };
+    state.__failProgressReset = true;
+    state.__progressByCourse.set(courseId, { completedLevels: ['beginner'], unlockedLevel: 1 });
+  }, COURSES[0].id);
+
+  await page.locator('#settings').click();
+  await page.locator('#show-reset-progress').click();
+  await page.locator('#confirm-reset-progress').click();
+
+  await expect(page.locator('#settings-dialog')).toHaveAttribute('open', '');
+  await expect(page.locator('#reset-progress-error')).toBeVisible();
+  await expect(page.locator('#confirm-reset-progress')).toBeEnabled();
+  expect(await page.evaluate((courseId) => {
+    const state = globalThis as typeof globalThis & { __progressByCourse: Map<string, object> };
+    return state.__progressByCourse.has(courseId);
+  }, COURSES[0].id)).toBe(true);
+
+  await page.evaluate(() => {
+    (globalThis as typeof globalThis & { __failProgressReset?: boolean }).__failProgressReset = false;
+  });
+  await page.locator('#confirm-reset-progress').click();
+  await expect(page.locator('.dashboard-intro')).toBeVisible();
 });
