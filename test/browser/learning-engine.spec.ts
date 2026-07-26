@@ -109,6 +109,7 @@ test('Proceed still routes Beginner to Intermediate after a clean lesson', async
   await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
   await playLessonClean(page);
   await expect(page.locator('.summary-panel')).toBeVisible();
+  await expect(page.locator('#review-now')).toHaveCount(0);
   await page.locator('#proceed').click();
-  await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Intermediate');
+  await expect(page.locator('.line-title')).toHaveText(COURSES[0].lessons.intermediate.variations[0].title);
 });

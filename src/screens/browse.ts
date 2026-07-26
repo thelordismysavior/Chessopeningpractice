@@ -50,8 +50,10 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
 
   const rows = buildRows(progressByCourse);
   const filters: Filters = { course: screen.courseId ?? 'all', state: 'all' };
+  let walkerGeneration = 0;
 
   const drawIndex = () => {
+    walkerGeneration += 1;
     const visible = rows.filter((row) => matches(row, filters));
     const courseChips = [{ id: 'all' as const, label: 'All courses' }, ...COURSES.map((course) => ({ id: course.id, label: course.name }))]
       .map((chip) => `<button class="filter-chip ${filters.course === chip.id ? 'is-active' : ''}" data-course-filter="${chip.id}" aria-pressed="${filters.course === chip.id}">${escapeHtml(chip.label)}</button>`).join('');
@@ -80,6 +82,7 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
   };
 
   const openWalker = (row: Row) => {
+    const generation = ++walkerGeneration;
     let index = 0;
     let evalScore: EvalScore | null = null;
     const positions = row.variation.positions;
@@ -88,6 +91,7 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
       : false;
 
     const drawWalker = () => {
+      if (generation !== walkerGeneration) return;
       const position = positions[index];
       const chess = new Chess(position.fen);
       const guide = { from: position.expectedMove.slice(0, 2), to: position.expectedMove.slice(2, 4) };
@@ -105,7 +109,7 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
 
       const fen = position.fen;
       void engine.evaluate(fen, row.course.side === 'white' ? 'w' : 'b').then((score) => {
-        if (positions[index]?.fen !== fen) return;
+        if (generation !== walkerGeneration || positions[index]?.fen !== fen) return;
         if (score === null) {
           if (engine.status !== 'unavailable') return;
           evalScore = null;

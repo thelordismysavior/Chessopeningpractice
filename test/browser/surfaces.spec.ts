@@ -188,6 +188,7 @@ test('the bar is vertical on a wide viewport and horizontal on a narrow one', as
   await openDashboard(page, 1440, 1000);
   await page.locator('#browse').click();
   await page.locator('.browse-row').first().click();
+  await expect(page.locator('.eval-value')).toHaveText('+1.20');
   const wide = await page.locator('.eval-bar').boundingBox();
   expect(wide!.height).toBeGreaterThan(wide!.width);
 
