@@ -1,6 +1,6 @@
 import { COURSES, LEVELS, type Course, type LevelKey } from './courses';
 import type { CourseProgress } from './progress';
-import { duePositionIds } from './review-schedule';
+import { duePositionIds, REVIEW_CLEAR_STREAK } from './review-schedule';
 
 export type ReviewGroup = { courseId: Course['id']; level: LevelKey; positionIds: string[] };
 
@@ -21,4 +21,16 @@ export function reviewQueue(progressByCourse: Record<Course['id'], CourseProgres
     }
   }
   return { groups, total: groups.reduce((sum, group) => sum + group.positionIds.length, 0) };
+}
+
+export function reviewRunGroups(
+  groups: ReviewGroup[],
+  progressByCourse: Record<Course['id'], CourseProgress>,
+): ReviewGroup[] {
+  return groups.map((group) => ({
+    ...group,
+    positionIds: group.positionIds.flatMap((id) => (
+      Array(Math.max(1, REVIEW_CLEAR_STREAK - (progressByCourse[group.courseId].positions[id]?.reviewStreak ?? 0))).fill(id)
+    )),
+  }));
 }

@@ -1,6 +1,6 @@
 import { COURSES, coursesById, type Course, type LevelKey } from '../courses';
 import { loadProgress, type CourseProgress } from '../progress';
-import { reviewQueue, type ReviewGroup } from '../review-queue';
+import { reviewQueue, reviewRunGroups, type ReviewGroup } from '../review-queue';
 import { signOutUser } from '../firebase';
 import { app, escapeHtml, levelNames, resetPageScroll, topbarMarkup } from './shell';
 import type { Navigate } from './navigation';
@@ -18,6 +18,7 @@ export async function renderReviewQueue(navigate: Navigate, email: string | null
     const entries = await Promise.all(COURSES.map(async (course) => [course.id, await loadProgress(course.id)] as const));
     const progressByCourse = Object.fromEntries(entries) as Record<Course['id'], CourseProgress>;
     const queue = reviewQueue(progressByCourse);
+    const runGroups = reviewRunGroups(queue.groups, progressByCourse);
     const body = queue.groups.length
       ? `<p class="lede">${queue.total} position${queue.total === 1 ? '' : 's'} across ${queue.groups.length} lesson${queue.groups.length === 1 ? '' : 's'}. Two clean answers clear a position.</p><div class="queue-actions"><button id="review-all">Review all ${queue.total}</button></div><div class="queue-list">${queue.groups.map(groupRow).join('')}</div>`
       : '<p class="lede queue-empty">Nothing is due. Everything you have banked is holding.</p>';
@@ -27,7 +28,8 @@ export async function renderReviewQueue(navigate: Navigate, email: string | null
     document.querySelector('#sign-out')!.addEventListener('click', () => void signOutUser());
 
     const startGroup = (index: number, run = false) => {
-      const group = queue.groups[index];
+      const groups = run ? runGroups : queue.groups;
+      const group = groups[index];
       if (!group) return;
       void navigate({
         name: 'practice',
@@ -35,7 +37,7 @@ export async function renderReviewQueue(navigate: Navigate, email: string | null
         level: group.level as LevelKey,
         progress: progressByCourse[group.courseId],
         reviewPositionIds: group.positionIds,
-        run: run ? { groups: queue.groups, index } : undefined,
+        run: run ? { groups, index } : undefined,
       });
     };
 

@@ -6,6 +6,8 @@ declare global {
   var __progressByCourse: Map<string, unknown>;
   // eslint-disable-next-line no-var
   var __seedProgress: [string, unknown][];
+  // eslint-disable-next-line no-var
+  var __saveFailuresRemaining: number;
 }
 
 export async function installAppStubs(page: Page): Promise<void> {
@@ -104,6 +106,10 @@ export async function installAppStubs(page: Page): Promise<void> {
         return migrateProgress(progressByCourse.get(courseId));
       }
       export async function saveProgress(courseId, delta) {
+        if ((globalThis.__saveFailuresRemaining ?? 0) > 0) {
+          globalThis.__saveFailuresRemaining -= 1;
+          throw new Error('save failed');
+        }
         const stored = migrateProgress(progressByCourse.get(courseId));
         progressByCourse.set(courseId, mergeProgress(stored, delta));
       }

@@ -131,6 +131,20 @@ describe('evaluation', () => {
     expect(worker.goCount).toBe(2);
   });
 
+  test('keeps an active search attached to its FEN when the memo is cleared', async () => {
+    const first = client.evaluate(START, 'w');
+    worker.handshake();
+    client.clearMemo();
+    const second = client.evaluate(AFTER_E4, 'w');
+
+    worker.finish(35);
+    await expect(first).resolves.toEqual({ kind: 'cp', cp: 35 });
+    expect(worker.sent).toContain(`position fen ${AFTER_E4}`);
+
+    worker.finish(70);
+    await expect(second).resolves.toEqual({ kind: 'cp', cp: -70 });
+  });
+
   test('resolves null when a search reports no score', async () => {
     const pending = client.evaluate(START, 'w');
     worker.handshake();

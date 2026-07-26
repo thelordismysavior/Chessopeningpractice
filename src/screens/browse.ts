@@ -51,9 +51,16 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
   const rows = buildRows(progressByCourse);
   const filters: Filters = { course: screen.courseId ?? 'all', state: 'all' };
   let walkerGeneration = 0;
+  let removeWalkerKeyListener: (() => void) | null = null;
+
+  const disposeWalker = () => {
+    walkerGeneration += 1;
+    removeWalkerKeyListener?.();
+    removeWalkerKeyListener = null;
+  };
 
   const drawIndex = () => {
-    walkerGeneration += 1;
+    disposeWalker();
     const visible = rows.filter((row) => matches(row, filters));
     const courseChips = [{ id: 'all' as const, label: 'All courses' }, ...COURSES.map((course) => ({ id: course.id, label: course.name }))]
       .map((chip) => `<button class="filter-chip ${filters.course === chip.id ? 'is-active' : ''}" data-course-filter="${chip.id}" aria-pressed="${filters.course === chip.id}">${escapeHtml(chip.label)}</button>`).join('');
@@ -82,7 +89,8 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
   };
 
   const openWalker = (row: Row) => {
-    const generation = ++walkerGeneration;
+    disposeWalker();
+    const generation = walkerGeneration;
     engine.clearMemo();
     let index = 0;
     let evalScore: EvalScore | null = null;
@@ -100,15 +108,20 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
       app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'walker-back', label: 'Browse' } })}<section class="walker"><div class="walker-copy"><p class="eyebrow">${escapeHtml(row.course.name)} &middot; ${levelNames[row.level]} &middot; move ${index + 1} of ${positions.length}</p><span class="side-tag">${sideNames[row.course.side]}</span><p class="line-title">${escapeHtml(row.variation.title)}</p><p class="lede">${escapeHtml(row.variation.summary)}</p><div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div><ol class="walker-moves">${moves}</ol><div class="walker-actions"><button id="walker-prev" class="quiet-button"${index === 0 ? ' disabled' : ''}>&lt;- Previous</button><button id="walker-next" class="quiet-button"${index === positions.length - 1 ? ' disabled' : ''}>Next -&gt;</button>${unlocked ? '<button id="walker-practice">Practice this level</button>' : ''}</div><p class="walker-note">Studying only. Nothing here changes your progress.</p></div><div class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame">${renderBoard(chess, null, row.course.side, guide, null, null, false, true, row.course.side === 'white' ? 'w' : 'b')}</div><div class="board-caption"><span>${escapeHtml(position.expectedSan)} is the move</span><span>Move ${index + 1} of ${positions.length}</span></div></div></section></main>`;
 
       document.querySelector('#walker-back')!.addEventListener('click', () => drawIndex());
-      document.querySelector('#sign-out')!.addEventListener('click', () => void signOutUser());
+      document.querySelector('#sign-out')!.addEventListener('click', () => {
+        disposeWalker();
+        void signOutUser();
+      });
       document.querySelector('#walker-prev')?.addEventListener('click', () => step(-1));
       document.querySelector('#walker-next')?.addEventListener('click', () => step(1));
       document.querySelector('#walker-practice')?.addEventListener('click', () => {
         if (!progressByCourse) return;
+        disposeWalker();
         void navigate({ name: 'practice', course: row.course, level: row.level, progress: progressByCourse[row.course.id] });
       });
 
       const fen = position.fen;
+      const panel = app.querySelector('.board-panel');
       void engine.evaluate(fen, row.course.side === 'white' ? 'w' : 'b').then((score) => {
         if (generation !== walkerGeneration || positions[index]?.fen !== fen) return;
         if (score === null) {
@@ -117,8 +130,7 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
         } else {
           evalScore = score;
         }
-        const panel = app.querySelector('.board-panel');
-        if (!panel) return;
+        if (!panel?.isConnected) return;
         const existing = panel.querySelector('.eval-bar, .eval-note');
         const next = document.createRange().createContextualFragment(renderEvalBar(evalScore, engine.status)).firstElementChild;
         if (!next) return;
@@ -136,7 +148,7 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
 
     const onKey = (event: KeyboardEvent) => {
       if (!app.querySelector('.walker')) {
-        window.removeEventListener('keydown', onKey);
+        disposeWalker();
         return;
       }
       if (event.key === 'ArrowLeft') step(-1);
@@ -144,6 +156,7 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
     };
 
     window.addEventListener('keydown', onKey);
+    removeWalkerKeyListener = () => window.removeEventListener('keydown', onKey);
     drawWalker();
   };
 

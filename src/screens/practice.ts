@@ -53,6 +53,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   let evalScore: EvalScore | null = null;
   let evalFen: string | null = null;
   let moveCost: string | null = null;
+  let costGeneration = 0;
   const selectableColor = course.side === 'white' ? 'w' : 'b';
   const nextLevel = LEVELS[LEVELS.indexOf(level) + 1];
 
@@ -414,13 +415,14 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   };
 
 
-  const explainCost = async (fen: string, playedMove: string, expectedMove: string, expectedSan: string) => {
+  const explainCost = async (generation: number, fen: string, playedMove: string, expectedMove: string, expectedSan: string) => {
     const playedPlan = planMoveTransition(fen, playedMove);
     const expectedPlan = planMoveTransition(fen, expectedMove);
     if (!playedPlan || !expectedPlan) return;
     const playedScore = await engine.evaluate(playedPlan.afterFen, selectableColor);
+    if (leaving || generation !== costGeneration || !playedScore) return;
     const expectedScore = await engine.evaluate(expectedPlan.afterFen, selectableColor);
-    if (leaving || !playedScore || !expectedScore) return;
+    if (leaving || generation !== costGeneration || !expectedScore) return;
     const playedSan = new Chess(fen).move({ from: playedMove.slice(0, 2), to: playedMove.slice(2, 4), promotion: 'q' }).san;
     moveCost = costPhrase(playedSan, expectedSan, centipawnLoss(expectedScore, playedScore));
     draw();
@@ -431,6 +433,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     const before = session.snapshot;
     const position = before.position;
     if (!position) return;
+    const generation = ++costGeneration;
     const result = session.submitMove(move);
     feedback = result;
     const after = session.snapshot;
@@ -443,7 +446,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       flashRoute(attemptedRoute);
       if (result.kind === 'incorrect') {
         void persist().catch(() => { saveError = true; if (!leaving) draw(); });
-        void explainCost(position.fen, move, position.expectedMove, position.expectedSan);
+        void explainCost(generation, position.fen, move, position.expectedMove, position.expectedSan);
       }
       draw();
       return;

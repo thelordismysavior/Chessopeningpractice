@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { COURSES, LEVELS, type Course } from '../src/courses';
 import { emptyProgress, type CourseProgress } from '../src/progress';
 import { emptyRecord } from '../src/review-schedule';
-import { reviewQueue } from '../src/review-queue';
+import { reviewQueue, reviewRunGroups } from '../src/review-queue';
 
 function allEmpty(): Record<Course['id'], CourseProgress> {
   return Object.fromEntries(COURSES.map((course) => [course.id, emptyProgress()])) as Record<Course['id'], CourseProgress>;
@@ -55,5 +55,21 @@ describe('reviewQueue', () => {
     const byCourse = allEmpty();
     byCourse[COURSES[0].id] = markDue(byCourse[COURSES[0].id], ['not-a-real-position-id']);
     expect(reviewQueue(byCourse).groups).toEqual([]);
+  });
+
+  test('repeats each run position only enough to clear it with clean answers', () => {
+    const byCourse = allEmpty();
+    const [fresh, halfway] = idsFor(COURSES[0], 'beginner', 2);
+    byCourse[COURSES[0].id] = {
+      ...byCourse[COURSES[0].id],
+      positions: {
+        [fresh]: { ...emptyRecord(), due: true },
+        [halfway]: { ...emptyRecord(), due: true, reviewStreak: 1 },
+      },
+    };
+
+    const groups = reviewRunGroups(reviewQueue(byCourse).groups, byCourse);
+
+    expect(groups[0].positionIds).toEqual([fresh, fresh, halfway]);
   });
 });

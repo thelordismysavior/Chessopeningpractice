@@ -1,7 +1,7 @@
 Stockfish 18 (lite, single-threaded WASM)
-Copied from the npm package stockfish@18.0.8, files bin/stockfish-18-lite-single.{js,wasm}.
-Also shipped as stockfish.js / stockfish.wasm so the Worker URL and the Emscripten
-.locateFile basename stay aligned (the glue resolves .wasm from its own script name).
+Copied from the npm package stockfish@18.0.8, files bin/stockfish-18-lite-single.{js,wasm},
+and renamed to stockfish.js / stockfish.wasm so the Worker URL and the Emscripten
+.locateFile basename stay aligned.
 Single-threaded on purpose: a multi-threaded build needs SharedArrayBuffer, which needs
 COOP and COEP response headers that this app's hosting does not send.
 Licensed under GPL v3; see LICENSE.txt.

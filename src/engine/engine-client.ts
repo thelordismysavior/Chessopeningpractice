@@ -44,16 +44,9 @@ export class EngineClient {
     return this.state;
   }
 
-  /** Drop memoized scores so a later screen cannot reuse another side's reading. */
+  /** Drop completed scores without detaching an active worker search from its request. */
   clearMemo(): void {
     this.memo.clear();
-    this.latest = null;
-    if (this.inFlight) {
-      this.inFlight.resolve(null);
-      this.inFlight = null;
-    }
-    this.pending?.resolve(null);
-    this.pending = null;
   }
 
   /** Resolves null when the engine is unavailable, the request was superseded, or no score came back. */
