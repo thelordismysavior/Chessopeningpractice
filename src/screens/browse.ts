@@ -75,8 +75,8 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
       filters.state = button.dataset.stateFilter as Filters['state'];
       drawIndex();
     }));
-    app.querySelectorAll<HTMLButtonElement>('[data-line]').forEach((button) => button.addEventListener('click', () => {
-      const row = rows.find((candidate) => candidate.variation.id === button.dataset.line);
+    app.querySelectorAll<HTMLButtonElement>('[data-line]').forEach((button, index) => button.addEventListener('click', () => {
+      const row = visible[index];
       if (row) openWalker(row);
     }));
   };
@@ -148,7 +148,10 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
   };
 
   if (screen.lineId) {
-    const row = rows.find((candidate) => candidate.variation.id === screen.lineId);
+    const row = rows.find((candidate) => (
+      candidate.variation.id === screen.lineId
+      && (!screen.courseId || candidate.course.id === screen.courseId)
+    ));
     if (row) {
       openWalker(row);
       return;
