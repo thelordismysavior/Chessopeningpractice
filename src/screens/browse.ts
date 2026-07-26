@@ -105,7 +105,11 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
 
       const fen = position.fen;
       void engine.evaluate(fen, row.course.side === 'white' ? 'w' : 'b').then((score) => {
-        if (score === null || positions[index]?.fen !== fen) return;
+        if (positions[index]?.fen !== fen) return;
+        if (score === null) {
+          if (engine.status === 'unavailable') drawWalker();
+          return;
+        }
         evalScore = score;
         drawWalker();
       });

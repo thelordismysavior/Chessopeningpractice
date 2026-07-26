@@ -169,7 +169,11 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     if (settledFen && settledFen !== evalFen) {
       evalFen = settledFen;
       void engine.evaluate(settledFen, selectableColor).then((score) => {
-        if (leaving || score === null || evalFen !== settledFen) return;
+        if (leaving || evalFen !== settledFen) return;
+        if (score === null) {
+          if (engine.status === 'unavailable') draw();
+          return;
+        }
         evalScore = score;
         draw();
       });
