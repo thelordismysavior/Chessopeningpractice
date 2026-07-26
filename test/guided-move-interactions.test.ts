@@ -8,7 +8,7 @@ import {
   normalizeMoveDuration,
   saveMoveDuration,
 } from '../src/move-settings';
-import { planFenTransition, planMoveTransition } from '../src/transition-plans';
+import { planFenTransition, planMoveTransition, settleDisplayFen } from '../src/transition-plans';
 
 const lesson = COURSES[0].lessons.beginner;
 
@@ -81,6 +81,17 @@ describe('move transition plans', () => {
     const learnerPlan = planMoveTransition(learner.fen, learner.expectedMove)!;
     const reply = planFenTransition(learnerPlan.afterFen, next.fen);
     expect(reply?.pieces[0]).toMatchObject({ from: 'd7', to: 'd5', piece: 'bP' });
+  });
+
+  test('settles on the next line start when no reply joins the positions', () => {
+    const learner = lesson.variations[0].positions.at(-1)!;
+    const nextLine = lesson.variations[1].positions[0];
+    const learnerPlan = planMoveTransition(learner.fen, learner.expectedMove)!;
+    const reply = planFenTransition(learnerPlan.afterFen, nextLine.fen);
+
+    expect(reply).toBeNull();
+    expect(settleDisplayFen(learnerPlan.afterFen, reply?.afterFen ?? null, nextLine.fen)).toBe(nextLine.fen);
+    expect(settleDisplayFen(learnerPlan.afterFen, null, null)).toBe(learnerPlan.afterFen);
   });
 });
 

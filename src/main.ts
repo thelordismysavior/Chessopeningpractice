@@ -10,7 +10,7 @@ import { loadProgress, saveProgress, type CourseProgress } from './progress';
 import { applySessionProgress } from './progress-state';
 import { signIn, signOutUser, watchUser } from './firebase';
 import { routeArrowGeometry } from './route-arrow';
-import { planFenTransition, planMoveTransition, type MoveTransition } from './transition-plans';
+import { planFenTransition, planMoveTransition, settleDisplayFen, type MoveTransition } from './transition-plans';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 const DRAG_THRESHOLD_PX = 6;
@@ -419,7 +419,11 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     }
     if (leaving) return;
     animation = null;
-    displayFen = replyPlan?.afterFen ?? learnerPlan.afterFen;
+    displayFen = settleDisplayFen(
+      learnerPlan.afterFen,
+      replyPlan?.afterFen ?? null,
+      session.snapshot.position?.fen ?? null,
+    );
     sequenceActive = false;
     busy = false;
     selected = null;

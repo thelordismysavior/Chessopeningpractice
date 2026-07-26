@@ -69,3 +69,7 @@ export function planFenTransition(fromFen: string, afterFen: string): MoveTransi
   });
   return candidate ? planMoveTransition(fromFen, `${candidate.from}${candidate.to}${candidate.promotion ?? ''}`) : null;
 }
+
+export function settleDisplayFen(learnerAfterFen: string, replyAfterFen: string | null, nextPositionFen: string | null): string {
+  return replyAfterFen ?? nextPositionFen ?? learnerAfterFen;
+}
