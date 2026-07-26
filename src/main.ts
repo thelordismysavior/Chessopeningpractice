@@ -220,6 +220,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
   let focusedSquare: string | null = null;
   let leaving = false;
   const selectableColor = course.side === 'white' ? 'w' : 'b';
+  const nextLevel = LEVELS[LEVELS.indexOf(level) + 1];
 
   const persist = (snapshot: SessionSnapshot) => {
     const write = saveQueue.catch(() => undefined).then(async () => {
@@ -253,6 +254,10 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
 
   const draw = () => {
     const snapshot = session.snapshot;
+    const lessonComplete = snapshot.lessonComplete && !sequenceActive;
+    const completionMessage = nextLevel
+      ? `${levelNames[level]} complete. ${levelNames[nextLevel]} unlocked.`
+      : `${levelNames[level]} complete. Course complete.`;
     const position = sequenceActive && sequencePosition ? sequencePosition : snapshot.position ?? lesson.positions[lesson.positions.length - 1];
     const chess = new Chess(animation?.plan.fromFen ?? displayFen ?? position.fen);
     const status = sequenceActive ? 'Playing move' : snapshot.status === 'complete' ? (snapshot.lessonComplete ? 'Lesson complete' : 'Review complete') : snapshot.status === 'needs-clean-run' ? 'Clean run required' : snapshot.status === 'retrying' ? 'Retry this position' : `${course.side === 'white' ? 'White' : 'Black'} to move`;
@@ -266,12 +271,29 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     const copyHeader = session.reviewMode || !variation
       ? `<p class="eyebrow">${levelNames[level]} review - ${moveOrdinal} of ${moveCount}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lede">${escapeHtml(lesson.summary)}</p>`
       : `<p class="eyebrow">Line ${variationOrdinal} of ${variationCount} · move ${moveOrdinal} of ${moveCount}</p><p class="line-title">${escapeHtml(variation.title)}</p><p class="lede">${escapeHtml(variation.summary)}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lesson-summary">${escapeHtml(lesson.summary)}</p>`;
-    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${feedback ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>` : ''}</div>` : `<p class="move-hint">Select a ${course.side} piece, then select its destination.</p>`}<div class="practice-actions">${snapshot.status === 'needs-clean-run' ? '<button id="restart-run">Replay this line</button>' : snapshot.status === 'complete' ? '<button id="back-after-complete">Back to dashboard</button>' : ''}<button id="exit-practice" class="quiet-button">Exit lesson</button></div></section><section class="board-panel"><div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy, selectableColor)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.attempts} attempt${snapshot.attempts === 1 ? '' : 's'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;    bindSettings((duration) => { moveDuration = duration; });
-    if (focusedSquare && !busy) window.requestAnimationFrame(() => app.querySelector<HTMLButtonElement>(`[data-square="${focusedSquare}"]`)?.focus());
+    const feedbackMarkup = lessonComplete
+      ? `<div class="feedback feedback-complete" role="status" aria-live="polite"><strong>${completionMessage}</strong></div>`
+      : feedback
+        ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>` : ''}</div>`
+        : `<p class="move-hint">Select a ${course.side} piece, then select its destination.</p>`;
+    const actionMarkup = snapshot.status === 'needs-clean-run'
+      ? '<button id="restart-run">Replay this line</button><button id="exit-practice" class="quiet-button">Exit lesson</button>'
+      : lessonComplete
+        ? '<button id="proceed">Proceed</button>'
+        : snapshot.status === 'complete'
+          ? '<button id="back-after-complete">Back to dashboard</button>'
+          : '<button id="exit-practice" class="quiet-button">Exit lesson</button>';
+    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel"><div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy, selectableColor)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.attempts} attempt${snapshot.attempts === 1 ? '' : 's'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;    bindSettings((duration) => { moveDuration = duration; });
+    if (lessonComplete) {
+      window.requestAnimationFrame(() => app.querySelector<HTMLButtonElement>('#proceed')?.focus());
+    } else if (focusedSquare && !busy) {
+      window.requestAnimationFrame(() => app.querySelector<HTMLButtonElement>(`[data-square="${focusedSquare}"]`)?.focus());
+    }
     document.querySelector('#back-dashboard')!.addEventListener('click', () => void leavePractice());
     document.querySelector('#practice-sign-out')!.addEventListener('click', () => void leavePractice(true));
-    document.querySelector('#exit-practice')!.addEventListener('click', () => void leavePractice());
+    document.querySelector('#exit-practice')?.addEventListener('click', () => void leavePractice());
     document.querySelector('#back-after-complete')?.addEventListener('click', () => void leavePractice());
+    document.querySelector('#proceed')?.addEventListener('click', () => void proceedAfterLesson());
     document.querySelector('#restart-run')?.addEventListener('click', () => { session.restartCleanRun(); feedback = null; selected = null; displayFen = null; clearRouteFlash(); draw(); });
     document.querySelector('#retry-save')?.addEventListener('click', () => void persist(session.snapshot).then(draw).catch(() => { saveError = true; draw(); }));
     const board = app.querySelector<HTMLDivElement>('.board');
@@ -471,6 +493,25 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     void persist(result.snapshot).catch(() => { saveError = true; if (!leaving) draw(); });
     void playSequence(learnerPlan, replyPlan, Boolean(options.fromDrag));
   }
+
+  const proceedAfterLesson = async () => {
+    if (leaving) return;
+    leaving = true;
+    const button = app.querySelector<HTMLButtonElement>('#proceed');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Saving...';
+    }
+    try {
+      await pendingSave;
+      if (nextLevel) await startPractice(course, nextLevel, liveProgress);
+      else await renderDashboard(signedInEmail);
+    } catch {
+      leaving = false;
+      saveError = true;
+      draw();
+    }
+  };
 
   const leavePractice = async (signOut = false) => {
     leaving = true;

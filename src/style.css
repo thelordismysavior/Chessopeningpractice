@@ -17,7 +17,8 @@ h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: 1.25rem; font-size: clamp(3rem, 8vw, 6.6rem); line-height: .93; letter-spacing: -.07em; }
 h1 em { color: #b05b34; font-style: normal; }
 .lede { max-width: 35rem; color: #657078; font-size: 1.06rem; line-height: 1.7; }
-.auth-page button, .error-page button, #restart-run { margin-top: 1.5rem; padding: .9rem 1.15rem; border-radius: 999px; background: #b05b34; color: white; font-weight: 750; }
+.auth-page button, .error-page button, #restart-run, #proceed, #back-after-complete { margin-top: 1.5rem; padding: .9rem 1.15rem; border-radius: 999px; background: #b05b34; color: white; font-weight: 750; }
+#proceed:disabled { cursor: wait; opacity: .7; }
 .auth-page button span { margin-left: 1rem; font-size: 1.2rem; }
 
 .app-shell, .practice-shell { max-width: 1240px; margin: auto; padding: 1.25rem 2.5rem 5rem; }
