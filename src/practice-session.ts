@@ -1,5 +1,6 @@
-import { Chess, type Square } from 'chess.js';
+import { Chess } from 'chess.js';
 import type { Lesson, PracticePosition } from './courses';
+import { parseUciMove } from './move-notation';
 
 export type SessionStatus = 'active' | 'retrying' | 'needs-clean-run' | 'complete';
 export type FeedbackKind = 'correct' | 'incorrect' | 'illegal' | 'complete';
@@ -24,11 +25,6 @@ export type MoveFeedback = {
   snapshot: SessionSnapshot;
 };
 
-function parseMove(move: string): { from: Square; to: Square; promotion?: 'q' | 'r' | 'b' | 'n' } | null {
-  if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(move)) return null;
-  return { from: move.slice(0, 2) as Square, to: move.slice(2, 4) as Square, ...(move[4] ? { promotion: move[4] as 'q' | 'r' | 'b' | 'n' } : {}) };
-}
-
 export class PracticeSession {
   private readonly positions: PracticePosition[];
   private positionIndex = 0;
@@ -44,6 +40,10 @@ export class PracticeSession {
     const reviewPositions = reviewIds.map((id) => lesson.positions.find((position) => position.id === id)).filter((position): position is PracticePosition => Boolean(position));
     this.isReview = reviewPositions.length > 0;
     this.positions = this.isReview ? reviewPositions : lesson.positions;
+  }
+
+  get reviewMode(): boolean {
+    return this.isReview;
   }
 
   get snapshot(): SessionSnapshot {
@@ -65,7 +65,7 @@ export class PracticeSession {
       return { kind: 'complete', message: this.status === 'needs-clean-run' ? 'That run had mistakes. Start a clean run to complete the lesson.' : 'This drill is complete.', expectedMove: '', expectedSan: '', retryRequired: false, snapshot: this.snapshot };
     }
 
-    const candidate = parseMove(move);
+    const candidate = parseUciMove(move);
     if (!candidate) return this.feedback('illegal', 'That is not a valid board move.', position, false);
 
     const chess = new Chess(position.fen);

@@ -1,10 +1,14 @@
 import { Chess } from 'chess.js';
 import './style.css';
+import { resolveBoardDrop } from './board-input';
 import { ATTRIBUTION_SOURCES, COURSES, LEVELS, coursesById, type Course, type LevelKey } from './courses';
+import { shouldShowMoveGuide } from './guide-policy';
+import { effectiveMoveDuration, loadMoveDuration, saveMoveDuration } from './move-settings';
 import { createPracticeSession, type MoveFeedback, type SessionSnapshot } from './practice-session';
 import { loadProgress, saveProgress, type CourseProgress } from './progress';
 import { applySessionProgress } from './progress-state';
 import { signIn, signOutUser, watchUser } from './firebase';
+import { planFenTransition, planMoveTransition, type MoveTransition } from './transition-plans';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 const pieceSymbols: Record<string, string> = {
@@ -17,6 +21,26 @@ let signedInEmail: string | null = null;
 
 function escapeHtml(value: string | null): string {
   return (value ?? '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] ?? character);
+}
+
+function settingsDialogMarkup(duration: number): string {
+  return `<dialog id="settings-dialog" aria-labelledby="settings-title"><form method="dialog" class="settings-form"><p class="eyebrow">Device preference</p><h2 id="settings-title">Settings</h2><label for="move-duration">Move duration (ms)</label><input id="move-duration" name="move-duration" type="number" min="0" max="2000" step="50" value="${duration}"><p class="settings-help">Used for learner moves, opponent replies, captures, and castling.</p><button value="close">Done</button></form></dialog>`;
+}
+
+function bindSettings(onChange: (duration: number) => void): void {
+  const dialog = app.querySelector<HTMLDialogElement>('#settings-dialog');
+  const button = app.querySelector<HTMLButtonElement>('#settings');
+  const input = app.querySelector<HTMLInputElement>('#move-duration');
+  if (!dialog || !button || !input) return;
+  button.addEventListener('click', () => {
+    if (!dialog.open) dialog.showModal();
+  });
+  const update = () => {
+    const duration = saveMoveDuration(input.value);
+    input.value = String(duration);
+    onChange(duration);
+  };
+  input.addEventListener('change', update);
 }
 
 function renderSignedOut(message = 'Private opening practice for one learner.') {
@@ -65,7 +89,7 @@ async function renderDashboard(email: string | null) {
   try {
     const progressEntries = await Promise.all(COURSES.map(async (course) => [course.id, await loadProgress(course.id)] as const));
     const progressByCourse = Object.fromEntries(progressEntries) as Record<Course['id'], CourseProgress>;
-    app.innerHTML = `<main class="app-shell"><header class="topbar"><a class="wordmark" href="#">Chess Practice<span>.</span></a><div class="account"><button id="sources" class="quiet-button">Sources</button><span>${escapeHtml(email) || 'owner'}</span><button id="sign-out" class="quiet-button">Sign out</button></div></header><section class="dashboard-intro"><div><p class="eyebrow">White + Black repertoire</p><h1>Make the first move<br><em>automatic.</em></h1><p class="lede">Four focused systems. Three levels each. Practice the line until it feels like your own.</p></div><div class="intro-note"><span>01</span><p>Choose a course below to continue your next available lesson.</p></div></section><section class="course-grid">${COURSES.map((course) => {
+    app.innerHTML = `<main class="app-shell"><header class="topbar"><a class="wordmark" href="#">Chess Practice<span>.</span></a><div class="account"><button id="sources" class="quiet-button">Sources</button><button id="settings" class="quiet-button">Settings</button><span>${escapeHtml(email) || 'owner'}</span><button id="sign-out" class="quiet-button">Sign out</button></div></header><section class="dashboard-intro"><div><p class="eyebrow">White + Black repertoire</p><h1>Make the first move<br><em>automatic.</em></h1><p class="lede">Four focused systems. Three levels each. Practice the line until it feels like your own.</p></div><div class="intro-note"><span>01</span><p>Choose a course below to continue your next available lesson.</p></div></section><section class="course-grid">${COURSES.map((course) => {
       const progress = progressByCourse[course.id];
       const completed = progress.completedLevels.length;
       const nextLevel = LEVELS[Math.min(progress.unlockedLevel, LEVELS.length - 1)];
@@ -74,7 +98,7 @@ async function renderDashboard(email: string | null) {
       const reviewPositionIds = reviewLevel ? reviewIdsForLevel(course, reviewLevel, progress) : [];
       const nextCopy = completed === LEVELS.length ? 'All three lessons complete' : `Next up: <strong>${levelNames[nextLevel]}</strong>`;
       return `<article class="course-card"><div class="course-header"><div><span class="side-tag">${sideNames[course.side]}</span><h2>${escapeHtml(course.name)}</h2><p>${escapeHtml(course.description)}</p></div><span class="course-count">${String(completed).padStart(2, '0')} / 03</span></div><div class="core-line"><span>Core line - ${escapeHtml(course.eco)}</span><code>${escapeHtml(course.coreLine)}</code></div><div class="lesson-list">${LEVELS.map((level) => levelButton(course, level, progress)).join('')}</div><div class="course-footer"><span>${nextCopy}</span>${reviewLevel && reviewPositionIds.length ? `<button class="review-link" data-review-course="${course.id}" data-review-level="${reviewLevel}">Review ${reviewPositionIds.length} positions</button>` : '<span class="muted">Clean practice builds recall</span>'}</div></article>`;
-    }).join('')}</section></main>`;
+    }).join('')}</section>${settingsDialogMarkup(loadMoveDuration())}</main>`;
     const courseCards = app.querySelectorAll<HTMLElement>('.course-card');
     COURSES.forEach((course, index) => {
       const footer = courseCards[index]?.querySelector<HTMLElement>('.course-footer');
@@ -86,6 +110,7 @@ async function renderDashboard(email: string | null) {
       if (links) footer.insertAdjacentHTML('beforeend', `<div class="review-links">${links}</div>`);
     });
     document.querySelector('#sources')!.addEventListener('click', renderSources);
+    bindSettings(() => undefined);
     document.querySelector('#sign-out')!.addEventListener('click', () => void signOutUser());
     document.querySelectorAll<HTMLButtonElement>('[data-course][data-level]').forEach((button) => button.addEventListener('click', () => {
       const course = coursesById[button.dataset.course as Course['id']];
@@ -108,16 +133,51 @@ function squareName(row: number, column: number, side: Course['side']): string {
   return `${String.fromCharCode(97 + boardColumn)}${8 - boardRow}`;
 }
 
-function renderBoard(chess: Chess, selected: string | null, side: Course['side']): string {
+type SquareRoute = { from: string; to: string };
+type BoardAnimation = { plan: MoveTransition; arrived: boolean; duration: number };
+
+function squarePosition(square: string, side: Course['side']): { x: number; y: number } {
+  const file = square.charCodeAt(0) - 97;
+  const rank = Number(square[1]) - 1;
+  return { x: side === 'black' ? 7 - file : file, y: side === 'black' ? rank : 7 - rank };
+}
+
+function markerPosition(square: string, side: Course['side']): string {
+  const position = squarePosition(square, side);
+  return `left:${(position.x + .5) * 12.5}%;top:${(position.y + .5) * 12.5}%;`;
+}
+
+function renderRoute(route: SquareRoute | null, side: Course['side'], className: string): string {
+  if (!route) return '';
+  const from = squarePosition(route.from, side);
+  const to = squarePosition(route.to, side);
+  const fromX = (from.x + .5) * 12.5;
+  const fromY = (from.y + .5) * 12.5;
+  const toX = (to.x + .5) * 12.5;
+  const toY = (to.y + .5) * 12.5;
+  const length = Math.hypot(toX - fromX, toY - fromY);
+  const angle = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
+  return `<div class="board-route ${className}" aria-hidden="true"><span class="route-origin" style="${markerPosition(route.from, side)}"></span><span class="route-target" style="${markerPosition(route.to, side)}"></span><span class="route-arrow" style="left:${fromX}%;top:${fromY}%;width:${length}%;transform:rotate(${angle}deg)"></span></div>`;
+}
+
+function renderBoard(chess: Chess, selected: string | null, side: Course['side'], guide: SquareRoute | null, route: SquareRoute | null, animation: BoardAnimation | null, dragging: boolean, disabled: boolean): string {
   const board = chess.board();
   const rows = side === 'black' ? board.slice().reverse().map((row) => row.slice().reverse()) : board;
-  return rows.flatMap((row, rowIndex) => row.map((piece, columnIndex) => {
+  const hiddenPieces = new Set<string>(animation?.plan.pieces.map((piece) => piece.from));
+  const squares = rows.flatMap((row, rowIndex) => row.map((piece, columnIndex) => {
     const square = squareName(rowIndex, columnIndex, side);
     const dark = (rowIndex + columnIndex) % 2 === 1;
     const selectedClass = selected === square ? 'is-selected' : '';
-    const symbol = piece ? pieceSymbols[`${piece.color}${piece.type.toUpperCase()}`] : '';
-    return `<button class="board-square ${dark ? 'is-dark' : 'is-light'} ${selectedClass}" data-square="${square}" aria-label="${square}${piece ? `, ${piece.color === 'w' ? 'white' : 'black'} ${piece.type}` : ''}"><span>${symbol}</span></button>`;
+    const visiblePiece = hiddenPieces.has(square) ? null : piece;
+    const symbol = visiblePiece ? pieceSymbols[`${visiblePiece.color}${visiblePiece.type.toUpperCase()}`] : '';
+    return `<button type="button" class="board-square ${dark ? 'is-dark' : 'is-light'} ${selectedClass}" data-square="${square}" aria-pressed="${selected === square}" aria-label="${square}${visiblePiece ? `, ${visiblePiece.color === 'w' ? 'white' : 'black'} ${visiblePiece.type}` : ''}"${disabled ? ' disabled' : ''}><span>${symbol}</span></button>`;
   })).join('');
+  const animatedPieces = animation ? animation.plan.pieces.map((piece) => {
+    const from = squarePosition(piece.from, side);
+    const to = squarePosition(piece.to, side);
+    return `<span class="animated-piece ${animation.arrived ? 'is-arrived' : ''}" style="--move-duration:${animation.duration}ms;--from-x:${from.x};--from-y:${from.y};--to-x:${to.x};--to-y:${to.y}">${pieceSymbols[piece.piece]}</span>`;
+  }).join('') : '';
+  return `<div class="board ${dragging ? 'is-dragging' : ''}" role="group" aria-label="Chess board" aria-busy="${disabled}">${squares}<div class="piece-layer" aria-hidden="true">${animatedPieces}</div>${renderRoute(guide, side, 'guide-overlay')}${renderRoute(route, side, 'feedback-overlay')}</div>`;
 }
 
 async function startPractice(course: Course, level: LevelKey, progress: CourseProgress, reviewPositionIds: string[] = []) {
@@ -130,6 +190,18 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
   let saveError = false;
   let saveQueue: Promise<void> = Promise.resolve();
   let pendingSave: Promise<void> = Promise.resolve();
+  let moveDuration = loadMoveDuration();
+  let displayFen: string | null = null;
+  let routeFlash: SquareRoute | null = null;
+  let routeTimer: number | null = null;
+  let animation: BoardAnimation | null = null;
+  let sequencePosition = session.snapshot.position;
+  let sequenceActive = false;
+  let busy = false;
+  let dragging = false;
+  let suppressClick = false;
+  let focusedSquare: string | null = null;
+  let leaving = false;
   const selectableColor = course.side === 'white' ? 'w' : 'b';
 
   const persist = (snapshot: SessionSnapshot) => {
@@ -146,23 +218,115 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     return write;
   };
 
+  const clearRouteFlash = () => {
+    routeFlash = null;
+    if (routeTimer !== null) window.clearTimeout(routeTimer);
+    routeTimer = null;
+  };
+
+  const flashRoute = (route: SquareRoute) => {
+    clearRouteFlash();
+    routeFlash = route;
+    routeTimer = window.setTimeout(() => {
+      routeFlash = null;
+      routeTimer = null;
+      if (!leaving) draw();
+    }, 600);
+  };
+
   const draw = () => {
     const snapshot = session.snapshot;
-    const position = snapshot.position ?? lesson.positions[lesson.positions.length - 1];
-    const chess = new Chess(position.fen);
-    const status = snapshot.status === 'complete' ? (snapshot.lessonComplete ? 'Lesson complete' : 'Review complete') : snapshot.status === 'needs-clean-run' ? 'Clean run required' : snapshot.status === 'retrying' ? 'Retry this position' : `${course.side === 'white' ? 'White' : 'Black'} to move`;
-    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><button id="practice-sign-out" class="quiet-button">Sign out</button></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy"><p class="eyebrow">${levelNames[level]} lesson - ${snapshot.positionIndex + 1} of ${lesson.positions.length}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lede">${escapeHtml(lesson.summary)}</p><div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${feedback ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>` : ''}</div>` : `<p class="move-hint">Select a ${course.side} piece, then select its destination.</p>`}<div class="practice-actions">${snapshot.status === 'needs-clean-run' ? '<button id="restart-run">Start clean run</button>' : snapshot.status === 'complete' ? '<button id="back-after-complete">Back to dashboard</button>' : ''}<button id="exit-practice" class="quiet-button">Exit lesson</button></div></section><section class="board-panel"><div class="board-frame"><div class="board" role="group" aria-label="Chess board">${renderBoard(chess, selected, course.side)}</div></div><div class="board-caption"><span>${status}</span><span>${snapshot.attempts} attempt${snapshot.attempts === 1 ? '' : 's'}</span></div></section></div></main>`;
+    const position = sequenceActive && sequencePosition ? sequencePosition : snapshot.position ?? lesson.positions[lesson.positions.length - 1];
+    const chess = new Chess(animation?.plan.fromFen ?? displayFen ?? position.fen);
+    const status = sequenceActive ? 'Playing move' : snapshot.status === 'complete' ? (snapshot.lessonComplete ? 'Lesson complete' : 'Review complete') : snapshot.status === 'needs-clean-run' ? 'Clean run required' : snapshot.status === 'retrying' ? 'Retry this position' : `${course.side === 'white' ? 'White' : 'Black'} to move`;
+    const showGuide = !sequenceActive && shouldShowMoveGuide(session.reviewMode, snapshot.status);
+    const expectedRoute = showGuide ? { from: position.expectedMove.slice(0, 2), to: position.expectedMove.slice(2, 4) } : null;
+    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy"><p class="eyebrow">${levelNames[level]} lesson - ${Math.min(snapshot.positionIndex + 1, lesson.positions.length)} of ${lesson.positions.length}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lede">${escapeHtml(lesson.summary)}</p><div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${feedback ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>` : ''}</div>` : `<p class="move-hint">Select a ${course.side} piece, then select its destination.</p>`}<div class="practice-actions">${snapshot.status === 'needs-clean-run' ? '<button id="restart-run">Start clean run</button>' : snapshot.status === 'complete' ? '<button id="back-after-complete">Back to dashboard</button>' : ''}<button id="exit-practice" class="quiet-button">Exit lesson</button></div></section><section class="board-panel"><div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.attempts} attempt${snapshot.attempts === 1 ? '' : 's'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;
+    bindSettings((duration) => { moveDuration = duration; });
+    if (focusedSquare && !busy) window.requestAnimationFrame(() => app.querySelector<HTMLButtonElement>(`[data-square="${focusedSquare}"]`)?.focus());
     document.querySelector('#back-dashboard')!.addEventListener('click', () => void leavePractice());
     document.querySelector('#practice-sign-out')!.addEventListener('click', () => void leavePractice(true));
     document.querySelector('#exit-practice')!.addEventListener('click', () => void leavePractice());
     document.querySelector('#back-after-complete')?.addEventListener('click', () => void leavePractice());
-    document.querySelector('#restart-run')?.addEventListener('click', () => { session.restartCleanRun(); feedback = null; selected = null; draw(); });
+    document.querySelector('#restart-run')?.addEventListener('click', () => { session.restartCleanRun(); feedback = null; selected = null; displayFen = null; clearRouteFlash(); draw(); });
     document.querySelector('#retry-save')?.addEventListener('click', () => void persist(session.snapshot).then(draw).catch(() => { saveError = true; draw(); }));
-    document.querySelectorAll<HTMLButtonElement>('[data-square]').forEach((button) => button.addEventListener('click', () => {
+    const board = app.querySelector<HTMLDivElement>('.board');
+    if (!board) return;
+    const displayedChess = chess;
+    const squareAtPoint = (event: PointerEvent): string | null => {
+      const element = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLButtonElement>('[data-square]');
+      return element?.dataset.square ?? null;
+    };
+    let pointerOrigin: string | null = null;
+    let pointerId: number | null = null;
+    let pointerMoved = false;
+    board.addEventListener('pointerdown', (event) => {
+      if (busy || (event.pointerType === 'mouse' && event.button !== 0)) return;
+      const button = (event.target as Element).closest<HTMLButtonElement>('[data-square]');
+      const square = button?.dataset.square;
+      if (!square || displayedChess.get(square as Parameters<Chess['get']>[0])?.color !== selectableColor) return;
+      pointerOrigin = square;
+      pointerId = event.pointerId;
+      pointerMoved = false;
+      board.setPointerCapture(event.pointerId);
+    });
+    board.addEventListener('pointermove', (event) => {
+      if (pointerId !== event.pointerId || !pointerOrigin || pointerMoved) return;
+      const originButton = app.querySelector<HTMLButtonElement>(`[data-square="${pointerOrigin}"]`);
+      const originRect = originButton?.getBoundingClientRect();
+      if (!originRect || Math.hypot(event.clientX - (originRect.left + originRect.width / 2), event.clientY - (originRect.top + originRect.height / 2)) < 6) return;
+      pointerMoved = true;
+      selected = pointerOrigin;
+      dragging = true;
+      originButton?.classList.add('is-selected');
+      board.classList.add('is-dragging');
+    });
+    const finishPointer = (event: PointerEvent, canceled = false) => {
+      if (pointerId !== event.pointerId || !pointerOrigin) return;
+      if (board.hasPointerCapture(event.pointerId)) board.releasePointerCapture(event.pointerId);
+      const origin = pointerOrigin;
+      const moved = pointerMoved;
+      pointerOrigin = null;
+      pointerId = null;
+      pointerMoved = false;
+      dragging = false;
+      board.classList.remove('is-dragging');
+      if (!moved) return;
+      suppressClick = !canceled;
+      const target = canceled ? null : squareAtPoint(event);
+      const move = resolveBoardDrop(origin, target, moved, busy);
+      if (!move) {
+        selected = null;
+        draw();
+        return;
+      }
+      const targetPiece = displayedChess.get(target as Parameters<Chess['get']>[0]);
+      if (targetPiece?.color === selectableColor) {
+        selected = target;
+        draw();
+        return;
+      }
+      submitAttempt(move);
+    };
+    board.addEventListener('pointerup', (event) => finishPointer(event));
+    board.addEventListener('pointercancel', (event) => finishPointer(event, true));
+    app.querySelectorAll<HTMLButtonElement>('[data-square]').forEach((button) => button.addEventListener('click', (event) => {
       const square = button.dataset.square!;
-      const boardPiece = chess.get(square as Parameters<Chess['get']>[0]);
+      focusedSquare = square;
+      if (suppressClick) {
+        suppressClick = false;
+        event.preventDefault();
+        return;
+      }
+      if (busy) return;
+      const boardPiece = displayedChess.get(square as Parameters<Chess['get']>[0]);
       if (!selected) {
         if (boardPiece?.color === selectableColor) selected = square;
+        draw();
+        return;
+      }
+      if (selected === square) {
+        selected = null;
         draw();
         return;
       }
@@ -173,13 +337,86 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
       }
       const move = `${selected}${square}`;
       selected = null;
-      feedback = session.submitMove(move);
-      void persist(feedback.snapshot).catch(() => { saveError = true; draw(); });
-      draw();
+      submitAttempt(move);
     }));
   };
 
+  const wait = (milliseconds: number) => new Promise<void>((resolve) => { window.setTimeout(resolve, milliseconds); });
+  const nextFrame = () => new Promise<void>((resolve) => { window.requestAnimationFrame(() => resolve()); });
+
+  const playPhase = async (plan: MoveTransition, duration: number) => {
+    animation = { plan, arrived: false, duration };
+    draw();
+    if (duration === 0) {
+      animation = null;
+      displayFen = plan.afterFen;
+      draw();
+      return;
+    }
+    await nextFrame();
+    if (leaving) return;
+    animation.arrived = true;
+    app.querySelectorAll<HTMLElement>('.animated-piece').forEach((piece) => piece.classList.add('is-arrived'));
+    await wait(duration);
+    if (leaving) return;
+    animation = null;
+    displayFen = plan.afterFen;
+    draw();
+  };
+
+  const playSequence = async (learnerPlan: MoveTransition, replyPlan: MoveTransition | null) => {
+    const duration = effectiveMoveDuration(moveDuration, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    await playPhase(learnerPlan, duration);
+    if (leaving) return;
+    if (replyPlan) {
+      await wait(250);
+      if (leaving) return;
+      await playPhase(replyPlan, duration);
+    }
+    if (leaving) return;
+    animation = null;
+    displayFen = replyPlan?.afterFen ?? learnerPlan.afterFen;
+    sequenceActive = false;
+    busy = false;
+    selected = null;
+    draw();
+  };
+
+  function submitAttempt(move: string) {
+    if (busy) return;
+    const position = session.snapshot.position;
+    if (!position) return;
+    const result = session.submitMove(move);
+    feedback = result;
+    const attemptedRoute = { from: move.slice(0, 2), to: move.slice(2, 4) };
+    if (result.kind === 'illegal' || result.kind === 'incorrect') {
+      flashRoute(attemptedRoute);
+      if (result.kind === 'incorrect') void persist(result.snapshot).catch(() => { saveError = true; if (!leaving) draw(); });
+      draw();
+      return;
+    }
+    if (result.kind !== 'correct') {
+      draw();
+      return;
+    }
+    const learnerPlan = planMoveTransition(position.fen, move);
+    const replyPlan = learnerPlan && result.snapshot.position ? planFenTransition(learnerPlan.afterFen, result.snapshot.position.fen) : null;
+    if (!learnerPlan) {
+      displayFen = result.snapshot.position?.fen ?? position.fen;
+      void persist(result.snapshot).catch(() => { saveError = true; if (!leaving) draw(); });
+      draw();
+      return;
+    }
+    sequencePosition = position;
+    sequenceActive = true;
+    busy = true;
+    displayFen = null;
+    void persist(result.snapshot).catch(() => { saveError = true; if (!leaving) draw(); });
+    void playSequence(learnerPlan, replyPlan);
+  }
+
   const leavePractice = async (signOut = false) => {
+    leaving = true;
     try {
       await pendingSave;
       if (!saveError) {
@@ -187,6 +424,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
         else await renderDashboard(signedInEmail);
       }
     } catch {
+      leaving = false;
       saveError = true;
       draw();
     }
