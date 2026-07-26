@@ -146,7 +146,7 @@ function markerPosition(square: string, side: Course['side']): string {
   return `left:${(position.x + .5) * 12.5}%;top:${(position.y + .5) * 12.5}%;`;
 }
 
-function renderRoute(route: SquareRoute | null, side: Course['side'], className: string): string {
+function renderRoute(route: SquareRoute | null, side: Course['side'], className: string, markers = true): string {
   if (!route) return '';
   const from = squarePosition(route.from, side);
   const to = squarePosition(route.to, side);
@@ -154,9 +154,20 @@ function renderRoute(route: SquareRoute | null, side: Course['side'], className:
   const fromY = (from.y + .5) * 12.5;
   const toX = (to.x + .5) * 12.5;
   const toY = (to.y + .5) * 12.5;
-  const length = Math.hypot(toX - fromX, toY - fromY);
-  const angle = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
-  return `<div class="board-route ${className}" aria-hidden="true"><span class="route-origin" style="${markerPosition(route.from, side)}"></span><span class="route-target" style="${markerPosition(route.to, side)}"></span><span class="route-arrow" style="left:${fromX}%;top:${fromY}%;width:${length}%;transform:rotate(${angle}deg)"></span></div>`;
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  const span = Math.hypot(dx, dy);
+  if (span === 0) return '';
+  const startInset = markers ? 0 : Math.min(4.2, span * .3);
+  const endInset = markers ? 0 : Math.min(2.8, span * .18);
+  const length = Math.max(span - startInset - endInset, 0);
+  const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+  const left = fromX + dx / span * startInset;
+  const top = fromY + dy / span * startInset;
+  const markerMarkup = markers
+    ? `<span class="route-origin" style="${markerPosition(route.from, side)}"></span><span class="route-target" style="${markerPosition(route.to, side)}"></span>`
+    : '';
+  return `<div class="board-route ${className}" aria-hidden="true">${markerMarkup}<span class="route-arrow" style="left:${left}%;top:${top}%;width:${length}%;transform:translateY(-50%) rotate(${angle}deg)"></span></div>`;
 }
 
 function renderBoard(chess: Chess, selected: string | null, side: Course['side'], guide: SquareRoute | null, route: SquareRoute | null, animation: BoardAnimation | null, dragging: boolean, disabled: boolean, selectableColor: 'w' | 'b'): string {
@@ -183,7 +194,7 @@ function renderBoard(chess: Chess, selected: string | null, side: Course['side']
     const appearance = pieceAppearance(piece.piece);
     return `<span class="animated-piece piece-side-${appearance.side} ${animation.arrived ? 'is-arrived' : ''}" style="--move-duration:${animation.duration}ms;--from-x:${from.x};--from-y:${from.y};--to-x:${to.x};--to-y:${to.y}">${appearance.glyph}</span>`;
   }).join('') : '';
-  return `<div class="board ${dragging ? 'is-dragging' : ''}" role="group" aria-label="Chess board" aria-busy="${disabled}">${squares}${renderRoute(guide, side, 'guide-overlay')}<div class="piece-layer" aria-hidden="true">${animatedPieces}</div>${renderRoute(route, side, 'feedback-overlay')}</div>`;
+  return `<div class="board ${dragging ? 'is-dragging' : ''}" role="group" aria-label="Chess board" aria-busy="${disabled}">${squares}${renderRoute(guide, side, 'guide-overlay', false)}<div class="piece-layer" aria-hidden="true">${animatedPieces}</div>${renderRoute(route, side, 'feedback-overlay')}</div>`;
 }
 
 async function startPractice(course: Course, level: LevelKey, progress: CourseProgress, reviewPositionIds: string[] = []) {
@@ -341,7 +352,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
         draw();
         return;
       }
-      submitAttempt(move);
+      submitAttempt(move, { fromDrag: true });
     };
     board.addEventListener('pointerup', (event) => finishPointer(event));
     board.addEventListener('pointercancel', (event) => finishPointer(event, true));
@@ -399,9 +410,9 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     draw();
   };
 
-  const playSequence = async (learnerPlan: MoveTransition, replyPlan: MoveTransition | null) => {
+  const playSequence = async (learnerPlan: MoveTransition, replyPlan: MoveTransition | null, skipLearnerMotion = false) => {
     const duration = effectiveMoveDuration(moveDuration, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    await playPhase(learnerPlan, duration);
+    await playPhase(learnerPlan, skipLearnerMotion ? 0 : duration);
     if (leaving) return;
     if (replyPlan) {
       await wait(250);
@@ -417,7 +428,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     draw();
   };
 
-  function submitAttempt(move: string) {
+  function submitAttempt(move: string, options: { fromDrag?: boolean } = {}) {
     if (busy) return;
     const position = session.snapshot.position;
     if (!position) return;
@@ -447,7 +458,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     busy = true;
     displayFen = null;
     void persist(result.snapshot).catch(() => { saveError = true; if (!leaving) draw(); });
-    void playSequence(learnerPlan, replyPlan);
+    void playSequence(learnerPlan, replyPlan, Boolean(options.fromDrag));
   }
 
   const leavePractice = async (signOut = false) => {
