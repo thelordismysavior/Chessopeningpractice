@@ -254,6 +254,8 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
   let focusedSquare: string | null = null;
   let completionFocusRequested = false;
   let leaving = false;
+  let handoff: { banked: string; next: string } | null = null;
+  let handoffTimer: number | null = null;
   const selectableColor = course.side === 'white' ? 'w' : 'b';
   const nextLevel = LEVELS[LEVELS.indexOf(level) + 1];
 
@@ -287,6 +289,16 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     }, 600);
   };
 
+  const showHandoff = (banked: string, next: string) => {
+    if (handoffTimer !== null) window.clearTimeout(handoffTimer);
+    handoff = { banked, next };
+    handoffTimer = window.setTimeout(() => {
+      handoff = null;
+      handoffTimer = null;
+      if (!leaving) draw();
+    }, 1600);
+  };
+
   const draw = () => {
     const snapshot: RunnerSnapshot = session.snapshot;
     const lessonComplete = snapshot.lessonComplete && !sequenceActive;
@@ -313,6 +325,9 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     const copyHeader = session.reviewMode || !snapshot.lineTitle
       ? `<p class="eyebrow">${levelNames[level]} review - ${moveOrdinal} of ${moveCount}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lede">${escapeHtml(lesson.summary)}</p>`
       : `<p class="eyebrow">${phaseLabel} &middot; line ${snapshot.lineIndex + 1} of ${snapshot.lineCount} &middot; move ${moveOrdinal} of ${moveCount}</p><p class="line-title">${escapeHtml(snapshot.lineTitle)}</p><p class="lede">${escapeHtml(snapshot.lineSummary)}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lesson-summary">${escapeHtml(lesson.summary)}</p>${budgetMarkup}`;
+    const handoffMarkup = handoff
+      ? `<div class="line-handoff" role="status" aria-live="polite"><strong>Banked: ${escapeHtml(handoff.banked)}</strong><span>Next up: ${escapeHtml(handoff.next)}</span></div>`
+      : '';
     const feedbackMarkup = lessonComplete
       ? `<div class="feedback feedback-complete" role="status" aria-live="polite"><strong>${completionMessage}</strong></div>`
       : feedback
@@ -325,7 +340,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
       : snapshot.status === 'complete'
         ? '<button id="back-after-complete">Back to dashboard</button>'
         : `${hintMarkup}<button id="exit-practice" class="quiet-button">Exit lesson</button>`;
-    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel"><div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy, selectableColor)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;    bindSettings((duration) => { moveDuration = duration; });
+    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel"><div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy, selectableColor)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;    bindSettings((duration) => { moveDuration = duration; });
     if (!lessonComplete) completionFocusRequested = false;
     if (lessonComplete && !completionFocusRequested) {
       completionFocusRequested = true;
@@ -491,6 +506,8 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
       await wait(250);
       if (leaving) return;
       await playPhase(replyPlan, duration);
+      if (leaving) return;
+      await wait(session.snapshot.phase === 'teach' ? 450 : 250);
     }
     if (leaving) return;
     animation = null;
@@ -507,10 +524,15 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
 
   function submitAttempt(move: string, options: { fromDrag?: boolean } = {}) {
     if (busy) return;
-    const position = session.snapshot.position;
+    const before = session.snapshot;
+    const position = before.position;
     if (!position) return;
     const result = session.submitMove(move);
     feedback = result;
+    const after = session.snapshot;
+    if (before.lineId && after.lineId && before.lineId !== after.lineId && before.lineTitle && after.lineTitle) {
+      showHandoff(before.lineTitle, after.lineTitle);
+    }
     const attemptedRoute = { from: move.slice(0, 2), to: move.slice(2, 4) };
     if (result.kind === 'illegal' || result.kind === 'incorrect') {
       flashRoute(attemptedRoute);
@@ -541,6 +563,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
   const proceedAfterLesson = async () => {
     if (leaving) return;
     leaving = true;
+    if (handoffTimer !== null) window.clearTimeout(handoffTimer);
     const button = app.querySelector<HTMLButtonElement>('#proceed');
     if (button) {
       button.disabled = true;
@@ -559,6 +582,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
 
   const leavePractice = async (signOut = false) => {
     leaving = true;
+    if (handoffTimer !== null) window.clearTimeout(handoffTimer);
     try {
       await pendingSave;
       if (!saveError) {

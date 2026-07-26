@@ -236,3 +236,17 @@ dialog::backdrop { background: rgb(23 34 43 / .34); }
 .mistake-budget small {
   opacity: .7;
 }
+
+.line-handoff {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  padding: .75rem 1rem;
+  margin: .75rem 0;
+  border-left: 3px solid currentColor;
+  opacity: .9;
+}
+
+.line-handoff span {
+  opacity: .75;
+}
