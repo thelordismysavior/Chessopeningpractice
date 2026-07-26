@@ -5,6 +5,60 @@ import { COURSES, LEVELS, type VariationKind } from '../src/courses';
 const KIND_ORDER: VariationKind[] = ['main', 'alternative', 'punish'];
 
 describe('course content', () => {
+  test('never teaches a quiet move when the opponent queen can be captured', () => {
+    const issues: string[] = [];
+
+    for (const course of COURSES) {
+      for (const level of LEVELS) {
+        for (const variation of course.lessons[level].variations) {
+          for (const position of variation.positions) {
+            const queenCaptures = new Chess(position.fen).moves({ verbose: true })
+              .filter((move) => move.captured === 'q')
+              .map((move) => `${move.from}${move.to}${move.promotion ?? ''}`);
+
+            if (queenCaptures.length > 0 && !queenCaptures.includes(position.expectedMove)) {
+              issues.push(`${course.id}/${level}/${variation.kind}/${position.id}: expected ${position.expectedSan}, queen captures ${queenCaptures.join(', ')}`);
+            }
+          }
+        }
+      }
+    }
+
+    expect(issues).toEqual([]);
+  });
+
+  test('connects consecutive learner positions with exactly one opponent reply', () => {
+    const issues: string[] = [];
+
+    for (const course of COURSES) {
+      for (const level of LEVELS) {
+        for (const variation of course.lessons[level].variations) {
+          for (let index = 0; index < variation.positions.length - 1; index += 1) {
+            const current = variation.positions[index];
+            const next = variation.positions[index + 1];
+            const afterLearner = new Chess(current.fen);
+            afterLearner.move({
+              from: current.expectedMove.slice(0, 2),
+              to: current.expectedMove.slice(2, 4),
+              ...(current.expectedMove[4] ? { promotion: current.expectedMove[4] as 'q' | 'r' | 'b' | 'n' } : {}),
+            });
+            const replyCount = afterLearner.moves({ verbose: true }).filter((reply) => {
+              const afterReply = new Chess(afterLearner.fen());
+              afterReply.move(reply);
+              return afterReply.fen() === next.fen;
+            }).length;
+
+            if (replyCount !== 1) {
+              issues.push(`${course.id}/${level}/${variation.kind}/${current.id} -> ${next.id}: ${replyCount} matching replies`);
+            }
+          }
+        }
+      }
+    }
+
+    expect(issues).toEqual([]);
+  });
+
   test('contains the four agreed courses with three variations per lesson', () => {
     expect(COURSES.map((course) => course.id)).toEqual(['jobava-london', 'london-system', 'classical-sicilian', 'classical-caro-kann']);
     expect(Object.fromEntries(COURSES.map((course) => [course.id, { side: course.side, coreLine: course.coreLine }]))).toEqual({
