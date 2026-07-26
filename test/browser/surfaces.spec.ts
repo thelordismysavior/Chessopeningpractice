@@ -13,9 +13,10 @@ const ENGINE_STUB = `
     const message = String(event.data);
     if (message === 'uci') postMessage('uciok');
     else if (message === 'isready') postMessage('readyok');
-    else if (message.startsWith('position fen ')) fen = message.slice('position fen '.length);
+    else if (message.startsWith('position fen ')) fen = message.slice('position fen '.length).trim();
     else if (message.startsWith('go')) {
-      const whiteToMove = fen.split(' ')[1] !== 'b';
+      const parts = fen.split(' ');
+      const whiteToMove = parts[1] === 'w';
       postMessage('info depth 12 score cp ' + (whiteToMove ? 120 : -120));
       postMessage('bestmove e2e4');
     }
@@ -143,11 +144,15 @@ test('the bar reads from the learner side in a white and a black course', async 
   await page.locator('#browse').click();
   await page.locator(`[data-course-filter="${white.id}"]`).click();
   await page.locator('.browse-row').first().click();
+  await expect(page.locator('.side-tag')).toHaveText('W / WHITE');
   await expect(page.locator('.eval-value')).toHaveText('+1.20');
 
   await page.locator('#walker-back').click();
+  await expect(page.locator('.browse-page')).toBeVisible();
   await page.locator(`[data-course-filter="${black.id}"]`).click();
+  await expect(page.locator('.browse-row').first()).toContainText(black.name);
   await page.locator('.browse-row').first().click();
+  await expect(page.locator('.side-tag')).toHaveText('B / BLACK');
   await expect(page.locator('.eval-value')).toHaveText('-1.20');
 });
 

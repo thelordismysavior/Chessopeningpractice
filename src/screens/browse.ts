@@ -83,6 +83,7 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
 
   const openWalker = (row: Row) => {
     const generation = ++walkerGeneration;
+    engine.clearMemo();
     let index = 0;
     let evalScore: EvalScore | null = null;
     const positions = row.variation.positions;
