@@ -219,18 +219,19 @@ for (const viewport of VIEWPORTS) {
       await expect(page.locator('#review-now')).toBeVisible();
 
       await page.locator('#back-dashboard').click();
-      await expect(page.locator('.review-link').first()).toBeVisible();
+      await expect(page.locator('#review-queue')).toBeVisible();
 
-      await page.locator('.review-link').first().click();
+      await page.locator('#review-queue').click();
+      await page.locator('.queue-row button').first().click();
       const reviewMove = firstLine[0];
       await playMove(page, reviewMove);
       await page.locator('#back-after-complete').click();
-      await expect(page.locator('.review-link').first()).toBeVisible();
 
-      await page.locator('.review-link').first().click();
+      await page.locator('#review-queue').click();
+      await page.locator('.queue-row button').first().click();
       await playMove(page, reviewMove);
       await page.locator('#back-after-complete').click();
-      await expect(page.locator('.course-card').first().locator('.review-link')).toHaveCount(0);
+      await expect(page.locator('#review-queue')).toHaveCount(0);
       await expect(page.locator('.course-card').first().locator('button[data-level="intermediate"]')).toBeEnabled();
     });
   });
