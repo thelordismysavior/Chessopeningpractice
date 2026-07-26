@@ -2,6 +2,8 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './test/browser',
+  globalSetup: './test/browser/global-setup.ts',
+  workers: 1,
   timeout: 90_000,
   expect: { timeout: 5_000 },
   use: {
@@ -15,13 +17,13 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       VITE_APPROVED_EMAIL: 'test@example.com',
-      VITE_FIREBASE_API_KEY: 'test',
+      VITE_FIREBASE_API_KEY: 'demo-key',
       VITE_FIREBASE_AUTH_DOMAIN: 'test.local',
       VITE_FIREBASE_PROJECT_ID: 'demo-no-project',
       VITE_FIREBASE_STORAGE_BUCKET: 'test',
       VITE_FIREBASE_MESSAGING_SENDER_ID: 'test',
       VITE_FIREBASE_APP_ID: 'test',
-      VITE_FIREBASE_USE_EMULATORS: 'false',
+      VITE_FIREBASE_USE_EMULATORS: 'true',
     },
   },
 });
