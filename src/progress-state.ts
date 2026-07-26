@@ -1,4 +1,4 @@
-import type { LevelKey } from './courses';
+import { LEVELS, type LevelKey } from './courses';
 import type { SessionSnapshot } from './practice-session';
 import type { CourseProgress } from './progress';
 
@@ -10,9 +10,11 @@ export function applySessionProgress(progress: CourseProgress, level: LevelKey, 
     completedPositionIds: [...new Set([...progress.completedPositionIds, ...snapshot.completedPositionIds])],
     reviewHistory: [...new Set([...progress.reviewHistory, ...reviewPositionIds])],
   };
-  if (snapshot.lessonComplete && !next.completedLevels.includes(level)) {
+  const levelIndex = LEVELS.indexOf(level);
+  const prerequisiteComplete = levelIndex === 0 || next.completedLevels.includes(LEVELS[levelIndex - 1]);
+  if (snapshot.lessonComplete && prerequisiteComplete && !next.completedLevels.includes(level)) {
     next.completedLevels = [...next.completedLevels, level];
-    next.unlockedLevel = Math.max(next.unlockedLevel, Math.min(['beginner', 'intermediate', 'advanced'].indexOf(level) + 1, 2));
+    next.unlockedLevel = Math.max(next.unlockedLevel, Math.min(levelIndex + 1, LEVELS.length - 1));
   }
   return next;
 }

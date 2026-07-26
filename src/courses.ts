@@ -71,6 +71,8 @@ const jobavaExplanations = [
   'Coordinate the queen with the bishops and keep pressure on the centre.',
 ];
 
+jobavaExplanations[5] = 'Develop the bishop to d3 to challenge the active setup and prepare castling.';
+
 const jobavaIntermediateExplanations = [
   'Claim the centre with a pawn and prepare active piece play.',
   'Develop the queen knight to pressure d5 immediately.',
@@ -88,9 +90,9 @@ const jobavaAdvancedExplanations = [
   'Place the bishop outside the pawn chain before Black settles.',
   'Build a stable centre and open the f1 bishop.',
   'Offer the bishop trade to remove Black’s active defender.',
-  'Develop the king knight and prepare to castle.',
+  'Develop the king knight and prepare to castle; avoid spending tempi on a premature flank pawn.',
   'Recapture with the queen to keep the centre supported.',
-  'Castle now that the king-side pieces are developed.',
+  'Castle now that the king-side pieces are developed; delaying the king is the common mistake.',
 ];
 
 const londonBeginnerExplanations = [
@@ -119,12 +121,13 @@ const londonAdvancedExplanations = [
   'Start with a stable central pawn while keeping options against ...Nf6.',
   'Develop the king knight and prepare the dark-square bishop’s route.',
   'Place the bishop outside the pawn chain before e3.',
-  'Build the structure and keep the f1 bishop active.',
-  'Develop the f1 bishop and connect the king-side pieces.',
-  'Castle before the central tension opens.',
+  'Build the structure and keep the f1 bishop active; avoid closing it with a premature e3.',
+  'Develop the f1 bishop and invite ...Be7; if ...Bxd3 comes, Qxd3 keeps central pressure.',
+  'Castle before ...c5 opens the centre; the common mistake is leaving the king in the middle.',
   'Develop the queen knight and support the centre.',
-  'Use c3 to reinforce d4 and prepare the central break.',
+  'Use c3 to reinforce d4 and prepare e4 after ...c5 and ...d5; do not rush the break.',
 ];
+londonAdvancedExplanations[2] = 'Meet ...b6 with Bf4 before e3, keeping the c1 bishop active and pressuring c7.';
 
 export const COURSES: Course[] = [
   {

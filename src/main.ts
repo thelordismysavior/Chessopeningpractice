@@ -33,6 +33,11 @@ function reviewIds(progress: CourseProgress): string[] {
   return Array.from({ length: Math.max(missed.length, completed.length) }, (_, index) => [missed[index], completed[index]]).flat().filter((id): id is string => Boolean(id));
 }
 
+function reviewIdsForLevel(course: Course, level: LevelKey, progress: CourseProgress): string[] {
+  const positionIds = new Set(course.lessons[level].positions.map((position) => position.id));
+  return reviewIds(progress).filter((id) => positionIds.has(id));
+}
+
 async function renderDashboard(email: string | null) {
   app.innerHTML = '<main class="loading-page"><p class="eyebrow">Loading your repertoire</p><div class="loading-line"></div></main>';
   try {
@@ -44,10 +49,20 @@ async function renderDashboard(email: string | null) {
       const nextLevel = LEVELS[Math.min(progress.unlockedLevel, LEVELS.length - 1)];
       const allReviewIds = reviewIds(progress);
       const reviewLevel = LEVELS.find((candidate) => allReviewIds.some((id) => course.lessons[candidate].positions.some((position) => position.id === id)));
-      const reviewPositionIds = reviewLevel ? allReviewIds.filter((id) => course.lessons[reviewLevel].positions.some((position) => position.id === id)) : [];
+      const reviewPositionIds = reviewLevel ? reviewIdsForLevel(course, reviewLevel, progress) : [];
       const nextCopy = completed === LEVELS.length ? 'All three lessons complete' : `Next up: <strong>${levelNames[nextLevel]}</strong>`;
       return `<article class="course-card"><div class="course-header"><div><span class="side-tag">W · WHITE</span><h2>${course.name}</h2><p>${course.description}</p></div><span class="course-count">${String(completed).padStart(2, '0')} / 03</span></div><div class="core-line"><span>Core line · ${course.eco}</span><code>${course.coreLine}</code></div><div class="lesson-list">${LEVELS.map((level) => levelButton(course, level, progress)).join('')}</div><div class="course-footer"><span>${nextCopy}</span>${reviewLevel && reviewPositionIds.length ? `<button class="review-link" data-review-course="${course.id}" data-review-level="${reviewLevel}">Review ${reviewPositionIds.length} positions</button>` : '<span class="muted">Clean practice builds recall</span>'}</div></article>`;
     }).join('')}</section></main>`;
+    const courseCards = app.querySelectorAll<HTMLElement>('.course-card');
+    COURSES.forEach((course, index) => {
+      const footer = courseCards[index]?.querySelector<HTMLElement>('.course-footer');
+      if (!footer) return;
+      const links = LEVELS.map((level) => {
+        const ids = reviewIdsForLevel(course, level, progressByCourse[course.id]);
+        return ids.length && !footer.querySelector(`[data-review-level="${level}"]`) ? `<button class="review-link" data-review-course="${course.id}" data-review-level="${level}">Review ${ids.length} ${levelNames[level]}</button>` : '';
+      }).join('');
+      if (links) footer.insertAdjacentHTML('beforeend', `<div class="review-links">${links}</div>`);
+    });
     document.querySelector('#sign-out')!.addEventListener('click', () => void signOutUser());
     document.querySelectorAll<HTMLButtonElement>('[data-course][data-level]').forEach((button) => button.addEventListener('click', () => {
       const course = coursesById[button.dataset.course as Course['id']];
@@ -56,7 +71,7 @@ async function renderDashboard(email: string | null) {
     document.querySelectorAll<HTMLButtonElement>('[data-review-course]').forEach((button) => button.addEventListener('click', () => {
       const course = coursesById[button.dataset.reviewCourse as Course['id']];
       const reviewLevel = button.dataset.reviewLevel as LevelKey;
-      const ids = reviewIds(progressByCourse[course.id]).filter((id) => course.lessons[reviewLevel].positions.some((position) => position.id === id));
+      const ids = reviewIdsForLevel(course, reviewLevel, progressByCourse[course.id]);
       void startPractice(course, reviewLevel, progressByCourse[course.id], ids);
     }));
   } catch (error) {
@@ -93,7 +108,7 @@ async function startPractice(course: Course, level: LevelKey, progress: CoursePr
     const write = saveQueue.catch(() => undefined).then(async () => {
       const newAttempts = snapshot.attempts - savedAttempts;
       const nextProgress = applySessionProgress(liveProgress, level, snapshot, newAttempts, reviewPositionIds);
-      await saveProgress(course.id, nextProgress);
+      await saveProgress(course.id, nextProgress, newAttempts);
       liveProgress = nextProgress;
       savedAttempts = snapshot.attempts;
       saveError = false;

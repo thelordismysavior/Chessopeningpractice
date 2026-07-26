@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, runTransaction } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import type { LevelKey } from './courses';
 
@@ -20,8 +20,20 @@ export async function loadProgress(courseId: string): Promise<CourseProgress> {
   return snapshot.exists() ? { ...emptyProgress(), ...snapshot.data() } as CourseProgress : emptyProgress();
 }
 
-export async function saveProgress(courseId: string, progress: CourseProgress): Promise<void> {
+export async function saveProgress(courseId: string, progress: CourseProgress, attemptsDelta = 0): Promise<void> {
   const user = auth.currentUser;
   if (!user) throw new Error('Sign in before saving progress.');
-  await setDoc(doc(db, 'users', user.uid, 'courses', courseId), progress);
+  const progressRef = doc(db, 'users', user.uid, 'courses', courseId);
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(progressRef);
+    const current = snapshot.exists() ? { ...emptyProgress(), ...snapshot.data() } as CourseProgress : emptyProgress();
+    transaction.set(progressRef, {
+      completedLevels: [...new Set([...current.completedLevels, ...progress.completedLevels])],
+      unlockedLevel: Math.max(current.unlockedLevel, progress.unlockedLevel),
+      attempts: current.attempts + attemptsDelta,
+      missedPositionIds: [...new Set([...current.missedPositionIds, ...progress.missedPositionIds])],
+      completedPositionIds: [...new Set([...current.completedPositionIds, ...progress.completedPositionIds])],
+      reviewHistory: [...new Set([...current.reviewHistory, ...progress.reviewHistory])],
+    });
+  });
 }

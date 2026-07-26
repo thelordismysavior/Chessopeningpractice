@@ -22,4 +22,13 @@ describe('progress state', () => {
     expect(progress.unlockedLevel).toBe(0);
     expect(progress.completedLevels).toEqual([]);
   });
+
+  test('does not complete a level before its prerequisite', () => {
+    const intermediate = applySessionProgress(emptyProgress(), 'intermediate', snapshot(true), 8);
+    const advanced = applySessionProgress(emptyProgress(), 'advanced', snapshot(true), 8);
+    expect(intermediate.completedLevels).toEqual([]);
+    expect(intermediate.unlockedLevel).toBe(0);
+    expect(advanced.completedLevels).toEqual([]);
+    expect(advanced.unlockedLevel).toBe(0);
+  });
 });

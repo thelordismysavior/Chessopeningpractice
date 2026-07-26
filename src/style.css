@@ -53,6 +53,7 @@ h1 em { color: #b05b34; font-style: normal; }
 .lesson-arrow { color: #b05b34; font-size: 1.1rem; }
 .course-footer { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.4rem; padding-top: .9rem; border-top: 1px solid #e2ddd3; }
 .course-footer strong, .review-link { color: #b05b34; }
+.review-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem 1rem; }
 .review-link { padding: 0; background: transparent; font-size: .74rem; }
 .muted { color: #a4a9aa; }
 
