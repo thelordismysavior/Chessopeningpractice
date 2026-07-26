@@ -1,12 +1,12 @@
 import { Chess } from 'chess.js';
 import { isDragPastThreshold, resolveBoardDrop } from '../board-input';
-import { LEVELS, type Course, type LevelKey } from '../courses';
+import { LEVELS, coursesById, type Course, type LevelKey } from '../courses';
 import { shouldShowMoveGuide } from '../guide-policy';
 import { effectiveMoveDuration, loadMoveDuration } from '../move-settings';
 import { pieceAppearance, pieceCode } from '../piece-appearance';
 import { LessonRunner, type RunnerFeedback, type RunnerSnapshot } from '../lesson-runner';
 import { courseMastery } from '../mastery';
-import { diffProgress, saveProgress, type CourseProgress } from '../progress';
+import { diffProgress, loadProgress, saveProgress, type CourseProgress } from '../progress';
 import { duePositionIds } from '../review-schedule';
 import { signOutUser } from '../firebase';
 import { planFenTransition, planMoveTransition, settleDisplayFen, type MoveTransition } from '../transition-plans';
@@ -18,7 +18,7 @@ const DRAG_THRESHOLD_PX = 6;
 const TOUCH_LIFT_OFFSET_PX = -48;
 
 export async function startPractice(navigate: Navigate, email: string | null, options: PracticeScreen): Promise<void> {
-  const { course, level, progress, reviewPositionIds = [] } = options;
+  const { course, level, progress, reviewPositionIds = [], run, entryHandoff } = options;
   resetPageScroll();
   const lesson = course.lessons[level];
   const session = new LessonRunner(lesson, progress, { reviewPositionIds });
@@ -43,8 +43,10 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   let focusedSquare: string | null = null;
   let completionFocusRequested = false;
   let leaving = false;
-  let handoff: { banked: string; next: string } | null = null;
-  let handoffTimer: number | null = null;
+  let handoff: { banked: string; next: string; verb?: string } | null = entryHandoff ?? null;
+  let handoffTimer: number | null = entryHandoff
+    ? window.setTimeout(() => { handoff = null; handoffTimer = null; if (!leaving) draw(); }, 1600)
+    : null;
   const selectableColor = course.side === 'white' ? 'w' : 'b';
   const nextLevel = LEVELS[LEVELS.indexOf(level) + 1];
 
@@ -78,9 +80,9 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     }, 600);
   };
 
-  const showHandoff = (banked: string, next: string) => {
+  const showHandoff = (banked: string, next: string, verb = 'Banked') => {
     if (handoffTimer !== null) window.clearTimeout(handoffTimer);
-    handoff = { banked, next };
+    handoff = { banked, next, verb };
     handoffTimer = window.setTimeout(() => {
       handoff = null;
       handoffTimer = null;
@@ -115,7 +117,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       ? `<p class="eyebrow">${levelNames[level]} review - ${moveOrdinal} of ${moveCount}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lede">${escapeHtml(lesson.summary)}</p>`
       : `<p class="eyebrow">${phaseLabel} &middot; line ${snapshot.lineIndex + 1} of ${snapshot.lineCount} &middot; move ${moveOrdinal} of ${moveCount}</p><p class="line-title">${escapeHtml(snapshot.lineTitle)}</p><p class="lede">${escapeHtml(snapshot.lineSummary)}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lesson-summary">${escapeHtml(lesson.summary)}</p>${budgetMarkup}`;
     const handoffMarkup = handoff
-      ? `<div class="line-handoff" role="status" aria-live="polite"><strong>Banked: ${escapeHtml(handoff.banked)}</strong><span>Next up: ${escapeHtml(handoff.next)}</span></div>`
+      ? `<div class="line-handoff" role="status" aria-live="polite"><strong>${escapeHtml(handoff.verb ?? 'Banked')}: ${escapeHtml(handoff.banked)}</strong><span>Next up: ${escapeHtml(handoff.next)}</span></div>`
       : '';
     const feedbackMarkup = lessonComplete
       ? (() => {
@@ -138,10 +140,16 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       : '';
     const canHint = !sequenceActive && snapshot.status !== 'complete' && snapshot.phase !== 'teach' && !snapshot.hintVisible;
     const hintMarkup = canHint ? '<button id="show-hint" class="quiet-button">Show me</button>' : '';
+    const nextGroup = run ? run.groups[run.index + 1] : undefined;
+    const nextGroupLabel = nextGroup ? `${coursesById[nextGroup.courseId].name}, ${levelNames[nextGroup.level]}` : '';
     const actionMarkup = lessonComplete
       ? `<button id="proceed"${saveError ? ' disabled' : ''}>Proceed</button>${reviewNowMarkup}`
       : snapshot.status === 'complete'
-        ? '<button id="back-after-complete">Back to dashboard</button>'
+        ? nextGroup
+          ? `<button id="next-group">Next: ${escapeHtml(nextGroupLabel)}</button>`
+          : run
+            ? '<button id="back-to-queue">Back to review queue</button>'
+            : '<button id="back-after-complete">Back to dashboard</button>'
         : `${hintMarkup}<button id="exit-practice" class="quiet-button">Exit lesson</button>`;
     app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel"><div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy, selectableColor)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;    bindSettings((duration) => { moveDuration = duration; });
     if (!lessonComplete) completionFocusRequested = false;
@@ -155,6 +163,46 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     document.querySelector('#practice-sign-out')!.addEventListener('click', () => void leavePractice(true));
     document.querySelector('#exit-practice')?.addEventListener('click', () => void leavePractice());
     document.querySelector('#back-after-complete')?.addEventListener('click', () => void leavePractice());
+    document.querySelector('#back-to-queue')?.addEventListener('click', () => void (async () => {
+      leaving = true;
+      if (handoffTimer !== null) window.clearTimeout(handoffTimer);
+      try {
+        await pendingSave;
+        await navigate({ name: 'review-queue' });
+      } catch {
+        leaving = false;
+        saveError = true;
+        draw();
+      }
+    })());
+    document.querySelector('#next-group')?.addEventListener('click', () => void (async () => {
+      if (!run || !nextGroup || leaving) return;
+      leaving = true;
+      if (handoffTimer !== null) window.clearTimeout(handoffTimer);
+      const button = app.querySelector<HTMLButtonElement>('#next-group');
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Saving...';
+      }
+      try {
+        await pendingSave;
+        const nextCourse = coursesById[nextGroup.courseId];
+        const nextProgress = await loadProgress(nextCourse.id);
+        await navigate({
+          name: 'practice',
+          course: nextCourse,
+          level: nextGroup.level,
+          progress: nextProgress,
+          reviewPositionIds: nextGroup.positionIds,
+          run: { groups: run.groups, index: run.index + 1 },
+          entryHandoff: { banked: `${course.name}, ${levelNames[level]}`, next: nextGroupLabel, verb: 'Reviewed' },
+        });
+      } catch {
+        leaving = false;
+        saveError = true;
+        draw();
+      }
+    })());
     document.querySelector('#proceed')?.addEventListener('click', () => void proceedAfterLesson());
     document.querySelector('#review-now')?.addEventListener('click', () => void (async () => {
       if (leaving) return;

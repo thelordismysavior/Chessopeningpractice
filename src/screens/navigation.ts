@@ -9,7 +9,7 @@ export type PracticeScreen = {
   progress: CourseProgress;
   reviewPositionIds?: string[];
   run?: ReviewRun;
-  entryHandoff?: { banked: string; next: string };
+  entryHandoff?: { banked: string; next: string; verb?: string };
 };
 
 export type BrowseScreen = { name: 'browse'; courseId?: Course['id']; lineId?: string };
