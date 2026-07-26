@@ -1,6 +1,6 @@
 # Course variation lines
 
-Status: spec
+Status: shipped
 
 Each course level today teaches a single linear line. A learner who drills it never meets any opponent reply except the one baked into that line, so the repertoire collapses the moment the opponent deviates. This feature adds two more lines to every lesson — the opponent's second-best try and a common mistake with its refutation — so practice covers the range from the opponent's best response down to his worst, and the learner reaches a middlegame that is at worst equal and at best clearly better.
 
