@@ -55,6 +55,7 @@ export const ATTRIBUTION_SOURCES: AttributionSource[] = [
 ];
 
 type VariationDraft = {
+  id?: string;
   kind: VariationKind;
   title: string;
   summary: string;
@@ -91,14 +92,17 @@ function positionLine(idPrefix: string, side: Course['side'], moves: string[], e
 }
 
 function lesson(side: Course['side'], level: LevelKey, title: string, summary: string, drafts: VariationDraft[]): Lesson {
-  const variations = drafts.map((draft) => ({
-    id: `${level}-${draft.kind}`,
+  const variations = drafts.map((draft) => {
+    const id = `${level}-${draft.id ?? draft.kind}`;
+    return {
+    id,
     kind: draft.kind,
     title: draft.title,
     summary: draft.summary,
     evalCp: draft.evalCp,
-    positions: positionLine(`${level}-${draft.kind}`, side, draft.moves, draft.explanations),
-  }));
+    positions: positionLine(id, side, draft.moves, draft.explanations),
+    };
+  });
   return {
     level,
     title,

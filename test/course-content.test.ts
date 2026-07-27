@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { Chess } from 'chess.js';
 import { COURSES, LEVELS, type VariationKind } from '../src/courses';
 
-const KIND_ORDER: VariationKind[] = ['main', 'alternative', 'punish'];
+const REQUIRED_KINDS: VariationKind[] = ['main', 'alternative', 'punish'];
 
 describe('course content', () => {
   test('never teaches a quiet move when the opponent queen can be captured', () => {
@@ -59,7 +59,7 @@ describe('course content', () => {
     expect(issues).toEqual([]);
   });
 
-  test('contains the four agreed courses with three variations per lesson', () => {
+  test('contains the four agreed courses with practical variation coverage', () => {
     expect(COURSES.map((course) => course.id)).toEqual(['jobava-london', 'london-system', 'classical-sicilian', 'classical-caro-kann']);
     expect(Object.fromEntries(COURSES.map((course) => [course.id, { side: course.side, coreLine: course.coreLine }]))).toEqual({
       'jobava-london': { side: 'white', coreLine: '1. d4 d5 2. Nc3 Nf6 3. Bf4' },
@@ -74,12 +74,11 @@ describe('course content', () => {
 
       for (const level of LEVELS) {
         const lesson = course.lessons[level];
-        expect(lesson.variations).toHaveLength(3);
-        expect(lesson.variations.map((variation) => variation.kind)).toEqual(KIND_ORDER);
+        expect(new Set(lesson.variations.map(({ kind }) => kind))).toEqual(new Set(REQUIRED_KINDS));
         expect(lesson.positions).toEqual(lesson.variations.flatMap((variation) => variation.positions));
 
         for (const variation of lesson.variations) {
-          expect(variation.id).toBe(`${level}-${variation.kind}`);
+          expect(variation.id.startsWith(`${level}-`)).toBe(true);
           expect(variation.title.length).toBeGreaterThan(0);
           expect(variation.summary.length).toBeGreaterThan(0);
           expect(typeof variation.evalCp).toBe('number');
@@ -111,5 +110,8 @@ describe('course content', () => {
         }
       }
     }
+
+    expect(COURSES[0].lessons.beginner.variations.map(({ id }) => id))
+      .toContain('beginner-meet-g6');
   });
 });
