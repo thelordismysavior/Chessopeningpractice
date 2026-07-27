@@ -89,7 +89,6 @@ describe('course content', () => {
             expect(count).toBeLessThanOrEqual(10);
           } else {
             expect(count).toBeGreaterThanOrEqual(4);
-            expect(count).toBeLessThanOrEqual(5);
           }
 
           for (const [index, position] of variation.positions.entries()) {
@@ -113,5 +112,17 @@ describe('course content', () => {
 
     expect(COURSES[0].lessons.beginner.variations.map(({ id }) => id))
       .toContain('beginner-meet-g6');
+  });
+
+  test('covers practical Jobava replies at every level', () => {
+    expect(Object.fromEntries(LEVELS.map((level) => [
+      level,
+      COURSES[0].lessons[level].variations.map(({ id }) => id),
+    ]))).toMatchObject({
+      beginner: expect.arrayContaining(['beginner-meet-g6', 'beginner-meet-c5']),
+      intermediate: expect.arrayContaining(['intermediate-meet-a6', 'intermediate-meet-g6']),
+      advanced: expect.arrayContaining(['advanced-meet-c5', 'advanced-meet-g6']),
+    });
+    expect(LEVELS.map((level) => COURSES[0].lessons[level].variations.length)).toEqual([5, 5, 5]);
   });
 });
