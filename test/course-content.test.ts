@@ -136,4 +136,20 @@ describe('course content', () => {
       .toEqual(expect.arrayContaining(['advanced-poisoned-pawn', 'advanced-meet-g6', 'advanced-meet-c6']));
     expect(LEVELS.map((level) => london[level].variations.length)).toEqual([5, 5, 6]);
   });
+
+  test('covers practical Sicilian sidelines at every level', () => {
+    const sicilian = COURSES[2].lessons;
+    expect(sicilian.beginner.variations.map(({ id }) => id)).toEqual(expect.arrayContaining([
+      'beginner-alapin', 'beginner-closed', 'beginner-smith-morra',
+    ]));
+    expect(sicilian.intermediate.variations.map(({ id }) => id)).toEqual(expect.arrayContaining([
+      'intermediate-grand-prix', 'intermediate-delayed-alapin',
+      'intermediate-anti-sveshnikov', 'intermediate-smith-morra-accepted',
+    ]));
+    expect(sicilian.advanced.variations.map(({ id }) => id)).toEqual(expect.arrayContaining([
+      'advanced-richter-rauzer', 'advanced-sozin',
+      'advanced-classical-be2', 'advanced-closed-fianchetto',
+    ]));
+    expect(LEVELS.map((level) => sicilian[level].variations.length)).toEqual([6, 7, 7]);
+  });
 });
