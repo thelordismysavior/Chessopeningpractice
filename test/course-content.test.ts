@@ -125,4 +125,15 @@ describe('course content', () => {
     });
     expect(LEVELS.map((level) => COURSES[0].lessons[level].variations.length)).toEqual([5, 5, 5]);
   });
+
+  test('covers practical London replies at every level', () => {
+    const london = COURSES[1].lessons;
+    expect(london.beginner.variations.map(({ id }) => id))
+      .toEqual(expect.arrayContaining(['beginner-meet-g6', 'beginner-meet-c6']));
+    expect(london.intermediate.variations.map(({ id }) => id))
+      .toEqual(expect.arrayContaining(['intermediate-meet-bf5', 'intermediate-meet-nh5']));
+    expect(london.advanced.variations.map(({ id }) => id))
+      .toEqual(expect.arrayContaining(['advanced-poisoned-pawn', 'advanced-meet-g6', 'advanced-meet-c6']));
+    expect(LEVELS.map((level) => london[level].variations.length)).toEqual([5, 5, 6]);
+  });
 });
