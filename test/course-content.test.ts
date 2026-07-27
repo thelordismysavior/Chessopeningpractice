@@ -152,4 +152,20 @@ describe('course content', () => {
     ]));
     expect(LEVELS.map((level) => sicilian[level].variations.length)).toEqual([6, 7, 7]);
   });
+
+  test('covers practical Caro-Kann sidelines at every level', () => {
+    const caro = COURSES[3].lessons;
+    expect(caro.beginner.variations.map(({ id }) => id)).toEqual(expect.arrayContaining([
+      'beginner-advance', 'beginner-two-knights', 'beginner-fantasy', 'beginner-hillbilly',
+    ]));
+    expect(caro.intermediate.variations.map(({ id }) => id)).toEqual(expect.arrayContaining([
+      'intermediate-panov', 'intermediate-advance-short',
+      'intermediate-advance-tal', 'intermediate-fantasy',
+    ]));
+    expect(caro.advanced.variations.map(({ id }) => id)).toEqual(expect.arrayContaining([
+      'advanced-panov-main', 'advanced-advance-van-der-wiel',
+      'advanced-classical-tartakower', 'advanced-two-knights-exchange',
+    ]));
+    expect(LEVELS.map((level) => caro[level].variations.length)).toEqual([7, 7, 7]);
+  });
 });
