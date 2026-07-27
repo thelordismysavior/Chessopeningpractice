@@ -168,4 +168,16 @@ describe('course content', () => {
     ]));
     expect(LEVELS.map((level) => caro[level].variations.length)).toEqual([7, 7, 7]);
   });
+
+  test('explains practical move order at the point of choice', () => {
+    const jobava = COURSES[0].lessons.advanced.variations.find(({ id }) => id === 'advanced-meet-c5');
+    const london = COURSES[1].lessons.advanced.variations.find(({ id }) => id === 'advanced-poisoned-pawn');
+
+    expect(jobava?.positions.map(({ explanation }) => explanation)).toContain(
+      'Build a strong centre before Black can recapture on d4.',
+    );
+    expect(london?.positions.map(({ explanation }) => explanation)).toContain(
+      'Jump to b5 and make Black spend a tempo with ...Na6 while the queen stays exposed.',
+    );
+  });
 });

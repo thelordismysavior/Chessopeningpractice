@@ -14,7 +14,7 @@ function progressWith(overrides: Partial<CourseProgress>): CourseProgress {
 describe('course mastery', () => {
   test('counts every line in every level as the denominator', () => {
     const summary = courseMastery(course, emptyProgress());
-    expect(summary.total).toBe(9);
+    expect(summary.total).toBe(15);
     expect(summary.mastered).toBe(0);
     expect(summary.ratio).toBe(0);
   });
@@ -37,7 +37,7 @@ describe('course mastery', () => {
       positions: { [beginnerMain.positions[0].id]: { ...emptyRecord(), due: true } },
     }));
     expect(summary.mastered).toBe(0);
-    expect(summary.total).toBe(9);
+    expect(summary.total).toBe(15);
   });
 });
 
@@ -45,7 +45,7 @@ describe('overall mastery', () => {
   test('sums every course', () => {
     const byCourse = Object.fromEntries(COURSES.map((entry) => [entry.id, emptyProgress()])) as Record<Course['id'], CourseProgress>;
     const summary = overallMastery(byCourse);
-    expect(summary.total).toBe(36);
+    expect(summary.total).toBe(72);
     expect(summary.mastered).toBe(0);
   });
 
@@ -54,7 +54,7 @@ describe('overall mastery', () => {
     byCourse[course.id] = progressWith({ completedVariationIds: [beginnerMain.id] });
     const summary = overallMastery(byCourse);
     expect(summary.mastered).toBe(1);
-    expect(summary.ratio).toBeCloseTo(1 / 36);
+    expect(summary.ratio).toBeCloseTo(1 / 72);
   });
 });
 

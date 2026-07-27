@@ -114,8 +114,8 @@ for (const viewport of VIEWPORTS) {
       const row = card.locator('button[data-level="beginner"]');
       await expect(row.locator('.meter-segment.is-mastered')).toHaveCount(1);
       await expect(row.locator('.meter-segment.is-banked')).toHaveCount(1);
-      await expect(row.locator('.meter-segment.is-untouched')).toHaveCount(1);
-      await expect(page.locator('.mastery-figure strong')).toHaveText(`${Math.round(1 / 36 * 100)}%`);
+      await expect(row.locator('.meter-segment.is-untouched')).toHaveCount(3);
+      await expect(page.locator('.mastery-figure strong')).toHaveText(`${Math.round(1 / 72 * 100)}%`);
       await expect(page.locator('#review-queue')).toContainText('Review 1 position');
     });
 
@@ -194,9 +194,9 @@ test('the browse index filters, and the walker steps without touching progress',
   await page.reload();
 
   await page.locator('#browse').click();
-  await expect(page.locator('.browse-row')).toHaveCount(36);
+  await expect(page.locator('.browse-row')).toHaveCount(72);
   await page.locator(`[data-course-filter="${COURSES[0].id}"]`).click();
-  await expect(page.locator('.browse-row')).toHaveCount(9);
+  await expect(page.locator('.browse-row')).toHaveCount(15);
   await page.locator('[data-state-filter="mastered"]').click();
   await expect(page.locator('.browse-row')).toHaveCount(1);
 
