@@ -12,7 +12,7 @@ describe('v1 release wiring', () => {
 
   test('points Tauri at the production frontend build', () => {
     expect(tauri.build).toMatchObject({ beforeBuildCommand: 'npm run build', frontendDist: '../dist' });
-    expect(existsSync('src-tauri/gen/android')).toBe(false);
+    expect(existsSync('src-tauri/gen/android')).toBe(true);
   });
 
   test('keeps v1 free of live data, import, offline, editor, and APK features', () => {
