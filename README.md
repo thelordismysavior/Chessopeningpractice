@@ -7,7 +7,9 @@ npm install
 npm run dev
 ```
 
-Copy `.env.example` to `.env.local`, set Firebase project values and the owner's Google email. Keep `VITE_FIREBASE_USE_EMULATORS=true` for local work.
+Copy `.env.example` to `.env.local`, set Firebase project values and the approved owner email. Keep `VITE_FIREBASE_USE_EMULATORS=true` for local work.
+
+Create the owner account through the app's **Create account** form using the email in `VITE_APPROVED_EMAIL`. After sign-up, set `config/access.approvedUid` to the UID shown on the approval screen; access remains blocked until that server-managed document is updated.
 
 Run rules checks with `npm run test:rules`.
 
