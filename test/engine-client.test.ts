@@ -77,6 +77,14 @@ describe('startup', () => {
     expect(worker.terminated).toBe(true);
   });
 
+  test('warming completes once the worker is ready', () => {
+    client.warm();
+    worker.handshake();
+    vi.advanceTimersByTime(3000);
+    expect(client.status).toBe('ready');
+    expect(worker.terminated).toBe(false);
+  });
+
   test('resolves null without a worker once unavailable, until reset', async () => {
     const pending = client.evaluate(START, 'w');
     vi.advanceTimersByTime(3000);
@@ -88,6 +96,51 @@ describe('startup', () => {
 });
 
 describe('evaluation', () => {
+  test('publishes gated provisional scores and memoizes only the settled score', async () => {
+    const progress = vi.fn();
+    const pending = client.evaluate(START, 'w', progress);
+    worker.handshake();
+    worker.reply('info depth 3 score cp 10 pv e2e4');
+    expect(progress).not.toHaveBeenCalled();
+    worker.reply('info depth 6 score cp 20 pv e2e4');
+    expect(progress).toHaveBeenCalledWith({ kind: 'cp', cp: 20 });
+    worker.reply('info depth 12 score cp 35 pv e2e4');
+    worker.reply('bestmove e2e4');
+    await expect(pending).resolves.toEqual({ kind: 'cp', cp: 35 });
+
+    progress.mockClear();
+    await expect(client.evaluate(START, 'w', progress)).resolves.toEqual({ kind: 'cp', cp: 35 });
+    expect(progress).not.toHaveBeenCalled();
+  });
+
+  test('returns the final shallow score when the provisional gate is not reached', async () => {
+    const progress = vi.fn();
+    const pending = client.evaluate(START, 'w', progress);
+    worker.handshake();
+    worker.reply('info depth 4 score cp 10 pv e2e4');
+    worker.reply('bestmove e2e4');
+    expect(progress).not.toHaveBeenCalled();
+    await expect(pending).resolves.toEqual({ kind: 'cp', cp: 10 });
+  });
+
+  test('does not publish to a superseded pending request', async () => {
+    const firstProgress = vi.fn();
+    const pendingProgress = vi.fn();
+    const first = client.evaluate(START, 'w', firstProgress);
+    worker.handshake();
+    const superseded = client.evaluate(AFTER_E4, 'w', pendingProgress);
+    const latest = client.evaluate(START, 'b');
+    await expect(superseded).resolves.toBeNull();
+    worker.reply('info depth 8 score cp 35 pv e2e4');
+    expect(firstProgress).toHaveBeenCalledOnce();
+    expect(pendingProgress).not.toHaveBeenCalled();
+    worker.reply('bestmove e2e4');
+    await first;
+    worker.finish(35);
+    await latest;
+    expect(pendingProgress).not.toHaveBeenCalled();
+  });
+
   test('orients the score to the learner', async () => {
     const pending = client.evaluate(AFTER_E4, 'w');
     worker.handshake();

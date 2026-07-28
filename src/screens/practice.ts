@@ -44,7 +44,6 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   let busy = false;
   let dragging = false;
   let suppressClick = false;
-  let focusedSquare: string | null = null;
   let boardEl: HTMLDivElement | null = null;
   let displayedChess = new Chess();
   let settledChess = displayedChess;
@@ -172,23 +171,27 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       ? settleDisplayFen(learnerAfterFen ?? position.fen, replyAfterFen, session.snapshot.position?.fen ?? null)
       : chess.fen());
     const boardState: BoardState = { chess, selected, side: course.side, guide: expectedRoute, route: routeFlash, animation, dragging, settling: sequenceActive, interactive: !busy || sequenceActive, selectableColor };
-    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame"></div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;
-    const frame = app.querySelector<HTMLDivElement>('.board-frame');
+    const nextMain = document.createRange().createContextualFragment(`<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame"></div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`).firstElementChild!;
+    app.append(nextMain);
+    const frame = nextMain.querySelector<HTMLDivElement>('.board-frame');
     if (frame) {
       if (!boardEl) {
         const fragment = document.createRange().createContextualFragment(renderBoard(boardState));
         boardEl = fragment.firstElementChild as HTMLDivElement;
       }
+      const focused = boardEl.contains(document.activeElement) ? document.activeElement as HTMLElement : null;
       frame.appendChild(boardEl);
+      if (focused && document.activeElement !== focused) focused.focus();
       updateBoard(boardEl, boardState);
     }
+    Array.from(app.children).forEach((child) => {
+      if (child !== nextMain) child.remove();
+    });
     bindSettings((duration) => { moveDuration = duration; });
     if (!lessonComplete) completionFocusRequested = false;
     if (lessonComplete && !completionFocusRequested) {
       completionFocusRequested = true;
       window.requestAnimationFrame(() => app.querySelector<HTMLButtonElement>('#proceed')?.focus());
-    } else if (focusedSquare && !busy) {
-      window.requestAnimationFrame(() => app.querySelector<HTMLButtonElement>(`[data-square="${focusedSquare}"]`)?.focus());
     }
     const settledFen = sequenceActive || animation ? null : chess.fen();
     if (settledFen && settledFen !== evalFen) {
@@ -298,7 +301,8 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       const square = button?.dataset.square;
       if (!square) return;
       const settledPiece = settledChess.get(square as Parameters<Chess['get']>[0]) ?? null;
-      if (resolveTempoCut(sequenceActive, settledPiece?.color ?? null, selectableColor) === 'cut') {
+      if (!leaving && resolveTempoCut(sequenceActive, settledPiece?.color ?? null, selectableColor) === 'cut') {
+        suppressClick = true;
         cutRequested = true;
         cutSquare = square;
         releaseWait?.();
@@ -347,6 +351,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       dragging = false;
       clearLift();
       board.classList.remove('is-dragging');
+      board.querySelector(`[data-square="${origin}"]`)?.classList.remove('is-vacated');
       if (!moved) return;
       suppressClick = !canceled;
       const target = canceled ? null : squareAtPoint(event);
@@ -366,16 +371,17 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     };
     board.addEventListener('pointerup', (event) => finishPointer(event));
     board.addEventListener('pointercancel', (event) => finishPointer(event, true));
-    app.querySelectorAll<HTMLButtonElement>('[data-square]').forEach((button) => button.addEventListener('click', (event) => {
+    board.addEventListener('click', (event) => {
+      const button = (event.target as Element).closest<HTMLButtonElement>('[data-square]');
+      if (!button) return;
       const square = button.dataset.square!;
-      focusedSquare = square;
       if (suppressClick) {
         suppressClick = false;
         event.preventDefault();
         return;
       }
       const settledPiece = settledChess.get(square as Parameters<Chess['get']>[0]) ?? null;
-      if (resolveTempoCut(sequenceActive, settledPiece?.color ?? null, selectableColor) === 'cut') {
+      if (!leaving && resolveTempoCut(sequenceActive, settledPiece?.color ?? null, selectableColor) === 'cut') {
         cutRequested = true;
         cutSquare = square;
         releaseWait?.();
@@ -401,7 +407,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       const move = `${selected}${square}`;
       selected = null;
       submitAttempt(move);
-    }));
+    });
   };
 
   const wait = (milliseconds: number) => new Promise<void>((resolve) => {
@@ -421,11 +427,11 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       return;
     }
     await nextFrame();
-    if (leaving) return;
+    if (leaving || cutRequested) return;
     animation.arrived = true;
     app.querySelectorAll<HTMLElement>('.animated-piece').forEach((piece) => piece.classList.add('is-arrived'));
     await wait(duration);
-    if (leaving) return;
+    if (leaving || cutRequested) return;
     animation = null;
     displayFen = plan.afterFen;
     draw();

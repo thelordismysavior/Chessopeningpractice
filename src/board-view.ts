@@ -27,6 +27,33 @@ export type BoardState = {
   selectableColor: 'w' | 'b';
 };
 
+function boardRows(state: BoardState) {
+  const rows = state.chess.board();
+  return state.side === 'black' ? rows.slice().reverse().map((row) => row.slice().reverse()) : rows;
+}
+
+function animatedPiecesMarkup(state: BoardState): string {
+  return state.animation ? state.animation.plan.pieces.map((piece) => {
+    const from = squarePosition(piece.from, state.side);
+    const to = squarePosition(piece.to, state.side);
+    const appearance = pieceAppearance(piece.piece);
+    return `<span class="animated-piece piece-side-${appearance.side} ${state.animation?.arrived ? 'is-arrived' : ''}" style="--move-duration:${state.animation?.duration}ms;--from-x:${from.x};--from-y:${from.y};--to-x:${to.x};--to-y:${to.y}">${appearance.glyph}</span>`;
+  }).join('') : '';
+}
+
+function squareView(state: BoardState, square: string, piece: ReturnType<Chess['get']> | null) {
+  const visiblePiece = state.animation?.plan.pieces.some((entry) => entry.from === square) ? null : piece;
+  const code = visiblePiece ? pieceCode(visiblePiece.color, visiblePiece.type) : '';
+  return {
+    visiblePiece,
+    code,
+    appearance: visiblePiece ? pieceAppearance(code) : null,
+    selected: state.selected === square,
+    movable: state.interactive && !state.settling && piece?.color === state.selectableColor,
+    label: `${square}${visiblePiece ? `, ${visiblePiece.color === 'w' ? 'white' : 'black'} ${visiblePiece.type}` : ''}`,
+  };
+}
+
 export function squarePosition(square: string, side: Course['side']): { x: number; y: number } {
   const file = square.charCodeAt(0) - 97;
   const rank = Number(square[1]) - 1;
@@ -52,55 +79,43 @@ export function renderRoute(route: SquareRoute | null, side: Course['side'], cla
 }
 
 export function renderBoard(state: BoardState): string {
-  const { chess, selected, side, guide, route, animation, dragging, settling, interactive, selectableColor } = state;
-  const board = chess.board();
-  const rows = side === 'black' ? board.slice().reverse().map((row) => row.slice().reverse()) : board;
-  const hiddenPieces = new Set<string>(animation?.plan.pieces.map((piece) => piece.from));
+  const { side, guide, route, dragging, settling, interactive } = state;
+  const rows = boardRows(state);
   const squares = rows.flatMap((row, rowIndex) => row.map((piece, columnIndex) => {
     const square = squareName(rowIndex, columnIndex, side);
     const dark = (rowIndex + columnIndex) % 2 === 1;
-    const selectedClass = selected === square ? 'is-selected' : '';
-    const visiblePiece = hiddenPieces.has(square) ? null : piece;
-    const appearance = visiblePiece ? pieceAppearance(pieceCode(visiblePiece.color, visiblePiece.type)) : null;
-    const movable = interactive && !settling && piece?.color === selectableColor;
+    const view = squareView(state, square, piece);
     const fileLabel = rowIndex === 7 ? `<span class="coord-file" aria-hidden="true">${square[0]}</span>` : '';
     const rankLabel = columnIndex === 0 ? `<span class="coord-rank" aria-hidden="true">${square[1]}</span>` : '';
-    const pieceMarkup = appearance
-      ? `<span class="piece piece-side-${appearance.side}">${appearance.glyph}</span>`
+    const pieceMarkup = view.appearance
+      ? `<span class="piece piece-side-${view.appearance.side}">${view.appearance.glyph}</span>`
       : '<span class="piece"></span>';
-    return `<button type="button" class="board-square ${dark ? 'is-dark' : 'is-light'} ${selectedClass}${movable ? ' is-movable' : ''}" data-square="${square}" data-piece="${visiblePiece ? pieceCode(visiblePiece.color, visiblePiece.type) : ''}" aria-pressed="${selected === square}" aria-label="${square}${visiblePiece ? `, ${visiblePiece.color === 'w' ? 'white' : 'black'} ${visiblePiece.type}` : ''}"${interactive ? '' : ' disabled'}>${fileLabel}${rankLabel}${pieceMarkup}</button>`;
+    return `<button type="button" class="board-square ${dark ? 'is-dark' : 'is-light'} ${view.selected ? 'is-selected' : ''}${view.movable ? ' is-movable' : ''}" data-square="${square}" data-piece="${view.code}" aria-pressed="${view.selected}" aria-label="${view.label}"${interactive ? '' : ' disabled'}>${fileLabel}${rankLabel}${pieceMarkup}</button>`;
   })).join('');
-  const animatedPieces = animation ? animation.plan.pieces.map((piece) => {
-    const from = squarePosition(piece.from, side);
-    const to = squarePosition(piece.to, side);
-    const appearance = pieceAppearance(piece.piece);
-    return `<span class="animated-piece piece-side-${appearance.side} ${animation.arrived ? 'is-arrived' : ''}" style="--move-duration:${animation.duration}ms;--from-x:${from.x};--from-y:${from.y};--to-x:${to.x};--to-y:${to.y}">${appearance.glyph}</span>`;
-  }).join('') : '';
+  const animatedPieces = animatedPiecesMarkup(state);
   return `<div class="board ${dragging ? 'is-dragging' : ''}" role="group" aria-label="Chess board" aria-busy="${settling}">${squares}${renderRoute(guide, side, 'guide-overlay', false)}<div class="piece-layer" aria-hidden="true">${animatedPieces}</div>${renderRoute(route, side, 'feedback-overlay')}</div>`;
 }
 
 export function updateBoard(board: Element, state: BoardState): void {
-  const chessBoard = state.chess.board();
-  const rows = state.side === 'black' ? chessBoard.slice().reverse().map((row) => row.slice().reverse()) : chessBoard;
+  const rows = boardRows(state);
   rows.forEach((row, rowIndex) => row.forEach((piece, columnIndex) => {
     const square = squareName(rowIndex, columnIndex, state.side);
     const button = board.querySelector<HTMLButtonElement>(`[data-square="${square}"]`);
     if (!button) return;
-    const visiblePiece = state.animation?.plan.pieces.some((entry) => entry.from === square) ? null : piece;
-    const code = visiblePiece ? pieceCode(visiblePiece.color, visiblePiece.type) : '';
-    button.classList.toggle('is-selected', state.selected === square);
-    button.classList.toggle('is-movable', state.interactive && !state.settling && piece?.color === state.selectableColor);
+    const view = squareView(state, square, piece);
+    button.classList.toggle('is-selected', view.selected);
+    button.classList.toggle('is-vacated', state.dragging && view.selected);
+    button.classList.toggle('is-movable', view.movable);
     button.toggleAttribute('disabled', !state.interactive);
-    button.setAttribute('aria-pressed', String(state.selected === square));
-    if (button.dataset.piece === code) return;
-    button.dataset.piece = code;
-    const appearance = visiblePiece ? pieceAppearance(code) : null;
+    button.setAttribute('aria-pressed', String(view.selected));
+    if (button.dataset.piece === view.code) return;
+    button.dataset.piece = view.code;
     const pieceEl = button.querySelector('.piece');
     if (pieceEl) {
-      pieceEl.className = appearance ? `piece piece-side-${appearance.side}` : 'piece';
-      pieceEl.textContent = appearance?.glyph ?? '';
+      pieceEl.className = view.appearance ? `piece piece-side-${view.appearance.side}` : 'piece';
+      pieceEl.textContent = view.appearance?.glyph ?? '';
     }
-    button.setAttribute('aria-label', `${square}${visiblePiece ? `, ${visiblePiece.color === 'w' ? 'white' : 'black'} ${visiblePiece.type}` : ''}`);
+    button.setAttribute('aria-label', view.label);
   }));
   board.classList.toggle('is-dragging', state.dragging);
   board.setAttribute('aria-busy', String(state.settling));
@@ -115,12 +130,7 @@ export function updateBoard(board: Element, state: BoardState): void {
   replaceOverlay('.guide-overlay', renderRoute(state.guide, state.side, 'guide-overlay', false));
   replaceOverlay('.feedback-overlay', renderRoute(state.route, state.side, 'feedback-overlay'));
   const layer = board.querySelector('.piece-layer');
-  if (layer) layer.innerHTML = state.animation ? state.animation.plan.pieces.map((piece) => {
-    const from = squarePosition(piece.from, state.side);
-    const to = squarePosition(piece.to, state.side);
-    const appearance = pieceAppearance(piece.piece);
-    return `<span class="animated-piece piece-side-${appearance.side} ${state.animation?.arrived ? 'is-arrived' : ''}" style="--move-duration:${state.animation?.duration}ms;--from-x:${from.x};--from-y:${from.y};--to-x:${to.x};--to-y:${to.y}">${appearance.glyph}</span>`;
-  }).join('') : '';
+  if (layer) layer.innerHTML = animatedPiecesMarkup(state);
 }
 
 export function renderEvalBar(score: EvalScore | null, status: EngineStatus): string {

@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { Chess } from 'chess.js';
 import { isDragPastThreshold, resolveBoardDrop, resolveTempoCut } from '../src/board-input';
 import { COURSES } from '../src/courses';
 import { shouldShowMoveGuide } from '../src/guide-policy';
@@ -154,6 +155,14 @@ describe('tempo cut', () => {
   test('empty and opponent squares do not cut', () => {
     expect(resolveTempoCut(true, null, 'w')).toBe('ignore');
     expect(resolveTempoCut(true, 'b', 'w')).toBe('ignore');
+  });
+
+  test('a reply-captured learner piece cannot be selected from the painted ghost', () => {
+    const beforeReply = '8/8/8/4p3/3P4/8/8/K6k b - - 0 1';
+    const reply = planMoveTransition(beforeReply, 'e5d4')!;
+    const settledPiece = new Chess(reply.afterFen).get('d4');
+    expect(settledPiece?.color).toBe('b');
+    expect(resolveTempoCut(true, settledPiece?.color ?? null, 'w')).toBe('ignore');
   });
 
   test('a settled board has no tempo to cut', () => {

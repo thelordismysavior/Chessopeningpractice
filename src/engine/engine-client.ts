@@ -118,6 +118,10 @@ export class EngineClient {
       return;
     }
     if (message.includes('readyok')) {
+      if (this.deadline !== null) {
+        clearTimeout(this.deadline);
+        this.deadline = null;
+      }
       this.state = 'ready';
       if (this.inFlight) this.search(this.inFlight);
       return;
