@@ -2,7 +2,7 @@ import { Chess } from 'chess.js';
 import { isDragPastThreshold, resolveBoardDrop } from '../board-input';
 import { LEVELS, coursesById, type Course, type LevelKey } from '../courses';
 import { shouldShowMoveGuide } from '../guide-policy';
-import { effectiveMoveDuration, loadMoveDuration } from '../move-settings';
+import { effectiveMoveDuration, loadMoveDuration, moveBeats } from '../move-settings';
 import { pieceAppearance, pieceCode } from '../piece-appearance';
 import { LessonRunner, type RunnerFeedback, type RunnerSnapshot } from '../lesson-runner';
 import { courseMastery } from '../mastery';
@@ -392,14 +392,15 @@ export async function startPractice(navigate: Navigate, email: string | null, op
 
   const playSequence = async (learnerPlan: MoveTransition, replyPlan: MoveTransition | null, skipLearnerMotion = false) => {
     const duration = effectiveMoveDuration(moveDuration, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const beats = moveBeats(moveDuration, session.snapshot.phase === 'teach');
     await playPhase(learnerPlan, skipLearnerMotion ? 0 : duration);
     if (leaving) return;
     if (replyPlan) {
-      await wait(250);
+      await wait(beats.beforeReply);
       if (leaving) return;
       await playPhase(replyPlan, duration);
       if (leaving) return;
-      await wait(session.snapshot.phase === 'teach' ? 450 : 250);
+      await wait(beats.afterReply);
     }
     if (leaving) return;
     animation = null;

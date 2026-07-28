@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { COURSES } from '../../src/courses';
-import { lineMoves, openDashboard, playMove, seedProgress, wrongLegalMove } from './app-stubs';
+import { COURSES, LEVELS } from '../../src/courses';
+import { expectNoOverflow, lineMoves, openDashboard, playMove, seedProgress, wrongLegalMove } from './app-stubs';
 
 const VIEWPORTS = [
   { width: 1440, height: 1000 },
@@ -86,6 +86,17 @@ async function keydownListenerCount(page: Page): Promise<number> {
 
 async function blockEngine(page: Page): Promise<void> {
   await page.route('**/engine/stockfish.js', (route) => route.abort());
+}
+
+function completedProgress(courseIndex: number) {
+  const course = COURSES[courseIndex];
+  return {
+    completedLevels: [...LEVELS],
+    unlockedLevel: LEVELS.length - 1,
+    completedVariationIds: LEVELS.flatMap((level) => course.lessons[level].variations.map((variation) => variation.id)),
+    positions: {},
+    practiceMs: 0,
+  };
 }
 
 function bankedProgress(courseIndex: number, dueInFirstLine: boolean) {
@@ -341,4 +352,22 @@ test('the bar is vertical on a wide viewport and horizontal on a narrow one', as
   await page.setViewportSize({ width: 390, height: 844 });
   const narrow = await page.locator('.eval-bar').boundingBox();
   expect(narrow!.width).toBeGreaterThan(narrow!.height);
+});
+
+test('a phone viewport never scrolls sideways, from an empty dashboard to a finished course', async ({ page }) => {
+  await stubEngine(page);
+  await openDashboard(page, 390, 844);
+  await expect(page.locator('.course-grid')).toBeVisible();
+  await expectNoOverflow(page);
+
+  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await expect(page.locator('.board')).toBeVisible();
+  await expect(page.locator('.guide-overlay .route-arrow')).toHaveCSS('height', '6px');
+  await expectNoOverflow(page);
+
+  await page.locator('#back-dashboard').click();
+  await seedProgress(page, COURSES[0].id, completedProgress(0));
+  await page.reload();
+  await expect(page.locator('.course-count').first()).toHaveText('03 / 03');
+  await expectNoOverflow(page);
 });

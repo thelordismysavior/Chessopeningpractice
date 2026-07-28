@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { COURSES, type LevelKey } from '../../src/courses';
+import { expectNoOverflow } from './app-stubs';
 import { resetEmulatorProgress, TEST_ACCOUNT } from './emulator';
 
 test.describe.configure({ mode: 'serial' });
@@ -18,10 +19,6 @@ async function openDashboard(page: Page, width: number): Promise<void> {
     await signInForBrowserTest(email, password);
   }, TEST_ACCOUNT);
   await expect(page.locator('.dashboard-intro')).toBeVisible();
-}
-
-async function expectNoOverflow(page: Page): Promise<void> {
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 }
 
 async function playMove(page: Page, move: string, drag = false): Promise<void> {
@@ -52,35 +49,33 @@ async function proceed(page: Page): Promise<void> {
   await page.locator('#proceed').click();
 }
 
-for (const [viewport, width] of [['desktop', 1440], ['mobile', 390]] as const) {
-  test(`emulator-backed Chromium journey covers ${viewport} progression`, async ({ page }) => {
-    test.setTimeout(300_000);
-    await openDashboard(page, width);
-    await expectNoOverflow(page);
-    await expect(page.locator('.course-grid')).toBeVisible();
+test('emulator-backed Chromium journey covers full progression', async ({ page }) => {
+  test.setTimeout(300_000);
+  await openDashboard(page, 1440);
+  await expectNoOverflow(page);
+  await expect(page.locator('.course-grid')).toBeVisible();
 
-    const firstCourse = page.locator('.course-card').first();
-    await expect(firstCourse.locator('.lesson-row').nth(1)).toBeDisabled();
-    await expect(firstCourse.locator('.lesson-row').nth(2)).toBeDisabled();
-    await firstCourse.locator('button[data-level="beginner"]').click();
-    await expect(page.locator('.board')).toBeVisible();
-    await expectNoOverflow(page);
-    await expect(page.locator('.guide-overlay .route-arrow')).toHaveCSS('height', '6px');
-    await completeLevel(page, 'beginner');
-    await proceed(page);
-    await expect(page.locator('.line-title')).toBeVisible();
+  const firstCourse = page.locator('.course-card').first();
+  await expect(firstCourse.locator('.lesson-row').nth(1)).toBeDisabled();
+  await expect(firstCourse.locator('.lesson-row').nth(2)).toBeDisabled();
+  await firstCourse.locator('button[data-level="beginner"]').click();
+  await expect(page.locator('.board')).toBeVisible();
+  await expectNoOverflow(page);
+  await expect(page.locator('.guide-overlay .route-arrow')).toHaveCSS('height', '6px');
+  await completeLevel(page, 'beginner');
+  await proceed(page);
+  await expect(page.locator('.line-title')).toBeVisible();
 
-    await completeLevel(page, 'intermediate', true);
-    await proceed(page);
-    await expect(page.locator('.line-title')).toBeVisible();
+  await completeLevel(page, 'intermediate', true);
+  await proceed(page);
+  await expect(page.locator('.line-title')).toBeVisible();
 
-    await completeLevel(page, 'advanced');
-    await proceed(page);
-    await expect(page.locator('.dashboard-intro')).toBeVisible();
-    await expect(page.locator('.course-count').first()).toHaveText('03 / 03');
-    await expectNoOverflow(page);
-  });
-}
+  await completeLevel(page, 'advanced');
+  await proceed(page);
+  await expect(page.locator('.dashboard-intro')).toBeVisible();
+  await expect(page.locator('.course-count').first()).toHaveText('03 / 03');
+  await expectNoOverflow(page);
+});
 
 test('emulator-backed save failure remains recoverable after the final move', async ({ page }) => {
   test.setTimeout(120_000);

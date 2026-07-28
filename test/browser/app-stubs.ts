@@ -182,6 +182,10 @@ export async function installAppStubs(page: Page, options: AuthStubOptions = {})
   }));
 }
 
+export async function expectNoOverflow(page: Page): Promise<void> {
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+}
+
 export async function openDashboard(page: Page, width: number, height: number): Promise<void> {
   await page.setViewportSize({ width, height });
   await installAppStubs(page);

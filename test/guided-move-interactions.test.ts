@@ -5,6 +5,7 @@ import { shouldShowMoveGuide } from '../src/guide-policy';
 import {
   effectiveMoveDuration,
   loadMoveDuration,
+  moveBeats,
   normalizeMoveDuration,
   saveMoveDuration,
 } from '../src/move-settings';
@@ -125,5 +126,22 @@ describe('move duration settings', () => {
   test('reduced motion overrides movement without changing storage', () => {
     expect(effectiveMoveDuration(450, true)).toBe(0);
     expect(effectiveMoveDuration(450, false)).toBe(450);
+  });
+});
+
+describe('move beats', () => {
+  test('teaching holds the reply longer than recall', () => {
+    expect(moveBeats(200, true)).toEqual({ beforeReply: 250, afterReply: 450 });
+    expect(moveBeats(200, false)).toEqual({ beforeReply: 250, afterReply: 250 });
+  });
+
+  test('a zero duration preference asks for no tempo at all', () => {
+    expect(moveBeats(0, true)).toEqual({ beforeReply: 0, afterReply: 0 });
+    expect(moveBeats(20, false)).toEqual({ beforeReply: 0, afterReply: 0 });
+  });
+
+  test('reduced motion still leaves time to read the reply', () => {
+    expect(effectiveMoveDuration(450, true)).toBe(0);
+    expect(moveBeats(450, false).beforeReply).toBe(250);
   });
 });

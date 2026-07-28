@@ -4,6 +4,12 @@ export const MOVE_DURATION_MAX = 2000;
 export const MOVE_DURATION_STEP = 50;
 export const MOVE_DURATION_STORAGE_KEY = 'chess-practice.move-duration';
 
+export const MOVE_BEAT_BEFORE_REPLY = 250;
+export const MOVE_BEAT_AFTER_REPLY = 250;
+export const MOVE_BEAT_AFTER_REPLY_TEACHING = 450;
+
+export type MoveBeats = { beforeReply: number; afterReply: number };
+
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
 
 export function normalizeMoveDuration(value: unknown): number {
@@ -41,4 +47,14 @@ export function saveMoveDuration(value: unknown, storage: StorageLike | null = b
 
 export function effectiveMoveDuration(storedDuration: number, reducedMotion: boolean): number {
   return reducedMotion ? 0 : normalizeMoveDuration(storedDuration);
+}
+
+// Beats key off the stored preference rather than the effective duration: a reduced-motion learner
+// still needs time to read the reply, and only an explicit zero means "no tempo at all".
+export function moveBeats(storedDuration: number, teaching: boolean): MoveBeats {
+  if (normalizeMoveDuration(storedDuration) === 0) return { beforeReply: 0, afterReply: 0 };
+  return {
+    beforeReply: MOVE_BEAT_BEFORE_REPLY,
+    afterReply: teaching ? MOVE_BEAT_AFTER_REPLY_TEACHING : MOVE_BEAT_AFTER_REPLY,
+  };
 }

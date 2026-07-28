@@ -1,11 +1,19 @@
 import { defineConfig } from '@playwright/test';
 
+const EMULATOR_SPEC = /emulator-matrix\.spec\.ts/;
+
 export default defineConfig({
   testDir: './test/browser',
-  globalSetup: './test/browser/global-setup.ts',
-  workers: 1,
+  fullyParallel: true,
+  workers: 4,
   timeout: 90_000,
   expect: { timeout: 5_000 },
+  projects: [
+    // Stubbed specs replace the Firebase and progress modules in the page, so they need no emulator.
+    { name: 'stubbed', testIgnore: EMULATOR_SPEC },
+    { name: 'emulator-seed', testMatch: /emulator-seed\.setup\.ts/ },
+    { name: 'emulated', testMatch: EMULATOR_SPEC, dependencies: ['emulator-seed'] },
+  ],
   use: {
     baseURL: 'http://127.0.0.1:5173',
     headless: true,

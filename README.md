@@ -11,7 +11,23 @@ Copy `.env.example` to `.env.local`, set Firebase project values and the approve
 
 Create the owner account through the app's **Create account** form using the email in `VITE_APPROVED_EMAIL`. After sign-up, set `config/access.approvedUid` to the UID shown on the approval screen; access remains blocked until that server-managed document is updated.
 
-Run rules checks with `npm run test:rules`.
+## Tests
+
+| Command | Covers | Needs emulators |
+| --- | --- | --- |
+| `npm test` | Unit and course-content tests | No |
+| `npm run test:browser:fast` | Browser tests against stubbed Firebase | No |
+| `npm run test:emulators` | Unit tests plus the Firestore rules and auth contracts | Yes |
+| `npm run test:browser` | Every browser test, including the emulator-backed journey | Yes |
+| `npm run test:browser:emulated` | The emulator-backed journey alone | Yes |
+
+The two `:fast` and plain commands need no Java and are the ones to reach for while iterating. The
+emulator-backed browser tests live in `test/browser/emulator-matrix.spec.ts`; every other browser
+spec replaces `src/firebase.ts` and `src/progress.ts` in the page, so it needs no infrastructure. See
+[docs/adr/0001-stub-firebase-in-browser-tests.md](docs/adr/0001-stub-firebase-in-browser-tests.md).
+
+If an emulator run fails with `Could not start Firestore Emulator, port taken`, an emulator from an
+interrupted run is still holding port 8080; stop that process and retry.
 
 Before production use:
 
