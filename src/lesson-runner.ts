@@ -183,6 +183,14 @@ export class LessonRunner {
 
   private closeDrill(): void {
     const line = this.lines[this.lineIndex];
+    if (this.isReview && line) {
+      const remaining = line.positions.filter((position) => this.records[position.id]?.due);
+      if (remaining.length) {
+        this.drill = new LineDrill(remaining, { teachPass: false });
+        this.appliedOutcomes = 0;
+        return;
+      }
+    }
     if (this.drill?.snapshot.banked && line?.variation) this.banked.push(line.variation.id);
     this.lineIndex += 1;
     this.openDrill();

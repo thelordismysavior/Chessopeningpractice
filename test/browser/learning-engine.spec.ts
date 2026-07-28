@@ -92,10 +92,6 @@ for (const viewport of VIEWPORTS) {
       await page.locator('.queue-row button').first().click();
       const reviewMove = firstLine[0];
       await playMove(page, reviewMove);
-      await page.locator('#back-after-complete').click();
-
-      await page.locator('#review-queue').click();
-      await page.locator('.queue-row button').first().click();
       await playMove(page, reviewMove);
       await page.locator('#back-after-complete').click();
       await expect(page.locator('#review-queue')).toHaveCount(0);

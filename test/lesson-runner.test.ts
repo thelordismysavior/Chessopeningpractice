@@ -85,17 +85,36 @@ describe('review mode', () => {
     expect(runner.snapshot.bankedVariationIds).toEqual([]);
   });
 
-  test('clears a due position after two clean reviews', () => {
+  test('clears a due position after two clean answers in one review session', () => {
     const due = base({ positions: { 'main-2': { attempts: 1, corrects: 0, misses: 1, hints: 0, reviewStreak: 0, due: true } } });
 
-    const first = new LessonRunner(lesson, due, { reviewPositionIds: ['main-2'] });
-    first.submitMove('b1c3');
-    const afterFirst = first.progressFor('beginner');
+    const runner = new LessonRunner(lesson, due, { reviewPositionIds: ['main-2'] });
+    runner.submitMove('b1c3');
+    const afterFirst = runner.progressFor('beginner');
     expect(afterFirst.positions['main-2']).toMatchObject({ reviewStreak: 1, due: true });
+    expect(runner.snapshot.status).toBe('active');
+    expect(runner.snapshot.position?.id).toBe('main-2');
 
-    const second = new LessonRunner(lesson, afterFirst, { reviewPositionIds: ['main-2'] });
-    second.submitMove('b1c3');
-    expect(second.progressFor('beginner').positions['main-2']).toMatchObject({ reviewStreak: 0, due: false });
+    runner.submitMove('b1c3');
+    expect(runner.progressFor('beginner').positions['main-2']).toMatchObject({ reviewStreak: 0, due: false });
+    expect(runner.snapshot.status).toBe('complete');
+  });
+
+  test('keeps cycling after a miss until the position gets two consecutive clean answers', () => {
+    const due = base({ positions: { 'main-2': { attempts: 1, corrects: 0, misses: 1, hints: 0, reviewStreak: 0, due: true } } });
+    const runner = new LessonRunner(lesson, due, { reviewPositionIds: ['main-2'] });
+
+    runner.submitMove('g1f3');
+    runner.submitMove('b1c3');
+    expect(runner.progressFor('beginner').positions['main-2']).toMatchObject({ reviewStreak: 0, due: true });
+    expect(runner.snapshot.status).toBe('active');
+
+    runner.submitMove('b1c3');
+    expect(runner.snapshot.status).toBe('active');
+    runner.submitMove('b1c3');
+
+    expect(runner.progressFor('beginner').positions['main-2']).toMatchObject({ reviewStreak: 0, due: false });
+    expect(runner.snapshot.status).toBe('complete');
   });
 });
 
