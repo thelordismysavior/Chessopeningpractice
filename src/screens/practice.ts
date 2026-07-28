@@ -1,5 +1,5 @@
 import { Chess } from 'chess.js';
-import { isDragPastThreshold, resolveBoardDrop } from '../board-input';
+import { isDragPastThreshold, resolveBoardDrop, resolveTempoCut } from '../board-input';
 import { LEVELS, coursesById, type Course, type LevelKey } from '../courses';
 import { shouldShowMoveGuide } from '../guide-policy';
 import { effectiveMoveDuration, loadMoveDuration, moveBeats } from '../move-settings';
@@ -10,7 +10,7 @@ import { diffProgress, loadProgress, saveProgress, type CourseProgress } from '.
 import { duePositionIds } from '../review-schedule';
 import { signOutUser } from '../firebase';
 import { planFenTransition, planMoveTransition, settleDisplayFen, type MoveTransition } from '../transition-plans';
-import { renderBoard, renderEvalBar, type BoardAnimation, type SquareRoute } from '../board-view';
+import { renderBoard, renderEvalBar, updateBoard, updateEvalBar, type BoardAnimation, type BoardState, type SquareRoute } from '../board-view';
 import { engine } from '../engine/engine-client';
 import { centipawnLoss, costPhrase, type EvalScore } from '../engine/eval-scale';
 import { app, bindSettings, escapeHtml, levelNames, resetPageScroll, settingsDialogMarkup, sideNames } from './shell';
@@ -23,6 +23,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   const { course, level, progress, reviewPositionIds = [], run, entryHandoff } = options;
   resetPageScroll();
   engine.reset();
+  engine.warm();
   const lesson = course.lessons[level];
   const session = new LessonRunner(lesson, progress, { reviewPositionIds });
   const masteryBefore = courseMastery(course, progress);
@@ -44,6 +45,14 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   let dragging = false;
   let suppressClick = false;
   let focusedSquare: string | null = null;
+  let boardEl: HTMLDivElement | null = null;
+  let displayedChess = new Chess();
+  let settledChess = displayedChess;
+  let learnerAfterFen: string | null = null;
+  let replyAfterFen: string | null = null;
+  let cutRequested = false;
+  let cutSquare: string | null = null;
+  let releaseWait: (() => void) | null = null;
   let completionFocusRequested = false;
   let leaving = false;
   let handoff: { banked: string; next: string; verb?: string } | null = entryHandoff ?? null;
@@ -158,7 +167,22 @@ export async function startPractice(navigate: Navigate, email: string | null, op
             ? '<button id="back-to-queue">Back to review queue</button>'
             : '<button id="back-after-complete">Back to dashboard</button>'
         : `${hintMarkup}<button id="exit-practice" class="quiet-button">Exit lesson</button>`;
-    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame">${renderBoard(chess, selected, course.side, expectedRoute, routeFlash, animation, dragging, busy, selectableColor)}</div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;    bindSettings((duration) => { moveDuration = duration; });
+    displayedChess = chess;
+    settledChess = new Chess(sequenceActive
+      ? settleDisplayFen(learnerAfterFen ?? position.fen, replyAfterFen, session.snapshot.position?.fen ?? null)
+      : chess.fen());
+    const boardState: BoardState = { chess, selected, side: course.side, guide: expectedRoute, route: routeFlash, animation, dragging, settling: sequenceActive, interactive: !busy || sequenceActive, selectableColor };
+    app.innerHTML = `<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame"></div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`;
+    const frame = app.querySelector<HTMLDivElement>('.board-frame');
+    if (frame) {
+      if (!boardEl) {
+        const fragment = document.createRange().createContextualFragment(renderBoard(boardState));
+        boardEl = fragment.firstElementChild as HTMLDivElement;
+      }
+      frame.appendChild(boardEl);
+      updateBoard(boardEl, boardState);
+    }
+    bindSettings((duration) => { moveDuration = duration; });
     if (!lessonComplete) completionFocusRequested = false;
     if (lessonComplete && !completionFocusRequested) {
       completionFocusRequested = true;
@@ -169,21 +193,18 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     const settledFen = sequenceActive || animation ? null : chess.fen();
     if (settledFen && settledFen !== evalFen) {
       evalFen = settledFen;
-      void engine.evaluate(settledFen, selectableColor).then((score) => {
+      const paint = (score: EvalScore | null) => {
         if (leaving || evalFen !== settledFen) return;
-        if (score === null) {
-          if (engine.status !== 'unavailable') return;
-          evalScore = null;
-        } else {
-          evalScore = score;
-        }
         const panel = app.querySelector('.board-panel');
-        if (!panel) return;
-        const existing = panel.querySelector('.eval-bar, .eval-note');
-        const next = document.createRange().createContextualFragment(renderEvalBar(evalScore, engine.status)).firstElementChild;
-        if (!next) return;
-        if (existing) existing.replaceWith(next);
-        else panel.prepend(next);
+        if (panel) updateEvalBar(panel, score, engine.status);
+      };
+      const streaming = moveBeats(moveDuration, false).beforeReply > 0
+        && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      void engine.evaluate(settledFen, selectableColor, streaming ? paint : undefined).then((score) => {
+        if (leaving || evalFen !== settledFen) return;
+        if (score === null && engine.status !== 'unavailable') return;
+        evalScore = score;
+        paint(score);
       });
     }
 
@@ -247,9 +268,8 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     })());
     document.querySelector('#show-hint')?.addEventListener('click', () => { session.requestHint(); draw(); });
     document.querySelector('#retry-save')?.addEventListener('click', () => void persist().then(draw).catch(() => { saveError = true; draw(); }));
-    const board = app.querySelector<HTMLDivElement>('.board');
+    const board = boardEl;
     if (!board) return;
-    const displayedChess = chess;
     const squareAtPoint = (event: PointerEvent): string | null => {
       const element = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLButtonElement>('[data-square]');
       return element?.dataset.square ?? null;
@@ -269,12 +289,22 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       const offsetY = event.pointerType === 'touch' ? TOUCH_LIFT_OFFSET_PX : 0;
       liftEl.style.transform = `translate(${event.clientX}px, ${event.clientY + offsetY}px) translate(-50%, -50%) scale(1.18)`;
     };
+    if (board.dataset.listenersBound) return;
+    board.dataset.listenersBound = 'true';
     board.addEventListener('pointerdown', (event) => {
-      if (busy || (event.pointerType === 'mouse' && event.button !== 0)) return;
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
       suppressClick = false;
       const button = (event.target as Element).closest<HTMLButtonElement>('[data-square]');
       const square = button?.dataset.square;
-      if (!square || displayedChess.get(square as Parameters<Chess['get']>[0])?.color !== selectableColor) return;
+      if (!square) return;
+      const settledPiece = settledChess.get(square as Parameters<Chess['get']>[0]) ?? null;
+      if (resolveTempoCut(sequenceActive, settledPiece?.color ?? null, selectableColor) === 'cut') {
+        cutRequested = true;
+        cutSquare = square;
+        releaseWait?.();
+        return;
+      }
+      if (busy || displayedChess.get(square as Parameters<Chess['get']>[0])?.color !== selectableColor) return;
       pointerOrigin = square;
       pointerId = event.pointerId;
       pointerMoved = false;
@@ -344,6 +374,13 @@ export async function startPractice(navigate: Navigate, email: string | null, op
         event.preventDefault();
         return;
       }
+      const settledPiece = settledChess.get(square as Parameters<Chess['get']>[0]) ?? null;
+      if (resolveTempoCut(sequenceActive, settledPiece?.color ?? null, selectableColor) === 'cut') {
+        cutRequested = true;
+        cutSquare = square;
+        releaseWait?.();
+        return;
+      }
       if (busy) return;
       const boardPiece = displayedChess.get(square as Parameters<Chess['get']>[0]);
       if (!selected) {
@@ -367,7 +404,11 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     }));
   };
 
-  const wait = (milliseconds: number) => new Promise<void>((resolve) => { window.setTimeout(resolve, milliseconds); });
+  const wait = (milliseconds: number) => new Promise<void>((resolve) => {
+    if (cutRequested) { resolve(); return; }
+    const timer = window.setTimeout(() => { releaseWait = null; resolve(); }, milliseconds);
+    releaseWait = () => { window.clearTimeout(timer); releaseWait = null; resolve(); };
+  });
   const nextFrame = () => new Promise<void>((resolve) => { window.requestAnimationFrame(() => resolve()); });
 
   const playPhase = async (plan: MoveTransition, duration: number) => {
@@ -395,12 +436,14 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     const beats = moveBeats(moveDuration, session.snapshot.phase === 'teach');
     await playPhase(learnerPlan, skipLearnerMotion ? 0 : duration);
     if (leaving) return;
-    if (replyPlan) {
+    if (replyPlan && !cutRequested) {
       await wait(beats.beforeReply);
       if (leaving) return;
-      await playPhase(replyPlan, duration);
-      if (leaving) return;
-      await wait(beats.afterReply);
+      if (!cutRequested) {
+        await playPhase(replyPlan, duration);
+        if (leaving) return;
+      }
+      if (!cutRequested) await wait(beats.afterReply);
     }
     if (leaving) return;
     animation = null;
@@ -411,7 +454,9 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     );
     sequenceActive = false;
     busy = false;
-    selected = null;
+    selected = cutSquare;
+    cutSquare = null;
+    cutRequested = false;
     draw();
   };
 
@@ -465,9 +510,12 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       return;
     }
     sequencePosition = position;
+    learnerAfterFen = learnerPlan.afterFen;
+    replyAfterFen = replyPlan?.afterFen ?? null;
     sequenceActive = true;
     busy = true;
     displayFen = null;
+    cutRequested = false;
     void persist().catch(() => { saveError = true; if (!leaving) draw(); });
     void playSequence(learnerPlan, replyPlan, Boolean(options.fromDrag));
   }

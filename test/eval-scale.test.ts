@@ -6,7 +6,9 @@ import {
   fillFraction,
   moveSeverity,
   orientScore,
+  parseInfo,
   parseScore,
+  PROVISIONAL_MIN_DEPTH,
   type EvalScore,
 } from '../src/engine/eval-scale';
 
@@ -24,6 +26,24 @@ describe('parseScore', () => {
 
   test('returns null for a line with no score', () => {
     expect(parseScore('info depth 1 currmove e2e4')).toBeNull();
+  });
+});
+
+describe('parseInfo', () => {
+  test('reads depth alongside score', () => {
+    expect(parseInfo('info depth 12 seldepth 18 score cp -37 nodes 1000 pv e2e4')).toEqual({ depth: 12, score: cp(-37) });
+  });
+
+  test('does not mistake seldepth for depth', () => {
+    expect(parseInfo('info seldepth 30 depth 9 score cp 12')).toEqual({ depth: 9, score: cp(12) });
+  });
+
+  test('returns null without a score', () => {
+    expect(parseInfo('info depth 1 currmove e2e4')).toBeNull();
+  });
+
+  test('gates noisy opening depths', () => {
+    expect(PROVISIONAL_MIN_DEPTH).toBeGreaterThanOrEqual(6);
   });
 });
 
@@ -67,10 +87,10 @@ describe('fillFraction', () => {
 });
 
 describe('evalLabel', () => {
-  test('formats pawns with a sign and two decimals', () => {
-    expect(evalLabel(cp(42))).toBe('+0.42');
-    expect(evalLabel(cp(-130))).toBe('-1.30');
-    expect(evalLabel(cp(0))).toBe('0.00');
+  test('formats pawns with a sign and one decimal', () => {
+    expect(evalLabel(cp(42))).toBe('+0.4');
+    expect(evalLabel(cp(-130))).toBe('-1.3');
+    expect(evalLabel(cp(0))).toBe('0.0');
   });
 
   test('formats mate scores', () => {

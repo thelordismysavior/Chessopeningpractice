@@ -420,7 +420,7 @@ dialog::backdrop { background: rgb(23 34 43 / .34); }
 .board-panel { position: relative; }
 .eval-bar { display: flex; align-items: center; gap: .5rem; }
 .eval-track { position: relative; flex: 1; height: .4rem; overflow: hidden; border-radius: 999px; background: #17222b; }
-.eval-fill { position: absolute; inset: 0 auto 0 0; width: var(--eval-fill, 50%); background: #f3f0e8; transition: width .25s ease; }
+.eval-fill { position: absolute; inset: 0 auto 0 0; width: var(--eval-fill, 50%); background: #f3f0e8; transition: width .12s ease; }
 .eval-value { min-width: 3.2rem; color: #17222b; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .76rem; font-weight: 700; text-align: right; }
 .eval-bar.is-pending .eval-value { color: #879097; }
 .eval-note { margin: 0 0 .5rem; color: #879097; font-size: .72rem; }
@@ -428,7 +428,7 @@ dialog::backdrop { background: rgb(23 34 43 / .34); }
 @media (min-width: 801px) {
   .eval-bar { position: absolute; inset-block: 0; left: -2.2rem; flex-direction: column; width: 1.6rem; margin: 0; }
   .eval-track { width: .4rem; height: auto; flex: 1; }
-  .eval-fill { inset: auto 0 0 0; width: auto; height: var(--eval-fill, 50%); transition: height .25s ease; }
+  .eval-fill { inset: auto 0 0 0; width: auto; height: var(--eval-fill, 50%); transition: height .12s ease; }
   .eval-value { min-width: 0; text-align: center; writing-mode: horizontal-tb; }
 }
 

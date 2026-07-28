@@ -4,9 +4,9 @@ export const MOVE_DURATION_MAX = 2000;
 export const MOVE_DURATION_STEP = 50;
 export const MOVE_DURATION_STORAGE_KEY = 'chess-practice.move-duration';
 
-export const MOVE_BEAT_BEFORE_REPLY = 250;
-export const MOVE_BEAT_AFTER_REPLY = 250;
-export const MOVE_BEAT_AFTER_REPLY_TEACHING = 450;
+export const MOVE_BEAT_BEFORE_REPLY = 120;
+export const MOVE_BEAT_AFTER_REPLY = 150;
+export const MOVE_BEAT_AFTER_REPLY_TEACHING = 300;
 
 export type MoveBeats = { beforeReply: number; afterReply: number };
 

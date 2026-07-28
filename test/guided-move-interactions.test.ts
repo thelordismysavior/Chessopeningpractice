@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { isDragPastThreshold, resolveBoardDrop } from '../src/board-input';
+import { isDragPastThreshold, resolveBoardDrop, resolveTempoCut } from '../src/board-input';
 import { COURSES } from '../src/courses';
 import { shouldShowMoveGuide } from '../src/guide-policy';
 import {
@@ -131,8 +131,8 @@ describe('move duration settings', () => {
 
 describe('move beats', () => {
   test('teaching holds the reply longer than recall', () => {
-    expect(moveBeats(200, true)).toEqual({ beforeReply: 250, afterReply: 450 });
-    expect(moveBeats(200, false)).toEqual({ beforeReply: 250, afterReply: 250 });
+    expect(moveBeats(200, true)).toEqual({ beforeReply: 120, afterReply: 300 });
+    expect(moveBeats(200, false)).toEqual({ beforeReply: 120, afterReply: 150 });
   });
 
   test('a zero duration preference asks for no tempo at all', () => {
@@ -142,6 +142,21 @@ describe('move beats', () => {
 
   test('reduced motion still leaves time to read the reply', () => {
     expect(effectiveMoveDuration(450, true)).toBe(0);
-    expect(moveBeats(450, false).beforeReply).toBe(250);
+    expect(moveBeats(450, false).beforeReply).toBe(120);
+  });
+});
+
+describe('tempo cut', () => {
+  test('a learner piece cuts the remaining tempo', () => {
+    expect(resolveTempoCut(true, 'w', 'w')).toBe('cut');
+  });
+
+  test('empty and opponent squares do not cut', () => {
+    expect(resolveTempoCut(true, null, 'w')).toBe('ignore');
+    expect(resolveTempoCut(true, 'b', 'w')).toBe('ignore');
+  });
+
+  test('a settled board has no tempo to cut', () => {
+    expect(resolveTempoCut(false, 'w', 'w')).toBe('ignore');
   });
 });

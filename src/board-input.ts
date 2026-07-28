@@ -12,3 +12,8 @@ export function isDragPastThreshold(
 ): boolean {
   return Math.hypot(currentX - pressX, currentY - pressY) >= threshold;
 }
+
+/** A press only cuts the tempo when it is a real move intent, judged against the settled position. */
+export function resolveTempoCut(settling: boolean, settledPieceColor: 'w' | 'b' | null, selectableColor: 'w' | 'b'): 'ignore' | 'cut' {
+  return settling && settledPieceColor === selectableColor ? 'cut' : 'ignore';
+}

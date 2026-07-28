@@ -1,4 +1,4 @@
-import { orientScore, parseScore, type EvalScore } from './eval-scale';
+import { orientScore, parseInfo, PROVISIONAL_MIN_DEPTH, type EvalScore } from './eval-scale';
 
 export const ENGINE_MOVETIME_MS = 300;
 export const ENGINE_STARTUP_MS = 3000;
@@ -20,7 +20,7 @@ export type EngineOptions = {
   startupTimeoutMs?: number;
 };
 
-type Request = { fen: string; learnerColor: 'w' | 'b'; resolve: (score: EvalScore | null) => void };
+type Request = { fen: string; learnerColor: 'w' | 'b'; onProgress?: (score: EvalScore) => void; resolve: (score: EvalScore | null) => void };
 
 export class EngineClient {
   private readonly createWorker: () => WorkerLike;
@@ -50,12 +50,12 @@ export class EngineClient {
   }
 
   /** Resolves null when the engine is unavailable, the request was superseded, or no score came back. */
-  evaluate(fen: string, learnerColor: 'w' | 'b'): Promise<EvalScore | null> {
+  evaluate(fen: string, learnerColor: 'w' | 'b', onProgress?: (score: EvalScore) => void): Promise<EvalScore | null> {
     if (this.state === 'unavailable') return Promise.resolve(null);
     const cached = this.memo.get(this.key(fen, learnerColor));
     if (cached) return Promise.resolve(cached);
     return new Promise<EvalScore | null>((resolve) => {
-      const request: Request = { fen, learnerColor, resolve };
+      const request: Request = { fen, learnerColor, onProgress, resolve };
       if (!this.ensureWorker()) {
         resolve(null);
         return;
@@ -74,6 +74,11 @@ export class EngineClient {
     if (this.state !== 'unavailable') return;
     this.worker = null;
     this.state = 'idle';
+  }
+
+  /** Boots the worker ahead of the first position. */
+  warm(): void {
+    if (this.state !== 'unavailable') this.ensureWorker();
   }
 
   private key(fen: string, learnerColor: 'w' | 'b'): string {
@@ -118,8 +123,13 @@ export class EngineClient {
       return;
     }
     if (message.startsWith('info')) {
-      const score = parseScore(message);
-      if (score) this.latest = score;
+      const info = parseInfo(message);
+      if (!info) return;
+      this.latest = info.score;
+      const request = this.inFlight;
+      if (request?.onProgress && info.depth >= PROVISIONAL_MIN_DEPTH) {
+        request.onProgress(orientScore(info.score, request.fen, request.learnerColor));
+      }
       return;
     }
     if (message.startsWith('bestmove')) this.finish();

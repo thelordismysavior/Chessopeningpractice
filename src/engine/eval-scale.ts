@@ -17,6 +17,18 @@ export function parseScore(line: string): EvalScore | null {
   return centipawns ? { kind: 'cp', cp: Number(centipawns[1]) } : null;
 }
 
+/** Depths 1-5 are too noisy for a Provisional Score. */
+export const PROVISIONAL_MIN_DEPTH = 6;
+
+export type EngineInfo = { depth: number; score: EvalScore };
+
+export function parseInfo(line: string): EngineInfo | null {
+  const score = parseScore(line);
+  if (!score) return null;
+  const depth = /\bdepth (\d+)/.exec(line);
+  return depth ? { depth: Number(depth[1]), score } : null;
+}
+
 /** UCI reports from the side to move; the bar always reads from the learner's side. */
 export function orientScore(score: EvalScore, fen: string, learnerColor: 'w' | 'b'): EvalScore {
   const sideToMove = fen.split(' ')[1] === 'b' ? 'b' : 'w';
@@ -38,7 +50,7 @@ export function evalLabel(score: EvalScore): string {
   if (score.kind === 'mate') return `${score.movesToMate >= 0 ? '' : '-'}M${Math.abs(score.movesToMate)}`;
   const pawns = score.cp / 100;
   const sign = pawns > 0 ? '+' : pawns < 0 ? '-' : '';
-  return `${sign}${Math.abs(pawns).toFixed(2)}`;
+  return `${sign}${Math.abs(pawns).toFixed(1)}`;
 }
 
 export function centipawnLoss(expected: EvalScore, played: EvalScore): number {

@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js';
 import { COURSES, LEVELS, type Course, type LevelKey, type Variation } from '../courses';
-import { renderBoard, renderEvalBar } from '../board-view';
+import { renderBoard, renderEvalBar, updateEvalBar } from '../board-view';
 import { engine } from '../engine/engine-client';
 import type { EvalScore } from '../engine/eval-scale';
 import { lineState, type LineState } from '../mastery';
@@ -38,6 +38,7 @@ function rowMarkup(row: Row): string {
 export async function renderBrowse(navigate: Navigate, email: string | null, screen: BrowseScreen): Promise<void> {
   resetPageScroll();
   engine.reset();
+  engine.warm();
   app.innerHTML = '<main class="loading-page"><p class="eyebrow">Reading your repertoire</p><div class="loading-line"></div></main>';
 
   let progressByCourse: Record<Course['id'], CourseProgress> | null = null;
@@ -105,7 +106,8 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
       const chess = new Chess(position.fen);
       const guide = { from: position.expectedMove.slice(0, 2), to: position.expectedMove.slice(2, 4) };
       const moves = positions.map((entry, entryIndex) => `<li class="walker-move ${entryIndex === index ? 'is-current' : ''}">${String(entryIndex + 1).padStart(2, '0')} ${escapeHtml(entry.expectedSan)}</li>`).join('');
-      app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'walker-back', label: 'Browse' } })}<section class="walker"><div class="walker-copy"><p class="eyebrow">${escapeHtml(row.course.name)} &middot; ${levelNames[row.level]} &middot; move ${index + 1} of ${positions.length}</p><span class="side-tag">${sideNames[row.course.side]}</span><p class="line-title">${escapeHtml(row.variation.title)}</p><p class="lede">${escapeHtml(row.variation.summary)}</p><div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div><ol class="walker-moves">${moves}</ol><div class="walker-actions"><button id="walker-prev" class="quiet-button"${index === 0 ? ' disabled' : ''}>&lt;- Previous</button><button id="walker-next" class="quiet-button"${index === positions.length - 1 ? ' disabled' : ''}>Next -&gt;</button>${unlocked ? '<button id="walker-practice">Practice this level</button>' : ''}</div><p class="walker-note">Studying only. Nothing here changes your progress.</p></div><div class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame">${renderBoard(chess, null, row.course.side, guide, null, null, false, true, row.course.side === 'white' ? 'w' : 'b')}</div><div class="board-caption"><span>${escapeHtml(position.expectedSan)} is the move</span><span>Move ${index + 1} of ${positions.length}</span></div></div></section></main>`;
+      const boardState = { chess, selected: null, side: row.course.side, guide, route: null, animation: null, dragging: false, settling: false, interactive: false, selectableColor: row.course.side === 'white' ? 'w' as const : 'b' as const };
+      app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'walker-back', label: 'Browse' } })}<section class="walker"><div class="walker-copy"><p class="eyebrow">${escapeHtml(row.course.name)} &middot; ${levelNames[row.level]} &middot; move ${index + 1} of ${positions.length}</p><span class="side-tag">${sideNames[row.course.side]}</span><p class="line-title">${escapeHtml(row.variation.title)}</p><p class="lede">${escapeHtml(row.variation.summary)}</p><div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div><ol class="walker-moves">${moves}</ol><div class="walker-actions"><button id="walker-prev" class="quiet-button"${index === 0 ? ' disabled' : ''}>&lt;- Previous</button><button id="walker-next" class="quiet-button"${index === positions.length - 1 ? ' disabled' : ''}>Next -&gt;</button>${unlocked ? '<button id="walker-practice">Practice this level</button>' : ''}</div><p class="walker-note">Studying only. Nothing here changes your progress.</p></div><div class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame">${renderBoard(boardState)}</div><div class="board-caption"><span>${escapeHtml(position.expectedSan)} is the move</span><span>Move ${index + 1} of ${positions.length}</span></div></div></section></main>`;
 
       document.querySelector('#walker-back')!.addEventListener('click', () => drawIndex());
       document.querySelector('#sign-out')!.addEventListener('click', () => {
@@ -122,7 +124,11 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
 
       const fen = position.fen;
       const panel = app.querySelector('.board-panel');
-      void engine.evaluate(fen, row.course.side === 'white' ? 'w' : 'b').then((score) => {
+      const paint = (score: EvalScore | null) => {
+        if (generation !== walkerGeneration || positions[index]?.fen !== fen) return;
+        if (panel) updateEvalBar(panel, score, engine.status);
+      };
+      void engine.evaluate(fen, row.course.side === 'white' ? 'w' : 'b', window.matchMedia('(prefers-reduced-motion: reduce)').matches ? undefined : paint).then((score) => {
         if (generation !== walkerGeneration || positions[index]?.fen !== fen) return;
         if (score === null) {
           if (engine.status !== 'unavailable') return;
@@ -130,12 +136,7 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
         } else {
           evalScore = score;
         }
-        if (!panel?.isConnected) return;
-        const existing = panel.querySelector('.eval-bar, .eval-note');
-        const next = document.createRange().createContextualFragment(renderEvalBar(evalScore, engine.status)).firstElementChild;
-        if (!next) return;
-        if (existing) existing.replaceWith(next);
-        else panel.prepend(next);
+        paint(score);
       });
     };
 
