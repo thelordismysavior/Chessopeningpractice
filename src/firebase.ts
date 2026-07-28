@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { browserLocalPersistence, connectAuthEmulator, getAuth, GoogleAuthProvider, onAuthStateChanged, setPersistence, signInWithPopup, signInWithRedirect, signOut, type User } from 'firebase/auth';
+import { browserLocalPersistence, connectAuthEmulator, createUserWithEmailAndPassword, getAuth, onAuthStateChanged, sendPasswordResetEmail, setPersistence, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth';
 import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
 
 const config = {
@@ -14,7 +14,6 @@ const config = {
 const app = getApps().length ? getApp() : initializeApp(config);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const googleProvider = new GoogleAuthProvider();
 void setPersistence(auth, browserLocalPersistence);
 
 if (import.meta.env.VITE_FIREBASE_USE_EMULATORS === 'true') {
@@ -23,5 +22,7 @@ if (import.meta.env.VITE_FIREBASE_USE_EMULATORS === 'true') {
 }
 
 export const watchUser = (callback: (user: User | null) => void, onError?: (error: Error) => void) => onAuthStateChanged(auth, callback, onError);
-export const signIn = () => signInWithPopup(auth, googleProvider).catch(() => signInWithRedirect(auth, googleProvider));
+export const signInWithEmail = (email: string, password: string) => signInWithEmailAndPassword(auth, email, password);
+export const signUpWithEmail = (email: string, password: string) => createUserWithEmailAndPassword(auth, email, password);
+export const sendReset = (email: string) => sendPasswordResetEmail(auth, email);
 export const signOutUser = () => signOut(auth);

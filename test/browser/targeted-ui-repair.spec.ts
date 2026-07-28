@@ -11,7 +11,7 @@ async function installAppStubs(page: Page, failCompleteSave = false): Promise<vo
   await page.route('**/src/firebase.ts*', (route) => route.fulfill({
     contentType: 'application/javascript',
     body: `
-      export const signIn = async () => undefined;
+      export const signInWithEmail = async () => undefined;
       export const signOutUser = async () => undefined;
       export const watchUser = (callback) => { queueMicrotask(() => callback({ email: 'test@example.com' })); return () => undefined; };
     `,

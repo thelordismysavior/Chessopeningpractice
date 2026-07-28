@@ -17,9 +17,22 @@ h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: 1.25rem; font-size: clamp(3rem, 8vw, 6.6rem); line-height: .93; letter-spacing: -.07em; }
 h1 em { color: #b05b34; font-style: normal; }
 .lede { max-width: 35rem; color: #657078; font-size: 1.06rem; line-height: 1.7; }
-.auth-page button, .error-page button, #restart-run, #proceed, #back-after-complete { margin-top: 1.5rem; padding: .9rem 1.15rem; border-radius: 999px; background: #b05b34; color: white; font-weight: 750; }
+.auth-page .auth-submit, .error-page button, #restart-run, #proceed, #back-after-complete { margin-top: 1.5rem; padding: .9rem 1.15rem; border-radius: 999px; background: #b05b34; color: white; font-weight: 750; }
 #proceed:disabled { cursor: wait; opacity: .7; }
-.auth-page button span { margin-left: 1rem; font-size: 1.2rem; }
+.auth-submit:disabled { cursor: wait; opacity: .7; }
+.auth-submit span { margin-left: 1rem; font-size: 1.2rem; }
+.auth-form { display: grid; gap: .8rem; max-width: 28rem; margin-top: 2rem; }
+.auth-form label { color: #49565e; font-size: .85rem; font-weight: 750; }
+.auth-form input { width: 100%; padding: .7rem .8rem; border: 1px solid #cfc9bd; border-radius: 8px; background: #f3f0e8; color: #17222b; font: inherit; }
+.auth-form input:focus-visible { outline: 3px solid #d46b3d; outline-offset: 2px; }
+.auth-error { margin: .25rem 0 0; color: #a4473e; font-size: .85rem; font-weight: 700; }
+.auth-error[hidden] { display: none; }
+.auth-links { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; margin-top: 1rem; }
+.auth-links a, .auth-confirmation a { padding: .5rem 0; color: #b05b34; font-size: .84rem; font-weight: 750; text-decoration: none; }
+.auth-links a:hover, .auth-confirmation a:hover { text-decoration: underline; }
+.auth-confirmation, .pending-page { max-width: 35rem; margin-top: 2rem; }
+.auth-confirmation p, .pending-page p { color: #657078; font-size: .98rem; line-height: 1.6; }
+.pending-uid { display: block; overflow-wrap: anywhere; margin: 1rem 0; padding: .9rem 1rem; border: 1px solid #cfc9bd; border-radius: 8px; background: #f3f0e8; color: #17222b; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; user-select: text; }
 
 .app-shell, .practice-shell { max-width: 1240px; margin: auto; padding: 1.25rem 2.5rem 5rem; }
 .topbar { display: flex; align-items: center; justify-content: space-between; min-height: 54px; gap: 1rem; }
@@ -160,6 +173,10 @@ dialog::backdrop { background: rgb(23 34 43 / .34); }
 
 @media (prefers-color-scheme: dark) {
   dialog { border-color: #49565e; background: #17222b; color: #f3f0e8; }
+  .auth-form label { color: #d8d1c4; }
+  .auth-form input, .pending-uid { border-color: #657078; background: #24333d; color: #f3f0e8; }
+  .auth-error { color: #e09a91; }
+  .auth-confirmation p, .pending-page p { color: #aeb7b9; }
   .settings-form label { color: #d8d1c4; }
   .settings-form input { border-color: #657078; background: #24333d; color: #f3f0e8; }
   .settings-help { color: #aeb7b9; }

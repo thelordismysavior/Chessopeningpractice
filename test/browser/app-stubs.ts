@@ -8,18 +8,65 @@ declare global {
   var __seedProgress: [string, unknown][];
   // eslint-disable-next-line no-var
   var __saveFailuresRemaining: number;
+  // eslint-disable-next-line no-var
+  var __authUser: { email: string; uid: string } | null;
+  // eslint-disable-next-line no-var
+  var __authCalls: { signIn: number; signUp: number; sendReset: number; signOut: number };
 }
 
-export async function installAppStubs(page: Page): Promise<void> {
+export type AuthStubOptions = {
+  initialUser?: { email: string; uid?: string } | null;
+  signInCode?: string;
+  signInDelayMs?: number;
+  signUpCode?: string;
+  signUpUid?: string;
+  resetCode?: string;
+};
+
+export async function installAppStubs(page: Page, options: AuthStubOptions = {}): Promise<void> {
   await page.addInitScript(() => {
     localStorage.setItem('chess-practice.move-duration', '0');
   });
+  await page.addInitScript((authOptions) => {
+    globalThis.__authUser = authOptions.initialUser === null
+      ? null
+      : { email: authOptions.initialUser?.email ?? 'test@example.com', uid: authOptions.initialUser?.uid ?? 'test-owner' };
+    globalThis.__authCalls = { signIn: 0, signUp: 0, sendReset: 0, signOut: 0 };
+    (globalThis as typeof globalThis & { __authOptions: AuthStubOptions }).__authOptions = authOptions;
+  }, options);
   await page.route('**/src/firebase.ts*', (route) => route.fulfill({
     contentType: 'application/javascript',
     body: `
-      export const signIn = async () => undefined;
-      export const signOutUser = async () => undefined;
-      export const watchUser = (callback) => { queueMicrotask(() => callback({ email: 'test@example.com' })); return () => undefined; };
+      const state = globalThis;
+      const fail = (code) => { throw Object.assign(new Error(code), { code }); };
+      const notify = () => state.__authCallback?.(state.__authUser);
+      export const signInWithEmail = async () => {
+        state.__authCalls.signIn += 1;
+        if (state.__authOptions.signInCode) fail(state.__authOptions.signInCode);
+        if (state.__authOptions.signInDelayMs) await new Promise((resolve) => setTimeout(resolve, state.__authOptions.signInDelayMs));
+        state.__authUser = { email: 'test@example.com', uid: 'test-owner' };
+        notify();
+        return { user: state.__authUser };
+      };
+      export const signUpWithEmail = async () => {
+        state.__authCalls.signUp += 1;
+        if (state.__authOptions.signUpCode) fail(state.__authOptions.signUpCode);
+        return { user: { email: 'test@example.com', uid: state.__authOptions.signUpUid ?? 'pending-owner' } };
+      };
+      export const sendReset = async () => {
+        state.__authCalls.sendReset += 1;
+        if (state.__authOptions.resetCode) fail(state.__authOptions.resetCode);
+      };
+      export const signOutUser = async () => {
+        state.__authCalls.signOut += 1;
+        state.__authUser = null;
+        notify();
+      };
+      export const watchUser = (callback) => {
+        state.__authCallback = callback;
+        queueMicrotask(() => callback(state.__authUser));
+        return () => { if (state.__authCallback === callback) state.__authCallback = undefined; };
+      };
     `,
   }));
   await page.route('**/src/progress.ts*', (route) => route.fulfill({
