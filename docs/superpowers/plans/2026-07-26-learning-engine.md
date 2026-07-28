@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript 5.8, Vite 7, vanilla DOM (no framework), `chess.js` 1.4, Firebase 12.16 (Auth + Firestore), Vitest 3.2, Playwright 1.55.
 
-**Spec:** `docs/superpowers/spec/2026-07-26-learning-engine.md`
+**Spec:** `docs/superpowers/specs/2026-07-26-learning-engine.md`
 
 ## Global Constraints
 

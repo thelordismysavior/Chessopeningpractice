@@ -1,7 +1,7 @@
 import './style.css';
 import { signOutUser, watchUser } from './firebase';
 import { app, escapeHtml, resetPageScroll } from './screens/shell';
-import { renderAuth, renderPendingApproval } from './screens/auth';
+import { renderAuth, renderPendingApproval, type AuthOptions } from './screens/auth';
 import { renderDashboard } from './screens/dashboard';
 import { renderSources } from './screens/sources';
 import { startPractice } from './screens/practice';
@@ -11,6 +11,7 @@ import type { Navigate, Screen } from './screens/navigation';
 
 let signedInEmail: string | null = null;
 let pendingApprovalUid: string | null = null;
+let signUpInProgress = false;
 
 const navigate: Navigate = async (screen: Screen) => {
   switch (screen.name) {
@@ -37,22 +38,58 @@ function renderAuthError(message: string, retry: () => void) {
 
 function clearPending(): void {
   pendingApprovalUid = null;
-  renderAuth('signin', { onSignedUp });
+  renderAuth('signin', authOptions);
+}
+
+function onSignUpStarted(): void {
+  signUpInProgress = true;
+}
+
+function onSignUpFailed(): void {
+  signUpInProgress = false;
+}
+
+async function finishPendingApproval(uid: string): Promise<void> {
+  pendingApprovalUid = uid;
+  try {
+    await signOutUser();
+    signUpInProgress = false;
+    renderPendingApproval(uid, clearPending);
+  } catch {
+    renderAuthError(
+      "Your account was created, but we couldn't finish signing out. Try again to continue to approval.",
+      () => void finishPendingApproval(uid),
+    );
+  }
 }
 
 function onSignedUp(uid: string): void {
-  pendingApprovalUid = uid;
-  void signOutUser();
+  void finishPendingApproval(uid);
 }
+
+async function signOutUnapprovedUser(): Promise<void> {
+  try {
+    await signOutUser();
+  } catch {
+    renderAuthError(
+      "This account isn't approved, and we couldn't finish signing it out. Check your connection and try again.",
+      () => void signOutUnapprovedUser(),
+    );
+  }
+}
+
+const authOptions: AuthOptions = { onSignUpStarted, onSignUpFailed, onSignedUp };
 
 function watchAuthentication() {
   watchUser((user) => {
+    if (signUpInProgress) return;
     if (!user) {
+      signedInEmail = null;
       if (pendingApprovalUid) return renderPendingApproval(pendingApprovalUid, clearPending);
-      return renderAuth('signin', { onSignedUp });
+      return renderAuth('signin', authOptions);
     }
     if (user.email !== import.meta.env.VITE_APPROVED_EMAIL) {
-      void signOutUser();
+      void signOutUnapprovedUser();
       return;
     }
     signedInEmail = user.email;

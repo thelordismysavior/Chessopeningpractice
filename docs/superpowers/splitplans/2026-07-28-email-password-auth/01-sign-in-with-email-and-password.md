@@ -1,6 +1,6 @@
 # 01 — Sign in with email and password, Google removed
 
-Source spec: `docs/superpowers/spec/2026-07-28-email-password-auth.md`
+Source spec: `docs/superpowers/specs/2026-07-28-email-password-auth.md`
 
 **What to build:** The signed-out card stops offering Google and becomes an email and password
 form. The owner types the approved email and their password, submits, and lands on the dashboard.

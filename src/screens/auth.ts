@@ -5,6 +5,8 @@ import { app, escapeHtml, resetPageScroll } from './shell';
 export type AuthMode = 'signin' | 'signup' | 'reset';
 
 export type AuthOptions = {
+  onSignUpStarted: () => void;
+  onSignUpFailed: () => void;
   onSignedUp: (uid: string) => void;
 };
 
@@ -25,10 +27,9 @@ function clearError(): void {
   error.hidden = true;
 }
 
-function errorCode(error: unknown): string | undefined {
+function hasErrorCode(error: unknown, expected: string): boolean {
   return typeof error === 'object' && error !== null && 'code' in error
-    ? typeof (error as { code?: unknown }).code === 'string' ? (error as { code: string }).code : undefined
-    : undefined;
+    && (error as { code?: unknown }).code === expected;
 }
 
 function submitLabel(button: HTMLButtonElement, label: string, arrow = false): void {
@@ -117,10 +118,12 @@ function signUpMarkup(options: AuthOptions): void {
       clearError();
       button.disabled = true;
       submitLabel(button, 'Creating account...', true);
+      options.onSignUpStarted();
       try {
         const credential = await signUpWithEmail(normalizedEmail, password.value);
         options.onSignedUp(credential.user.uid);
       } catch (error) {
+        options.onSignUpFailed();
         button.disabled = false;
         submitLabel(button, 'Create account', true);
         showError(authErrorMessage(error));
@@ -161,11 +164,7 @@ function resetMarkup(options: AuthOptions): void {
         await sendReset(email.value.trim());
         resetConfirmation(options);
       } catch (error) {
-        if (errorCode(error) === 'auth/user-not-found') {
-          resetConfirmation(options);
-          return;
-        }
-        if (errorCode(error) !== 'auth/network-request-failed') {
+        if (hasErrorCode(error, 'auth/user-not-found')) {
           resetConfirmation(options);
           return;
         }

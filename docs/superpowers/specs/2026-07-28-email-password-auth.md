@@ -138,8 +138,8 @@ must still be approved, displays the UID in a selectable `<code>` block for past
 A single email field and a "Send reset link" button. On success — and on `auth/user-not-found`,
 which is treated as success — it replaces the form with "If an account exists for that email, a
 reset link is on its way." plus a link back to sign-in. Reporting both cases identically prevents
-the form being used to discover whether an account exists. Only network failure surfaces as an
-error.
+the form being used to discover whether an account exists. Invalid input, throttling, network
+failure, and unknown operational failures surface through the shared error mapping.
 
 ### Error message mapping
 

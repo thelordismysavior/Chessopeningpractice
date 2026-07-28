@@ -1,6 +1,6 @@
 # 02 — Create the owner account and reset a forgotten password
 
-Source spec: `docs/superpowers/spec/2026-07-28-email-password-auth.md`
+Source spec: `docs/superpowers/specs/2026-07-28-email-password-auth.md`
 
 **What to build:** The two text links added in ticket 01 start working, swapping the card's form in
 place rather than navigating anywhere.
@@ -20,7 +20,8 @@ to sign in" button returns to the sign-in form and clears the pending state.
 
 "Forgot password?" shows a single email field and sends a Firebase reset email. It reports the same
 neutral confirmation whether or not an account exists, so the form cannot be used to discover
-whether a given email is registered. Only a network failure surfaces as an error.
+whether a given email is registered. Invalid input, throttling, network failures, and unknown
+operational failures surface through the shared error mapping.
 
 The README gains a short note explaining that the owner account is created through the app's
 sign-up form and that `config/access.approvedUid` must then be set to the UID shown on the approval

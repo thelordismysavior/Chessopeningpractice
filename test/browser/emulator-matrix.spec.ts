@@ -52,10 +52,9 @@ async function proceed(page: Page): Promise<void> {
   await page.locator('#proceed').click();
 }
 
-test('emulator-backed Chromium journey covers desktop and mobile progression', async ({ page }) => {
-  test.setTimeout(240_000);
-  for (const width of [1440, 390]) {
-    if (width === 390) await resetEmulatorProgress();
+for (const [viewport, width] of [['desktop', 1440], ['mobile', 390]] as const) {
+  test(`emulator-backed Chromium journey covers ${viewport} progression`, async ({ page }) => {
+    test.setTimeout(300_000);
     await openDashboard(page, width);
     await expectNoOverflow(page);
     await expect(page.locator('.course-grid')).toBeVisible();
@@ -80,8 +79,8 @@ test('emulator-backed Chromium journey covers desktop and mobile progression', a
     await expect(page.locator('.dashboard-intro')).toBeVisible();
     await expect(page.locator('.course-count').first()).toHaveText('03 / 03');
     await expectNoOverflow(page);
-  }
-});
+  });
+}
 
 test('emulator-backed save failure remains recoverable after the final move', async ({ page }) => {
   test.setTimeout(120_000);

@@ -95,6 +95,38 @@ test('completed sign-up reaches the approval screen and can return to sign in', 
   await expect(page.locator('.pending-page')).toHaveCount(0);
 });
 
+test('sign-up auth notification never opens the dashboard before approval', async ({ page }) => {
+  await openSignedOut(page, { signUpUid: 'new-owner-uid', signUpNotifiesBeforeResolve: true });
+  await page.getByRole('link', { name: 'Create account' }).click();
+  await page.getByLabel('Email').fill('test@example.com');
+  await page.getByLabel('Password', { exact: true }).fill('password123');
+  await page.getByLabel('Confirm password').fill('password123');
+  await page.getByRole('button', { name: 'Create account', exact: true }).click();
+
+  await expect(page.locator('.pending-page')).toBeVisible();
+  await expect(page.locator('.dashboard-intro')).toHaveCount(0);
+});
+
+test('failed post-sign-up sign-out offers a retry and still reaches approval', async ({ page }) => {
+  await openSignedOut(page, {
+    signUpUid: 'new-owner-uid',
+    signUpNotifiesBeforeResolve: true,
+    signOutCode: 'auth/network-request-failed',
+    signOutFailures: 1,
+  });
+  await page.getByRole('link', { name: 'Create account' }).click();
+  await page.getByLabel('Email').fill('test@example.com');
+  await page.getByLabel('Password', { exact: true }).fill('password123');
+  await page.getByLabel('Confirm password').fill('password123');
+  await page.getByRole('button', { name: 'Create account', exact: true }).click();
+
+  await expect(page.getByRole('heading', { name: 'We lost the signal.' })).toBeVisible();
+  await expect(page.locator('.dashboard-intro')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.locator('.pending-page')).toBeVisible();
+  await expect(page.locator('.pending-uid')).toHaveText('new-owner-uid');
+});
+
 test('reset confirmation is neutral for registered and unregistered emails', async ({ browser }) => {
   const confirmations: string[] = [];
   for (const resetCode of [undefined, 'auth/user-not-found']) {
@@ -111,4 +143,23 @@ test('reset confirmation is neutral for registered and unregistered emails', asy
 
   expect(confirmations[0]).toBe(confirmations[1]);
   expect(confirmations[0]).toContain('If an account exists for that email, a reset link is on its way.');
+});
+
+test('reset surfaces actionable Firebase errors through the shared mapper', async ({ browser }) => {
+  const cases = [
+    ['auth/invalid-email', "That doesn't look like an email address."],
+    ['auth/too-many-requests', 'Too many attempts. Wait a minute and try again.'],
+    ['auth/internal-error', 'Something went wrong. Try again.'],
+  ] as const;
+
+  for (const [resetCode, expectedMessage] of cases) {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await openSignedOut(page, { resetCode });
+    await page.getByRole('link', { name: 'Forgot password?' }).click();
+    await page.getByLabel('Email').fill('test@example.com');
+    await page.getByRole('button', { name: 'Send reset link', exact: true }).click();
+    await expect(page.getByRole('alert')).toHaveText(expectedMessage);
+    await context.close();
+  }
 });

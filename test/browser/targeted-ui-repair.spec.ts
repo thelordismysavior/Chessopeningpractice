@@ -12,6 +12,8 @@ async function installAppStubs(page: Page, failCompleteSave = false): Promise<vo
     contentType: 'application/javascript',
     body: `
       export const signInWithEmail = async () => undefined;
+      export const signUpWithEmail = async () => ({ user: { email: 'test@example.com', uid: 'test-owner' } });
+      export const sendReset = async () => undefined;
       export const signOutUser = async () => undefined;
       export const watchUser = (callback) => { queueMicrotask(() => callback({ email: 'test@example.com' })); return () => undefined; };
     `,

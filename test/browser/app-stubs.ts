@@ -12,6 +12,8 @@ declare global {
   var __authUser: { email: string; uid: string } | null;
   // eslint-disable-next-line no-var
   var __authCalls: { signIn: number; signUp: number; sendReset: number; signOut: number };
+  // eslint-disable-next-line no-var
+  var __signOutFailuresRemaining: number;
 }
 
 export type AuthStubOptions = {
@@ -20,7 +22,10 @@ export type AuthStubOptions = {
   signInDelayMs?: number;
   signUpCode?: string;
   signUpUid?: string;
+  signUpNotifiesBeforeResolve?: boolean;
   resetCode?: string;
+  signOutCode?: string;
+  signOutFailures?: number;
 };
 
 export async function installAppStubs(page: Page, options: AuthStubOptions = {}): Promise<void> {
@@ -32,6 +37,7 @@ export async function installAppStubs(page: Page, options: AuthStubOptions = {})
       ? null
       : { email: authOptions.initialUser?.email ?? 'test@example.com', uid: authOptions.initialUser?.uid ?? 'test-owner' };
     globalThis.__authCalls = { signIn: 0, signUp: 0, sendReset: 0, signOut: 0 };
+    globalThis.__signOutFailuresRemaining = authOptions.signOutFailures ?? 0;
     (globalThis as typeof globalThis & { __authOptions: AuthStubOptions }).__authOptions = authOptions;
   }, options);
   await page.route('**/src/firebase.ts*', (route) => route.fulfill({
@@ -51,7 +57,12 @@ export async function installAppStubs(page: Page, options: AuthStubOptions = {})
       export const signUpWithEmail = async () => {
         state.__authCalls.signUp += 1;
         if (state.__authOptions.signUpCode) fail(state.__authOptions.signUpCode);
-        return { user: { email: 'test@example.com', uid: state.__authOptions.signUpUid ?? 'pending-owner' } };
+        const user = { email: 'test@example.com', uid: state.__authOptions.signUpUid ?? 'pending-owner' };
+        if (state.__authOptions.signUpNotifiesBeforeResolve) {
+          state.__authUser = user;
+          notify();
+        }
+        return { user };
       };
       export const sendReset = async () => {
         state.__authCalls.sendReset += 1;
@@ -59,6 +70,10 @@ export async function installAppStubs(page: Page, options: AuthStubOptions = {})
       };
       export const signOutUser = async () => {
         state.__authCalls.signOut += 1;
+        if (state.__signOutFailuresRemaining > 0) {
+          state.__signOutFailuresRemaining -= 1;
+          fail(state.__authOptions.signOutCode ?? 'auth/network-request-failed');
+        }
         state.__authUser = null;
         notify();
       };
