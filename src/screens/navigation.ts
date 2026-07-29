@@ -7,6 +7,7 @@ export type PracticeScreen = {
   course: Course;
   level: LevelKey;
   progress: CourseProgress;
+  variationId?: string;
   reviewPositionIds?: string[];
   run?: ReviewRun;
   entryHandoff?: { banked: string; next: string; verb?: string };

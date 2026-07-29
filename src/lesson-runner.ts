@@ -34,11 +34,12 @@ export type LessonSummary = {
 };
 
 type RunnerOptions = {
+  variationId?: string;
   reviewPositionIds?: string[];
   now?: () => number;
 };
 
-type Line = { variation: Variation | null; positions: PracticePosition[] };
+type Line = { variation: Variation | null; positions: PracticePosition[]; teachPass: boolean };
 
 export class LessonRunner {
   private readonly lesson: Lesson;
@@ -70,12 +71,17 @@ export class LessonRunner {
     this.isReview = reviewPositions.length > 0;
 
     if (this.isReview) {
-      this.lines = [{ variation: null, positions: reviewPositions }];
+      this.lines = [{ variation: null, positions: reviewPositions, teachPass: false }];
     } else {
       const bankedAlready = new Set(base.completedVariationIds);
-      this.lines = lesson.variations
-        .filter((variation) => !bankedAlready.has(variation.id))
-        .map((variation) => ({ variation, positions: variation.positions }));
+      const variations = options.variationId
+        ? lesson.variations.filter((variation) => variation.id === options.variationId)
+        : lesson.variations.filter((variation) => !bankedAlready.has(variation.id));
+      this.lines = variations.map((variation) => ({
+        variation,
+        positions: variation.positions,
+        teachPass: !bankedAlready.has(variation.id),
+      }));
     }
 
     this.openDrill();
@@ -136,11 +142,13 @@ export class LessonRunner {
 
   progressFor(level: LevelKey): CourseProgress {
     const completedLevels = [...this.base.completedLevels];
+    const completedVariationIds = [...new Set([...this.base.completedVariationIds, ...this.banked])];
     let unlockedLevel = this.base.unlockedLevel;
     const levelIndex = LEVELS.indexOf(level);
     const prerequisiteComplete = levelIndex === 0 || completedLevels.includes(LEVELS[levelIndex - 1]);
+    const levelComplete = this.lesson.variations.every((variation) => completedVariationIds.includes(variation.id));
 
-    if (this.snapshot.lessonComplete && prerequisiteComplete && !completedLevels.includes(level)) {
+    if (this.snapshot.lessonComplete && levelComplete && prerequisiteComplete && !completedLevels.includes(level)) {
       completedLevels.push(level);
       unlockedLevel = Math.max(unlockedLevel, Math.min(levelIndex + 1, LEVELS.length - 1));
     }
@@ -148,7 +156,7 @@ export class LessonRunner {
     return {
       completedLevels,
       unlockedLevel,
-      completedVariationIds: [...new Set([...this.base.completedVariationIds, ...this.banked])],
+      completedVariationIds,
       positions: { ...this.records },
       practiceMs: this.base.practiceMs + this.elapsedMs(),
     };
@@ -177,7 +185,7 @@ export class LessonRunner {
     }
     this.drill = this.isReview
       ? new LineDrill(line.positions, { teachPass: false })
-      : new LineDrill(line.positions, { teachPass: true, mistakeBudget: MISTAKE_BUDGET });
+      : new LineDrill(line.positions, { teachPass: line.teachPass, mistakeBudget: MISTAKE_BUDGET });
     this.appliedOutcomes = 0;
   }
 

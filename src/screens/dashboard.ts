@@ -28,10 +28,9 @@ function lineMeter(course: Course, level: LevelKey, progress: CourseProgress): s
 
 function levelButton(course: Course, level: LevelKey, progress: CourseProgress): string {
   const index = LEVELS.indexOf(level);
-  const unlocked = index <= progress.unlockedLevel;
   const complete = progress.completedLevels.includes(level);
-  const detail = complete ? 'Completed' : unlocked ? `${course.lessons[level].positions.length} positions - Start lesson` : `Complete ${levelNames[LEVELS[index - 1]]} first`;
-  return `<button class="lesson-row ${unlocked ? '' : 'is-locked'}" ${unlocked ? `data-course="${course.id}" data-level="${level}"` : 'disabled'}><span class="lesson-index">${String(index + 1).padStart(2, '0')}</span><span><strong>${levelNames[level]}</strong><small>${detail}</small></span>${lineMeter(course, level, progress)}<span class="lesson-arrow" aria-hidden="true">${complete ? '&#10003;' : unlocked ? '-&gt;' : '&#128274;'}</span></button>`;
+  const detail = complete ? 'Completed' : `${course.lessons[level].positions.length} positions - Start lesson`;
+  return `<button class="lesson-row" data-course="${course.id}" data-level="${level}"><span class="lesson-index">${String(index + 1).padStart(2, '0')}</span><span><strong>${levelNames[level]}</strong><small>${detail}</small></span>${lineMeter(course, level, progress)}<span class="lesson-arrow" aria-hidden="true">${complete ? '&#10003;' : '-&gt;'}</span></button>`;
 }
 
 function recommendation(progressByCourse: Record<Course['id'], CourseProgress>): Recommendation {
@@ -46,10 +45,10 @@ function recommendation(progressByCourse: Record<Course['id'], CourseProgress>):
   }
   for (const course of COURSES) {
     const progress = progressByCourse[course.id];
-    const level = LEVELS[Math.min(progress.unlockedLevel, LEVELS.length - 1)];
-    const variation = course.lessons[level].variations.find((candidate) => !progress.completedVariationIds.includes(candidate.id))
-      ?? course.lessons[level].variations[0];
-    if (variation) return { course, level, progress, variation, duePositionIds: [] };
+    for (const level of LEVELS) {
+      const variation = course.lessons[level].variations.find((candidate) => !progress.completedVariationIds.includes(candidate.id));
+      if (variation) return { course, level, progress, variation, duePositionIds: [] };
+    }
   }
   const course = COURSES[0];
   return { course, level: LEVELS[0], progress: progressByCourse[course.id], variation: course.lessons.beginner.variations[0], duePositionIds: [] };
@@ -91,7 +90,7 @@ export async function renderDashboard(navigate: Navigate, email: string | null):
     app.querySelector('#browse')?.addEventListener('click', () => void navigate({ name: 'browse' }));
     app.querySelector('#queue-nav')?.addEventListener('click', () => void navigate({ name: 'review-queue' }));
     app.querySelector('#review-queue')?.addEventListener('click', () => void navigate({ name: 'review-queue' }));
-    app.querySelector('#continue-practice')?.addEventListener('click', () => void navigate({ name: 'practice', course: next.course, level: next.level, progress: next.progress, reviewPositionIds: due ? next.duePositionIds : undefined }));
+    app.querySelector('#continue-practice')?.addEventListener('click', () => void navigate({ name: 'practice', course: next.course, level: next.level, progress: next.progress, variationId: next.variation.id, reviewPositionIds: due ? next.duePositionIds : undefined }));
     bindSettings(
       () => undefined,
       () => resetAllProgress(COURSES.map((course) => course.id)),

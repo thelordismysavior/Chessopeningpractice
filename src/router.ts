@@ -9,7 +9,7 @@ export type HashRoute =
   | { name: 'sources' }
   | { name: 'review-queue' }
   | { name: 'browse'; courseId?: Course['id']; lineId?: string }
-  | { name: 'practice'; courseId: Course['id']; level: LevelKey; reviewPositionIds?: string[]; runIndex?: number; runGroups?: ReviewGroup[]; entryHandoff?: { banked: string; next: string; verb?: string } };
+  | { name: 'practice'; courseId: Course['id']; level: LevelKey; variationId?: string; reviewPositionIds?: string[]; runIndex?: number; runGroups?: ReviewGroup[]; entryHandoff?: { banked: string; next: string; verb?: string } };
 
 function decode(value: string): string {
   try {
@@ -70,6 +70,11 @@ export function parseHash(hash: string): HashRoute {
     const selectedCourse = courseId(first);
     const selectedLevel = level(second);
     if (!selectedCourse || !selectedLevel) return { name: 'dashboard' };
+    const requestedVariation = query.get('line') ?? undefined;
+    const variationId = requestedVariation && coursesById[selectedCourse].lessons[selectedLevel].variations.some((variation) => variation.id === requestedVariation)
+      ? requestedVariation
+      : undefined;
+    if (requestedVariation && !variationId) return { name: 'dashboard' };
     const review = query.get('review');
     const run = Number.parseInt(query.get('run') ?? '', 10);
     const groups = runGroups(query.get('groups'));
@@ -80,6 +85,7 @@ export function parseHash(hash: string): HashRoute {
       name: 'practice',
       courseId: selectedCourse,
       level: selectedLevel,
+      ...(variationId ? { variationId } : {}),
       ...(reviewPositionIds?.length ? { reviewPositionIds } : {}),
       ...(Number.isInteger(run) && run >= 0 ? { runIndex: run } : {}),
       ...(groups ? { runGroups: groups } : {}),
@@ -98,26 +104,32 @@ function query(values: Record<string, string | undefined>): string {
   return encoded ? `?${encoded}` : '';
 }
 
-export function hashForScreen(screen: Screen): string {
+function routeForScreen(screen: Screen): HashRoute {
   switch (screen.name) {
     case 'dashboard':
-      return HOME_HASH;
+      return { name: 'dashboard' };
     case 'sources':
-      return '#/sources';
+      return { name: 'sources' };
     case 'review-queue':
-      return '#/review-queue';
+      return { name: 'review-queue' };
     case 'browse':
-      return `#/browse${screen.courseId ? `/${encodeURIComponent(screen.courseId)}` : ''}${screen.lineId ? `/${encodeURIComponent(screen.lineId)}` : ''}`;
+      return screen;
     case 'practice':
-      return `#/practice/${encodeURIComponent(screen.course.id)}/${screen.level}${query({
-        review: screen.reviewPositionIds?.join(','),
-        run: screen.run ? String(screen.run.index) : undefined,
-        groups: screen.run ? JSON.stringify(screen.run.groups) : undefined,
-        banked: screen.entryHandoff?.banked,
-        next: screen.entryHandoff?.next,
-        verb: screen.entryHandoff?.verb,
-      })}`;
+      return {
+        name: 'practice',
+        courseId: screen.course.id,
+        level: screen.level,
+        variationId: screen.variationId,
+        reviewPositionIds: screen.reviewPositionIds,
+        runIndex: screen.run?.index,
+        runGroups: screen.run?.groups,
+        entryHandoff: screen.entryHandoff,
+      };
   }
+}
+
+export function hashForScreen(screen: Screen): string {
+  return hashForRoute(routeForScreen(screen));
 }
 
 export function hashForRoute(route: HashRoute): string {
@@ -132,6 +144,7 @@ export function hashForRoute(route: HashRoute): string {
       return `#/browse${route.courseId ? `/${encodeURIComponent(route.courseId)}` : ''}${route.lineId ? `/${encodeURIComponent(route.lineId)}` : ''}`;
     case 'practice':
       return `#/practice/${encodeURIComponent(route.courseId)}/${route.level}${query({
+        line: route.variationId,
         review: route.reviewPositionIds?.join(','),
         run: route.runIndex === undefined ? undefined : String(route.runIndex),
         groups: route.runGroups ? JSON.stringify(route.runGroups) : undefined,

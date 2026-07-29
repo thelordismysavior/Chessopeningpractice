@@ -50,6 +50,7 @@ async function screenForRoute(route: HashRoute): Promise<Screen> {
       course,
       level: route.level,
       progress,
+      variationId: route.variationId,
       reviewPositionIds: route.reviewPositionIds,
       entryHandoff: route.entryHandoff,
     };
@@ -63,6 +64,7 @@ async function screenForRoute(route: HashRoute): Promise<Screen> {
     course,
     level: route.level,
     progress,
+    variationId: route.variationId,
     reviewPositionIds: route.reviewPositionIds ?? group?.positionIds,
     run: group ? { groups: run.groups, index: route.runIndex } : undefined,
     entryHandoff: route.entryHandoff,
