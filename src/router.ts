@@ -6,6 +6,8 @@ export const HOME_HASH = '#/home';
 
 export type HashRoute =
   | { name: 'dashboard' }
+  | { name: 'settings' }
+  | { name: 'account' }
   | { name: 'sources' }
   | { name: 'review-queue' }
   | { name: 'browse'; courseId?: Course['id']; lineId?: string }
@@ -56,6 +58,8 @@ export function parseHash(hash: string): HashRoute {
   const [surface, first, second] = path;
 
   if (!surface || surface === 'home' || surface === 'dashboard') return { name: 'dashboard' };
+  if (surface === 'settings') return { name: 'settings' };
+  if (surface === 'account') return { name: 'account' };
   if (surface === 'sources') return { name: 'sources' };
   if (surface === 'queue' || surface === 'review-queue') return { name: 'review-queue' };
   if (surface === 'browse') {
@@ -108,6 +112,10 @@ function routeForScreen(screen: Screen): HashRoute {
   switch (screen.name) {
     case 'dashboard':
       return { name: 'dashboard' };
+    case 'settings':
+      return { name: 'settings' };
+    case 'account':
+      return { name: 'account' };
     case 'sources':
       return { name: 'sources' };
     case 'review-queue':
@@ -136,6 +144,10 @@ export function hashForRoute(route: HashRoute): string {
   switch (route.name) {
     case 'dashboard':
       return HOME_HASH;
+    case 'settings':
+      return '#/settings';
+    case 'account':
+      return '#/account';
     case 'sources':
       return '#/sources';
     case 'review-queue':

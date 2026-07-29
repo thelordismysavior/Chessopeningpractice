@@ -216,6 +216,7 @@ export class LessonRunner {
         this.records[entry.positionId] ?? emptyRecord(),
         { attempts: entry.attempts, solvedFirstTry: entry.solvedFirstTry, hinted: entry.hinted },
         context,
+        this.now(),
       );
 
       const scored = context !== 'teach';

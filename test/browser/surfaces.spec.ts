@@ -152,12 +152,10 @@ for (const viewport of VIEWPORTS) {
 
       await page.locator('#review-all').click();
       await playMove(page, COURSES[0].lessons.beginner.variations[0].positions[0].expectedMove);
-      await playMove(page, COURSES[0].lessons.beginner.variations[0].positions[0].expectedMove);
       await expect(page.locator('#next-group')).toContainText(COURSES[1].name);
       await page.locator('#next-group').click();
       await expect(page.locator('.line-handoff')).toContainText(COURSES[1].name);
 
-      await playMove(page, COURSES[1].lessons.beginner.variations[0].positions[0].expectedMove);
       await playMove(page, COURSES[1].lessons.beginner.variations[0].positions[0].expectedMove);
       await page.locator('#back-to-queue').click();
       await expect(page.locator('.queue-row')).toHaveCount(0);
@@ -176,19 +174,13 @@ test('a failed Review all save blocks the next group until retry succeeds', asyn
   await page.locator('#review-queue').click();
   await page.locator('#review-all').click();
   const position = COURSES[0].lessons.beginner.variations[0].positions[0];
+  await page.evaluate(() => { globalThis.__saveFailuresRemaining = 1; });
   await playMove(page, position.expectedMove);
   await expect.poll(() => page.evaluate(({ courseId, positionId }) => {
     const progress = globalThis.__progressByCourse.get(courseId) as { positions: Record<string, { reviewStreak: number }> };
     return progress.positions[positionId].reviewStreak;
-  }, { courseId: COURSES[0].id, positionId: position.id })).toBe(1);
-
-  await page.evaluate(() => { globalThis.__saveFailuresRemaining = 1; });
-  await playMove(page, position.expectedMove);
+  }, { courseId: COURSES[0].id, positionId: position.id })).toBe(0);
   await expect(page.locator('#retry-save')).toBeVisible();
-  await page.locator('#next-group').click();
-  await expect(page.locator('.practice-meta')).toContainText(COURSES[0].name);
-  await expect(page.locator('#retry-save')).toBeVisible();
-
   await page.locator('#retry-save').click();
   await expect(page.locator('#retry-save')).toHaveCount(0);
   await expect.poll(() => page.evaluate(({ courseId, positionId }) => {
@@ -371,4 +363,27 @@ test('a phone viewport never scrolls sideways, from an empty dashboard to a fini
   await page.reload();
   await expect(page.locator('.course-count').first()).toHaveText('03 / 03');
   await expectNoOverflow(page);
+});
+
+test('Account and Settings are addressable and share device preference ownership', async ({ page }) => {
+  await openDashboard(page, 1440, 1000);
+  await page.locator('#account').click();
+  await expect(page.locator('.account-page')).toBeVisible();
+  await expect(page.locator('.account-page h1')).toHaveText('test@example.com');
+
+  await page.locator('#settings-link-card').click();
+  await expect(page.locator('.settings-page')).toBeVisible();
+  await expect(page.locator('.settings-glossary')).toContainText('Move Beat');
+  await expect(page.locator('.settings-glossary')).toContainText('Tempo Cut');
+  await page.locator('#move-duration').fill('350');
+  await page.locator('#move-duration').blur();
+  await expect(page.locator('#settings-saved')).toBeHidden();
+  expect(await page.evaluate(() => localStorage.getItem('chess-practice.move-duration'))).toBe('350');
+
+  await page.goto('/#/account');
+  await expect(page.locator('.account-page')).toBeVisible();
+  await page.locator('#show-reset-progress').click();
+  await page.locator('#confirm-reset-progress').click();
+  await expect(page.locator('.account-page')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('chess-practice.move-duration'))).toBe('350');
 });

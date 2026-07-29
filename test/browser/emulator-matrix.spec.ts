@@ -118,3 +118,54 @@ test('Dashboard reset clears saved progress and preserves move duration', async 
   await expect(page.locator('.course-card').first().locator('.lesson-row').nth(1)).toBeDisabled();
   expect(await page.evaluate(() => localStorage.getItem('chess-practice.move-duration'))).toBe('350');
 });
+
+test('emulator migration and concurrent saves retain timed progress across reload', async ({ page }) => {
+  await openDashboard(page, 390);
+  const courseId = COURSES[0].id;
+  await page.evaluate(async (id) => {
+    const bridgePath = '/test/browser/progress-bridge.ts';
+    const { seedLegacyProgress } = await import(/* @vite-ignore */ bridgePath);
+    await seedLegacyProgress(id, {
+      completedLevels: ['beginner'],
+      unlockedLevel: 1,
+      completedVariationIds: ['beginner-main'],
+      practiceMs: 1234,
+      positions: {
+        legacyDue: { attempts: 4, corrects: 2, misses: 1, hints: 0, reviewStreak: 0, due: true },
+        legacyCompleted: { attempts: 3, corrects: 3, misses: 0, hints: 0, reviewStreak: 0, due: false },
+        untouched: { attempts: 0, corrects: 0, misses: 0, hints: 0, reviewStreak: 0, due: false },
+      },
+    });
+  }, courseId);
+
+  const migrated = await page.evaluate(async (id) => {
+    const progressPath = '/src/progress.ts';
+    const { loadProgress } = await import(/* @vite-ignore */ progressPath);
+    const positions = (await loadProgress(id)).positions as Record<string, { intervalStage?: number; nextReviewAt?: number }>;
+    return Object.fromEntries(Object.entries(positions).map(([positionId, position]) => [positionId, {
+      intervalStage: position.intervalStage,
+      nextReviewAt: position.nextReviewAt,
+    }]));
+  }, courseId);
+  expect(migrated.legacyDue.intervalStage).toBe(0);
+  expect(migrated.legacyDue.nextReviewAt).toBeLessThanOrEqual(Date.now());
+  expect(migrated.legacyCompleted.intervalStage).toBe(0);
+
+  await page.evaluate(async (id) => {
+    const progressPath = '/src/progress.ts';
+    const { saveProgress } = await import(/* @vite-ignore */ progressPath);
+    const makeDelta = (attempts: number, stage: number) => ({
+      completedLevels: [], unlockedLevel: 0, completedVariationIds: [], practiceMs: 10,
+      positions: { legacyDue: { attempts, corrects: 1, misses: 0, hints: 0, reviewStreak: 0, due: false, intervalStage: stage, nextReviewAt: Date.now() + 14400000 } },
+    });
+    await Promise.all([saveProgress(id, makeDelta(1, 1)), saveProgress(id, makeDelta(2, 2))]);
+  }, courseId);
+  await page.reload();
+  await expect(page.locator('.dashboard-intro')).toBeVisible();
+  const reloaded = await page.evaluate(async (id) => {
+    const progressPath = '/src/progress.ts';
+    const { loadProgress } = await import(/* @vite-ignore */ progressPath);
+    return (await loadProgress(id)).positions.legacyDue.attempts;
+  }, courseId);
+  expect(reloaded).toBe(7);
+});

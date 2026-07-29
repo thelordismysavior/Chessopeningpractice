@@ -47,16 +47,13 @@ describe('recall pass', () => {
 });
 
 describe('review', () => {
-  test('needs two clean answers to clear, not one', () => {
+  test('a clean answer advances the stage and clears the due state', () => {
     const start: PositionRecord = { ...emptyRecord(), due: true };
     const once = applyOutcome(start, clean, 'review');
-    expect(once).toMatchObject({ reviewStreak: 1, due: true });
-
-    const twice = applyOutcome(once, clean, 'review');
-    expect(twice).toMatchObject({ reviewStreak: 0, due: false, corrects: 2 });
+    expect(once).toMatchObject({ reviewStreak: 0, due: false, intervalStage: 1, corrects: 1 });
   });
 
-  test('a miss restarts the count and keeps the position due', () => {
+  test('a miss resets the stage and keeps the position due for the session', () => {
     const start: PositionRecord = { ...emptyRecord(), reviewStreak: 1, due: true };
     const record = applyOutcome(start, fumbled, 'review');
     expect(record).toMatchObject({ reviewStreak: 0, due: true, misses: 1 });

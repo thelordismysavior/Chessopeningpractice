@@ -110,7 +110,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     const lessonComplete = snapshot.lessonComplete && !sequenceActive;
     const levelComplete = lessonComplete && session.progressFor(level).completedLevels.includes(level);
     const completionMessage = saveError
-      ? 'Save progress before leaving the course.'
+      ? nextLevel ? `Save progress to unlock ${levelNames[nextLevel]}.` : 'Save progress before leaving the course.'
       : levelComplete
         ? nextLevel ? `${levelNames[level]} complete. ${levelNames[nextLevel]} unlocked.` : `${levelNames[level]} complete. Course complete.`
         : 'Line complete.';
@@ -151,7 +151,10 @@ export async function startPractice(navigate: Navigate, email: string | null, op
         ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>${moveCost ? `<span class="move-cost">${escapeHtml(moveCost)}</span>` : ''}` : ''}</div>`
         : `<p class="move-hint">${snapshot.phase === 'teach' ? 'Follow the arrow to learn the line.' : `Select a ${course.side} piece, then select its destination.`}</p>`;
     const dueAfterLesson = lessonComplete
-      ? duePositionIds(session.progressFor(level).positions, lesson.positions.map((entry) => entry.id))
+      ? [...new Set([
+          ...duePositionIds(session.progressFor(level).positions, lesson.positions.map((entry) => entry.id)),
+          ...session.summary().missed.map((entry) => entry.positionId),
+        ])]
       : [];
     const reviewNowMarkup = dueAfterLesson.length
       ? `<button id="review-now" class="quiet-button">Review ${dueAfterLesson.length} position${dueAfterLesson.length === 1 ? '' : 's'}</button>`

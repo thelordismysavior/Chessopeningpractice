@@ -1,7 +1,7 @@
 import { doc, getDoc, runTransaction, writeBatch } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import type { LevelKey } from './courses';
-import { emptyRecord, type PositionRecord } from './review-schedule';
+import { emptyRecord, reviewAt, withSchedule, type PositionRecord } from './review-schedule';
 
 export type CourseProgress = {
   completedLevels: LevelKey[];
@@ -11,7 +11,7 @@ export type CourseProgress = {
   practiceMs: number;
 };
 
-/** Counters are differences; `reviewStreak` and `due` are absolute latest values. */
+/** Counters are differences; review state is the absolute latest schedule state. */
 export type PositionDelta = {
   attempts: number;
   corrects: number;
@@ -19,6 +19,8 @@ export type PositionDelta = {
   hints: number;
   reviewStreak: number;
   due: boolean;
+  intervalStage?: number;
+  nextReviewAt?: number | null;
 };
 
 export type ProgressDelta = {
@@ -44,16 +46,26 @@ export const emptyProgress = (): CourseProgress => ({
   practiceMs: 0,
 });
 
-export function migrateProgress(stored: StoredProgress | undefined): CourseProgress {
+export function migrateProgress(stored: StoredProgress | undefined, now = Date.now()): CourseProgress {
   if (!stored) return emptyProgress();
-  const positions: Record<string, PositionRecord> = { ...(stored.positions ?? {}) };
+  const positions: Record<string, PositionRecord> = {};
+  for (const [id, value] of Object.entries(stored.positions ?? {})) {
+    const record = { ...value } as PositionRecord;
+    const learned = record.attempts > 0 || record.corrects > 0 || record.misses > 0 || record.due;
+    positions[id] = 'intervalStage' in value || 'nextReviewAt' in value
+      ? withSchedule(record, value.intervalStage ?? 0, value.nextReviewAt ?? null)
+      : !learned
+        ? record
+      : withSchedule(record, 0, record.due ? now : reviewAt(0, now));
+  }
 
   for (const id of stored.completedPositionIds ?? []) {
-    positions[id] = { ...emptyRecord(), ...positions[id], attempts: 1, corrects: 1 };
+    const before = positions[id] ?? emptyRecord();
+    positions[id] = withSchedule({ ...before, attempts: Math.max(before.attempts, 1), corrects: Math.max(before.corrects, 1), due: false }, before.intervalStage ?? 0, before.nextReviewAt ?? reviewAt(0, now));
   }
   for (const id of stored.missedPositionIds ?? []) {
     const before = positions[id] ?? emptyRecord();
-    positions[id] = { ...before, attempts: Math.max(before.attempts, 1), corrects: 0, misses: 1, reviewStreak: 0, due: true };
+    positions[id] = withSchedule({ ...before, attempts: Math.max(before.attempts, 1), misses: Math.max(before.misses, 1), reviewStreak: 0, due: true }, 0, now);
   }
 
   return {
@@ -77,8 +89,13 @@ export function diffProgress(saved: CourseProgress, current: CourseProgress): Pr
       reviewStreak: record.reviewStreak,
       due: record.due,
     };
+    if ('intervalStage' in record || 'nextReviewAt' in record) {
+      delta.intervalStage = record.intervalStage ?? 0;
+      delta.nextReviewAt = record.nextReviewAt ?? null;
+    }
     const changed = delta.attempts !== 0 || delta.corrects !== 0 || delta.misses !== 0 || delta.hints !== 0
-      || before.reviewStreak !== record.reviewStreak || before.due !== record.due;
+      || before.reviewStreak !== record.reviewStreak || before.due !== record.due
+      || before.intervalStage !== record.intervalStage || before.nextReviewAt !== record.nextReviewAt;
     if (changed) positions[id] = delta;
   }
   return {
@@ -91,10 +108,15 @@ export function diffProgress(saved: CourseProgress, current: CourseProgress): Pr
 }
 
 export function mergeProgress(stored: CourseProgress, delta: ProgressDelta): CourseProgress {
-  const positions = { ...stored.positions };
+  const positions: Record<string, PositionRecord> = {};
+  for (const [id, record] of Object.entries(stored.positions)) {
+    positions[id] = 'intervalStage' in record || 'nextReviewAt' in record
+      ? { ...record, intervalStage: record.intervalStage ?? 0, nextReviewAt: record.nextReviewAt ?? null }
+      : record;
+  }
   for (const [id, entry] of Object.entries(delta.positions)) {
     const before = positions[id] ?? emptyRecord();
-    positions[id] = {
+    const merged: PositionRecord = {
       attempts: before.attempts + entry.attempts,
       corrects: before.corrects + entry.corrects,
       misses: before.misses + entry.misses,
@@ -102,6 +124,11 @@ export function mergeProgress(stored: CourseProgress, delta: ProgressDelta): Cou
       reviewStreak: entry.reviewStreak,
       due: entry.due,
     };
+    if ('intervalStage' in entry || 'nextReviewAt' in entry || 'intervalStage' in before || 'nextReviewAt' in before) {
+      merged.intervalStage = entry.intervalStage ?? before.intervalStage ?? 0;
+      merged.nextReviewAt = 'nextReviewAt' in entry ? entry.nextReviewAt ?? null : before.nextReviewAt ?? null;
+    }
+    positions[id] = merged;
   }
   return {
     completedLevels: [...new Set([...stored.completedLevels, ...delta.completedLevels])],

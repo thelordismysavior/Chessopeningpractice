@@ -58,7 +58,7 @@ test('one mistake spends one slot and still banks; two mistakes restart recall',
   await expect(page.locator('.guide-overlay .route-arrow')).toHaveCount(0);
 });
 
-test('summary, review clear streak, and Proceed route to Intermediate', async ({ page }) => {
+test('summary, timed queue, and Proceed route to Intermediate', async ({ page }) => {
   await openDashboard(page, 1440, 1000);
   const lines = lineMoves();
   const firstLine = lines[0];
@@ -79,14 +79,11 @@ test('summary, review clear streak, and Proceed route to Intermediate', async ({
   await expect(page.locator('#review-now')).toBeVisible();
 
   await page.locator('#back-dashboard').click();
-  await expect(page.locator('#review-queue')).toBeVisible();
-
-  await page.locator('#review-queue').click();
-  await page.locator('.queue-row button').first().click();
-  const reviewMove = firstLine[0];
-  await playMove(page, reviewMove);
-  await playMove(page, reviewMove);
-  await page.locator('#back-after-complete').click();
+  await expect(page.locator('#review-queue')).toHaveCount(0);
+  await page.locator('#queue-nav').click();
+  await expect(page.locator('.queue-empty')).toBeVisible();
+  await expect(page.locator('.queue-upcoming-row')).toBeVisible();
+  await page.locator('#back-dashboard').click();
   await expect(page.locator('#review-queue')).toHaveCount(0);
   await expect(page.locator('.course-card').first().locator('button[data-level="intermediate"]')).toBeEnabled();
 });

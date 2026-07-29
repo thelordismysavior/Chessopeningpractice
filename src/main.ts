@@ -7,6 +7,8 @@ import { hashForRoute, hashForScreen, HOME_HASH, parseHash, type HashRoute } fro
 import { app, escapeHtml, resetPageScroll } from './screens/shell';
 import { renderAuth, renderPendingApproval, type AuthOptions } from './screens/auth';
 import { renderDashboard } from './screens/dashboard';
+import { renderSettings } from './screens/settings';
+import { renderAccount } from './screens/account';
 import { renderSources } from './screens/sources';
 import { startPractice } from './screens/practice';
 import { renderReviewQueue } from './screens/review-queue';
@@ -23,6 +25,10 @@ async function renderScreen(screen: Screen): Promise<void> {
   switch (screen.name) {
     case 'dashboard':
       return renderDashboard(navigate, signedInEmail);
+    case 'settings':
+      return renderSettings(navigate, signedInEmail);
+    case 'account':
+      return renderAccount(navigate, signedInEmail);
     case 'sources':
       return renderSources(navigate, signedInEmail);
     case 'practice':
@@ -38,6 +44,8 @@ async function renderScreen(screen: Screen): Promise<void> {
 
 async function screenForRoute(route: HashRoute): Promise<Screen> {
   if (route.name === 'dashboard') return { name: 'dashboard' };
+  if (route.name === 'settings') return { name: 'settings' };
+  if (route.name === 'account') return { name: 'account' };
   if (route.name === 'sources') return { name: 'sources' };
   if (route.name === 'review-queue') return { name: 'review-queue' };
   if (route.name === 'browse') return { name: 'browse', courseId: route.courseId, lineId: route.lineId };
@@ -57,8 +65,8 @@ async function screenForRoute(route: HashRoute): Promise<Screen> {
   }
   const entries = await Promise.all(COURSES.map(async (candidate) => [candidate.id, await loadProgress(candidate.id)] as const));
   const progressByCourse = Object.fromEntries(entries) as Parameters<typeof reviewQueue>[0];
-  const run = route.runGroups ? { groups: route.runGroups, total: 0 } : reviewQueue(progressByCourse);
-  const group = run.groups[route.runIndex];
+  const groups = route.runGroups ?? reviewQueue(progressByCourse).dueGroups;
+  const group = groups[route.runIndex];
   return {
     name: 'practice',
     course,
@@ -66,7 +74,7 @@ async function screenForRoute(route: HashRoute): Promise<Screen> {
     progress,
     variationId: route.variationId,
     reviewPositionIds: route.reviewPositionIds ?? group?.positionIds,
-    run: group ? { groups: run.groups, index: route.runIndex } : undefined,
+    run: group ? { groups, index: route.runIndex } : undefined,
     entryHandoff: route.entryHandoff,
   };
 }

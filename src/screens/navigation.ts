@@ -17,6 +17,8 @@ export type BrowseScreen = { name: 'browse'; courseId?: Course['id']; lineId?: s
 
 export type Screen =
   | { name: 'dashboard' }
+  | { name: 'settings' }
+  | { name: 'account' }
   | { name: 'sources' }
   | { name: 'review-queue' }
   | BrowseScreen

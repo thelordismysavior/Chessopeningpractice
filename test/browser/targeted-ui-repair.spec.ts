@@ -24,25 +24,27 @@ async function installAppStubs(page: Page, failCompleteSave = false): Promise<vo
       const progressByCourse = new Map();
       globalThis.__progressByCourse = progressByCourse;
       const emptyRecord = () => ({ attempts: 0, corrects: 0, misses: 0, hints: 0, reviewStreak: 0, due: false });
+      const reviewIntervals = [14400000, 86400000, 259200000, 604800000, 1209600000, 2592000000, 7776000000, 15552000000];
+      const reviewAt = (stage, now = Date.now()) => now + reviewIntervals[Math.min(reviewIntervals.length - 1, Math.max(0, Math.trunc(stage)))];
       const emptyProgress = () => ({ completedLevels: [], unlockedLevel: 0, completedVariationIds: [], positions: {}, practiceMs: 0 });
       const migrateProgress = (stored) => {
         if (!stored) return emptyProgress();
-        if (stored.positions && !stored.completedPositionIds && !stored.missedPositionIds) {
-          return {
-            completedLevels: stored.completedLevels ?? [],
-            unlockedLevel: stored.unlockedLevel ?? 0,
-            completedVariationIds: stored.completedVariationIds ?? [],
-            positions: { ...(stored.positions ?? {}) },
-            practiceMs: stored.practiceMs ?? 0,
-          };
+        const now = Date.now();
+        const positions = {};
+        for (const [id, value] of Object.entries(stored.positions ?? {})) {
+          const record = { ...value };
+          const learned = record.attempts > 0 || record.corrects > 0 || record.misses > 0 || record.due;
+          positions[id] = record.intervalStage !== undefined || 'nextReviewAt' in record || !learned
+            ? record
+            : { ...record, intervalStage: 0, nextReviewAt: record.due ? now : reviewAt(0, now) };
         }
-        const positions = { ...(stored.positions ?? {}) };
         for (const id of stored.completedPositionIds ?? []) {
-          positions[id] = { ...emptyRecord(), ...positions[id], attempts: 1, corrects: 1 };
+          const before = positions[id] ?? emptyRecord();
+          positions[id] = { ...before, attempts: Math.max(before.attempts, 1), corrects: Math.max(before.corrects, 1), due: false, intervalStage: before.intervalStage ?? 0, nextReviewAt: before.nextReviewAt ?? reviewAt(0, now) };
         }
         for (const id of stored.missedPositionIds ?? []) {
           const before = positions[id] ?? emptyRecord();
-          positions[id] = { ...before, attempts: Math.max(before.attempts, 1), corrects: 0, misses: 1, reviewStreak: 0, due: true };
+          positions[id] = { ...before, attempts: Math.max(before.attempts, 1), misses: Math.max(before.misses, 1), reviewStreak: 0, due: true, intervalStage: 0, nextReviewAt: now };
         }
         return {
           completedLevels: stored.completedLevels ?? [],
@@ -64,8 +66,13 @@ async function installAppStubs(page: Page, failCompleteSave = false): Promise<vo
             reviewStreak: record.reviewStreak,
             due: record.due,
           };
+          if ('intervalStage' in record || 'nextReviewAt' in record) {
+            delta.intervalStage = record.intervalStage ?? 0;
+            delta.nextReviewAt = record.nextReviewAt ?? null;
+          }
           const changed = delta.attempts !== 0 || delta.corrects !== 0 || delta.misses !== 0 || delta.hints !== 0
-            || before.reviewStreak !== record.reviewStreak || before.due !== record.due;
+            || before.reviewStreak !== record.reviewStreak || before.due !== record.due
+            || before.intervalStage !== record.intervalStage || before.nextReviewAt !== record.nextReviewAt;
           if (changed) positions[id] = delta;
         }
         return {
@@ -78,16 +85,21 @@ async function installAppStubs(page: Page, failCompleteSave = false): Promise<vo
       }
       export function mergeProgress(stored, delta) {
         const positions = { ...stored.positions };
-        for (const [id, entry] of Object.entries(delta.positions)) {
-          const before = positions[id] ?? emptyRecord();
-          positions[id] = {
+          for (const [id, entry] of Object.entries(delta.positions)) {
+            const before = positions[id] ?? emptyRecord();
+            const merged = {
             attempts: before.attempts + entry.attempts,
             corrects: before.corrects + entry.corrects,
             misses: before.misses + entry.misses,
             hints: before.hints + entry.hints,
             reviewStreak: entry.reviewStreak,
-            due: entry.due,
-          };
+              due: entry.due,
+            };
+            if ('intervalStage' in entry || 'nextReviewAt' in entry || 'intervalStage' in before || 'nextReviewAt' in before) {
+              merged.intervalStage = entry.intervalStage ?? before.intervalStage ?? 0;
+              merged.nextReviewAt = 'nextReviewAt' in entry ? entry.nextReviewAt ?? null : before.nextReviewAt ?? null;
+            }
+            positions[id] = merged;
         }
         return {
           completedLevels: [...new Set([...stored.completedLevels, ...delta.completedLevels])],
