@@ -1,10 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { COURSES } from '../../src/courses';
 import {
   lineMoves,
   openDashboard,
   playLessonClean,
-  playLineTwice,
   playMove,
   wrongLegalMove,
 } from './app-stubs';
@@ -30,9 +28,9 @@ test('teach shows the guide, recall withholds it, and Show me reveals without sp
   await expect(page.locator('.budget-slot.is-spent')).toHaveCount(0);
 });
 
-test('one mistake spends one slot and still banks; two mistakes restart recall', async ({ page }) => {
+test('one mistake spends one slot and completes the selected line', async ({ page }) => {
   await openDashboard(page, 1440, 1000);
-  const [firstLine, secondLine] = lineMoves();
+  const [firstLine] = lineMoves();
   await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
 
   for (const move of firstLine) await playMove(page, move);
@@ -41,35 +39,18 @@ test('one mistake spends one slot and still banks; two mistakes restart recall',
   await playMove(page, firstLine[0]);
   for (const move of firstLine.slice(1)) await playMove(page, move);
 
-  await expect(page.locator('.line-handoff')).toContainText(COURSES[0].lessons.beginner.variations[0].title);
-  await expect(page.locator('.line-handoff')).toContainText(COURSES[0].lessons.beginner.variations[1].title);
-  await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Learn the line');
-  await expect(page.locator(`[data-square="${secondLine[0].slice(0, 2)}"]`)).toBeEnabled();
-
-  for (const move of secondLine) await playMove(page, move);
-  await playMove(page, wrongLegalMove(secondLine[0]));
-  await playMove(page, secondLine[0]);
-  await playMove(page, wrongLegalMove(secondLine[1]));
-  await playMove(page, secondLine[1]);
-  for (const move of secondLine.slice(2)) await playMove(page, move);
-
-  await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Recall');
-  await expect(page.locator('.budget-slot.is-spent')).toHaveCount(0);
-  await expect(page.locator('.guide-overlay .route-arrow')).toHaveCount(0);
+  await expect(page.locator('.summary-panel')).toBeVisible();
 });
 
 test('summary, timed queue, and Proceed route to Intermediate', async ({ page }) => {
   await openDashboard(page, 1440, 1000);
-  const lines = lineMoves();
-  const firstLine = lines[0];
+  const [firstLine] = lineMoves();
   await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
 
   for (const move of firstLine) await playMove(page, move);
   await playMove(page, wrongLegalMove(firstLine[0]));
   await playMove(page, firstLine[0]);
   for (const move of firstLine.slice(1)) await playMove(page, move);
-
-  for (const moves of lines.slice(1)) await playLineTwice(page, moves);
 
   await expect(page.locator('.summary-panel')).toBeVisible();
   await expect(page.locator('.summary-panel')).toContainText('Lines banked');
@@ -88,12 +69,12 @@ test('summary, timed queue, and Proceed route to Intermediate', async ({ page })
   await expect(page.locator('.course-card').first().locator('button[data-level="intermediate"]')).toBeEnabled();
 });
 
-test('Proceed still routes Beginner to Intermediate after a clean lesson', async ({ page }) => {
+test('Proceed returns to the dashboard after a clean one-line lesson', async ({ page }) => {
   await openDashboard(page, 1440, 1000);
   await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
   await playLessonClean(page);
   await expect(page.locator('.summary-panel')).toBeVisible();
   await expect(page.locator('#review-now')).toHaveCount(0);
   await page.locator('#proceed').click();
-  await expect(page.locator('.line-title')).toHaveText(COURSES[0].lessons.intermediate.variations[0].title);
+  await expect(page.locator('.dashboard-intro')).toBeVisible();
 });

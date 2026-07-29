@@ -221,14 +221,14 @@ test('the browse index filters, and the walker steps without touching progress',
   await expect(page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]))).resolves.toBe(before);
 });
 
-test('a locked line opens in the walker without a practice action', async ({ page }) => {
+test('an untouched line opens with a concept entry and direct practice access', async ({ page }) => {
   await stubEngine(page);
   await openDashboard(page, 1440, 1000);
   await page.locator('#browse').click();
   await page.locator(`[data-course-filter="${COURSES[0].id}"]`).click();
   await page.locator('.browse-row').last().click();
-  await expect(page.locator('.walker')).toBeVisible();
-  await expect(page.locator('#walker-practice')).toHaveCount(0);
+  await expect(page.locator('.line-concept')).toBeVisible();
+  await expect(page.locator('#start-line-lesson')).toBeVisible();
 });
 
 test('the bar reads from the learner side in a white and a black course', async ({ page }) => {
@@ -240,6 +240,7 @@ test('the bar reads from the learner side in a white and a black course', async 
   await page.locator('#browse').click();
   await page.locator(`[data-course-filter="${white.id}"]`).click();
   await page.locator('.browse-row').first().click();
+  await page.locator('#study-line').click();
   await expect(page.locator('.side-tag')).toHaveText('W / WHITE');
   await expect(page.locator('.eval-value')).toHaveText('+1.2');
 
@@ -248,6 +249,7 @@ test('the bar reads from the learner side in a white and a black course', async 
   await page.locator(`[data-course-filter="${black.id}"]`).click();
   await expect(page.locator('.browse-row').first()).toContainText(black.name);
   await page.locator('.browse-row').first().click();
+  await page.locator('#study-line').click();
   await expect(page.locator('.side-tag')).toHaveText('B / BLACK');
   await expect(page.locator('.eval-value')).toHaveText('-1.2');
 });
@@ -300,12 +302,14 @@ test('a walker evaluation cannot update practice after navigation', async ({ pag
   await openDashboard(page, 1440, 1000);
   await page.locator('#browse').click();
   await page.locator('.browse-row').first().click();
+  await page.locator('#study-line').click();
   await expect.poll(() => engineRequestCount(page)).toBe(1);
   expect(await keydownListenerCount(page)).toBe(1);
 
   await page.locator('#walker-back').click();
   expect(await keydownListenerCount(page)).toBe(0);
   await page.locator('.browse-row').first().click();
+  await page.locator('#study-line').click();
   expect(await keydownListenerCount(page)).toBe(1);
 
   await page.locator('#walker-practice').click();
@@ -320,6 +324,7 @@ test('every screen works with the engine asset blocked', async ({ page }) => {
   await openDashboard(page, 1440, 1000);
   await page.locator('#browse').click();
   await page.locator('.browse-row').first().click();
+  await page.locator('#study-line').click();
   await expect(page.locator('.eval-note')).toHaveText('Engine unavailable');
   await expect(page.locator('.eval-bar')).toHaveCount(0);
 
@@ -338,6 +343,7 @@ test('the bar is vertical on a wide viewport and horizontal on a narrow one', as
   await openDashboard(page, 1440, 1000);
   await page.locator('#browse').click();
   await page.locator('.browse-row').first().click();
+  await page.locator('#study-line').click();
   await expect(page.locator('.eval-value')).toHaveText('+1.2');
   const wide = await page.locator('.eval-bar').boundingBox();
   expect(wide!.height).toBeGreaterThan(wide!.width);
@@ -386,4 +392,37 @@ test('Account and Settings are addressable and share device preference ownership
   await page.locator('#confirm-reset-progress').click();
   await expect(page.locator('.account-page')).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('chess-practice.move-duration'))).toBe('350');
+});
+
+test('Course, Lines, search, direct level access, and reference Study stay honest', async ({ page }) => {
+  await stubEngine(page);
+  await openDashboard(page, 1440, 1000);
+
+  await page.locator('.course-card-link').first().click();
+  await expect(page.locator('.course-page')).toBeVisible();
+  await expect(page.locator('.lesson-idea')).toContainText('Opponent trigger');
+  await expect(page.locator('[data-start-level="advanced"]')).toBeEnabled();
+  await page.locator('#course-line-sort').selectOption('category');
+  await expect(page.locator('.line-role').first()).toBeVisible();
+  await page.locator('.course-line-row').first().click();
+  await expect(page.locator('.line-concept')).toBeVisible();
+
+  await page.goto('/#/lines');
+  await expect(page.locator('.lines-page')).toBeVisible();
+  await page.locator('.line-selection-row').first().click();
+  await expect(page.locator('.line-concept')).toBeVisible();
+  await page.goto('/#/browse');
+  await page.locator('#browse-search').fill('Meet 3...c5');
+  await expect(page.locator('.browse-row')).toHaveCount(4);
+  await expect(page.locator('.browse-row').filter({ hasText: 'Reference' })).toHaveCount(1);
+  await page.locator('#browse-search').fill('not-a-real-opening');
+  await expect(page.locator('.browse-empty')).toContainText('No lines match');
+  await page.locator('#browse-search').fill('Meet 3...c5');
+  const before = await page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]));
+  await page.locator('.browse-row').filter({ hasText: 'Reference' }).click();
+  await expect(page.locator('.walker')).toBeVisible();
+  await expect(page.locator('.walker')).toContainText('Study');
+  await expect(page.locator('#walker-practice')).toHaveCount(0);
+  await page.locator('#walker-next').click();
+  await expect(page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]))).resolves.toBe(before);
 });

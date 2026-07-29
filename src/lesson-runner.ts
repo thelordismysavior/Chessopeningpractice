@@ -1,4 +1,5 @@
 import { LEVELS, type Lesson, type LevelKey, type PracticePosition, type Variation } from './courses';
+import { isTrainableVariation } from './repertoire';
 import { LineDrill, type DrillFeedback, type DrillPhase, type DrillStatus } from './line-drill';
 import type { CourseProgress } from './progress';
 import { applyOutcome, emptyRecord, type PositionRecord } from './review-schedule';
@@ -75,8 +76,8 @@ export class LessonRunner {
     } else {
       const bankedAlready = new Set(base.completedVariationIds);
       const variations = options.variationId
-        ? lesson.variations.filter((variation) => variation.id === options.variationId)
-        : lesson.variations.filter((variation) => !bankedAlready.has(variation.id));
+        ? lesson.variations.filter((variation) => variation.id === options.variationId && isTrainableVariation(variation))
+        : lesson.variations.filter((variation) => isTrainableVariation(variation) && !bankedAlready.has(variation.id));
       this.lines = variations.map((variation) => ({
         variation,
         positions: variation.positions,
@@ -146,7 +147,7 @@ export class LessonRunner {
     let unlockedLevel = this.base.unlockedLevel;
     const levelIndex = LEVELS.indexOf(level);
     const prerequisiteComplete = levelIndex === 0 || completedLevels.includes(LEVELS[levelIndex - 1]);
-    const levelComplete = this.lesson.variations.every((variation) => completedVariationIds.includes(variation.id));
+    const levelComplete = this.lesson.variations.filter(isTrainableVariation).every((variation) => completedVariationIds.includes(variation.id));
 
     if (this.snapshot.lessonComplete && levelComplete && prerequisiteComplete && !completedLevels.includes(level)) {
       completedLevels.push(level);

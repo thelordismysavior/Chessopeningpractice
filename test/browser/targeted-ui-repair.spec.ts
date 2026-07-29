@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { COURSES } from '../../src/courses';
 
-type LessonData = { lines: string[][]; nextTitle: string };
+type LessonData = { lines: string[][] };
 
 async function installAppStubs(page: Page, failCompleteSave = false): Promise<void> {
   await page.addInitScript((fail) => {
@@ -113,7 +113,7 @@ async function installAppStubs(page: Page, failCompleteSave = false): Promise<vo
         return migrateProgress(progressByCourse.get(courseId));
       }
       export async function saveProgress(courseId, delta) {
-        if (globalThis.__failCompleteSave && delta.completedLevels.includes('beginner')) throw new Error('save failed');
+        if (globalThis.__failCompleteSave && (Object.keys(delta.positions).length > 0 || delta.completedLevels.length > 0)) throw new Error('save failed');
         const stored = migrateProgress(progressByCourse.get(courseId));
         progressByCourse.set(courseId, mergeProgress(stored, delta));
       }
@@ -135,7 +135,6 @@ function lessonData(level: 'beginner' | 'intermediate' = 'beginner'): LessonData
   const lesson = COURSES[0].lessons[level];
   return {
     lines: lesson.variations.map((variation) => variation.positions.map((position) => position.expectedMove)),
-    nextTitle: COURSES[0].lessons.intermediate.variations[0].title,
   };
 }
 
@@ -152,10 +151,10 @@ async function playMove(page: Page, move: string, mode: 'click' | 'drag' = 'clic
 }
 
 async function playLesson(page: Page, lines: string[][]): Promise<void> {
-  for (const moves of lines) {
-    for (const move of moves) await playMove(page, move);
-    for (const move of moves) await playMove(page, move);
-  }
+  const [moves] = lines;
+  if (!moves) return;
+  for (const move of moves) await playMove(page, move);
+  for (const move of moves) await playMove(page, move);
 }
 
 test('click and drag moves work in Chromium', async ({ page }) => {
@@ -193,7 +192,7 @@ test('drag lift is owned by the app render tree', async ({ page }) => {
   await page.mouse.up();
 });
 
-test('completion focus is stable and Proceed opens the next lesson', async ({ page }) => {
+test('completion focus is stable and Proceed returns to the dashboard', async ({ page }) => {
   await openDashboard(page);
   const data = lessonData();
   await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
@@ -202,7 +201,7 @@ test('completion focus is stable and Proceed opens the next lesson', async ({ pa
   await expect(page.locator('#proceed')).toBeVisible();
   await expect(page.locator('#proceed')).toBeFocused();
   await page.locator('#proceed').click();
-  await expect(page.locator('.line-title')).toHaveText(data.nextTitle);
+  await expect(page.locator('.dashboard-intro')).toBeVisible();
 });
 
 test('save failure keeps completion recoverable without stealing focus', async ({ page }) => {
@@ -259,7 +258,7 @@ test('Dashboard settings confirm reset and preserve move duration', async ({ pag
 
   await expect(page.locator('.dashboard-intro')).toBeVisible();
   await expect(page.locator('.course-count')).toHaveText(['00 / 03', '00 / 03', '00 / 03', '00 / 03']);
-  await expect(page.locator('.lesson-row').nth(1)).toBeDisabled();
+  await expect(page.locator('.lesson-row').nth(1)).toBeEnabled();
   expect(await page.evaluate(() => localStorage.getItem('chess-practice.move-duration'))).toBe('0');
 });
 

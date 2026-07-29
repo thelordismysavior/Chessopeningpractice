@@ -80,7 +80,7 @@ describe('move transition plans', () => {
 
   test('keeps a captured piece in the plan until landing', () => {
     const position = COURSES.find((course) => course.id === 'classical-sicilian')!.lessons.beginner.variations
-      .find((variation) => variation.kind === 'main')!.positions
+      .find((variation) => variation.kind === 'core')!.positions
       .find((entry) => entry.expectedSan === 'cxd4');
     expect(position).toBeDefined();
     const plan = planMoveTransition(position!.fen, position!.expectedMove);

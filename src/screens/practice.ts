@@ -25,7 +25,8 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   engine.reset();
   engine.warm();
   const lesson = course.lessons[level];
-  const session = new LessonRunner(lesson, progress, { variationId, reviewPositionIds });
+  const selectedVariationId = variationId ?? lesson.variations.find((variation) => variation.kind === 'core')?.id;
+  const session = new LessonRunner(lesson, progress, { variationId: selectedVariationId, reviewPositionIds });
   const masteryBefore = courseMastery(course, progress);
   let selected: string | null = null;
   let feedback: RunnerFeedback | null = null;

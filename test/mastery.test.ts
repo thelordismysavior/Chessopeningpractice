@@ -45,7 +45,7 @@ describe('overall mastery', () => {
   test('sums every course', () => {
     const byCourse = Object.fromEntries(COURSES.map((entry) => [entry.id, emptyProgress()])) as Record<Course['id'], CourseProgress>;
     const summary = overallMastery(byCourse);
-    expect(summary.total).toBe(72);
+    expect(summary.total).toBe(70);
     expect(summary.mastered).toBe(0);
   });
 
@@ -54,7 +54,7 @@ describe('overall mastery', () => {
     byCourse[course.id] = progressWith({ completedVariationIds: [beginnerMain.id] });
     const summary = overallMastery(byCourse);
     expect(summary.mastered).toBe(1);
-    expect(summary.ratio).toBeCloseTo(1 / 72);
+    expect(summary.ratio).toBeCloseTo(1 / 70);
   });
 });
 

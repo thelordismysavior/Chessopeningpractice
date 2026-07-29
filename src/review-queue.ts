@@ -1,5 +1,6 @@
 import { COURSES, LEVELS, type Course, type LevelKey } from './courses';
 import type { CourseProgress } from './progress';
+import { isTrainableVariation } from './repertoire';
 import { duePositionIds, positionIsScheduled, positionIsDue } from './review-schedule';
 
 export type ReviewGroup = { courseId: Course['id']; level: LevelKey; positionIds: string[]; kind?: 'due' | 'upcoming'; nextReviewAt?: number };
@@ -22,7 +23,9 @@ export function reviewQueue(progressByCourse: Record<Course['id'], CourseProgres
     const progress = progressByCourse[course.id];
     if (!progress) continue;
     for (const level of LEVELS) {
-      const candidateIds = course.lessons[level].positions.map((position) => position.id);
+      const candidateIds = course.lessons[level].variations
+        .filter(isTrainableVariation)
+        .flatMap((variation) => variation.positions.map((position) => position.id));
       const dueIds = duePositionIds(progress.positions, candidateIds, now);
       if (dueIds.length) dueGroups.push({ courseId: course.id, level, positionIds: dueIds, kind: 'due' });
       const upcomingIds = candidateIds.filter((id) => {

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { Chess } from 'chess.js';
 import { COURSES, LEVELS, type VariationKind } from '../src/courses';
 
-const REQUIRED_KINDS: VariationKind[] = ['main', 'alternative', 'punish'];
+const REQUIRED_KINDS: VariationKind[] = ['core', 'alternative', 'punish'];
 
 describe('course content', () => {
   test('never teaches a quiet move when the opponent queen can be captured', () => {
@@ -74,7 +74,7 @@ describe('course content', () => {
 
       for (const level of LEVELS) {
         const lesson = course.lessons[level];
-        expect(new Set(lesson.variations.map(({ kind }) => kind))).toEqual(new Set(REQUIRED_KINDS));
+        expect(lesson.variations.map(({ kind }) => kind)).toEqual(expect.arrayContaining(REQUIRED_KINDS));
         expect(lesson.positions).toEqual(lesson.variations.flatMap((variation) => variation.positions));
 
         for (const variation of lesson.variations) {
@@ -84,7 +84,7 @@ describe('course content', () => {
           expect(typeof variation.evalCp).toBe('number');
 
           const count = variation.positions.length;
-          if (variation.kind === 'main') {
+          if (variation.kind === 'core') {
             expect(count).toBeGreaterThanOrEqual(8);
             expect(count).toBeLessThanOrEqual(10);
           } else {

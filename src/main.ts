@@ -7,6 +7,8 @@ import { hashForRoute, hashForScreen, HOME_HASH, parseHash, type HashRoute } fro
 import { app, escapeHtml, resetPageScroll } from './screens/shell';
 import { renderAuth, renderPendingApproval, type AuthOptions } from './screens/auth';
 import { renderDashboard } from './screens/dashboard';
+import { renderCourse } from './screens/course';
+import { renderLines } from './screens/lines';
 import { renderSettings } from './screens/settings';
 import { renderAccount } from './screens/account';
 import { renderSources } from './screens/sources';
@@ -25,6 +27,10 @@ async function renderScreen(screen: Screen): Promise<void> {
   switch (screen.name) {
     case 'dashboard':
       return renderDashboard(navigate, signedInEmail);
+    case 'course':
+      return renderCourse(navigate, signedInEmail, screen);
+    case 'lines':
+      return renderLines(navigate, signedInEmail);
     case 'settings':
       return renderSettings(navigate, signedInEmail);
     case 'account':
@@ -44,13 +50,20 @@ async function renderScreen(screen: Screen): Promise<void> {
 
 async function screenForRoute(route: HashRoute): Promise<Screen> {
   if (route.name === 'dashboard') return { name: 'dashboard' };
+  if (route.name === 'course') {
+    const course = coursesById[route.courseId];
+    return { name: 'course', course, progress: await loadProgress(course.id) };
+  }
+  if (route.name === 'lines') return { name: 'lines' };
   if (route.name === 'settings') return { name: 'settings' };
   if (route.name === 'account') return { name: 'account' };
   if (route.name === 'sources') return { name: 'sources' };
   if (route.name === 'review-queue') return { name: 'review-queue' };
-  if (route.name === 'browse') return { name: 'browse', courseId: route.courseId, lineId: route.lineId };
+  if (route.name === 'browse') return { name: 'browse', courseId: route.courseId, lineId: route.lineId, study: route.study };
 
   const course = coursesById[route.courseId];
+  const requestedVariation = route.variationId ? course.lessons[route.level].variations.find((variation) => variation.id === route.variationId) : undefined;
+  if (requestedVariation?.kind === 'reference') return { name: 'browse', courseId: course.id, lineId: requestedVariation.id, study: true };
   const progress = await loadProgress(course.id);
   if (route.runIndex === undefined) {
     return {
@@ -99,7 +112,7 @@ async function renderCurrentRoute(): Promise<void> {
 const navigate: Navigate = async (screen: Screen) => {
   const nextHash = hashForScreen(screen);
   if (window.location.hash !== nextHash) {
-    if (screen.name === 'browse' && screen.lineId) skipNextHashRender = true;
+    if (screen.name === 'browse' && screen.lineId && parseHash(window.location.hash).name === 'browse') skipNextHashRender = true;
     window.location.hash = nextHash;
     return;
   }

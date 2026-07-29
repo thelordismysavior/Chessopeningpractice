@@ -11,15 +11,15 @@ const OPENING = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const AFTER_D4_D5 = 'rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 2';
 
 function variation(kind: Variation['kind'], positions: PracticePosition[]): Variation {
-  return { id: `beginner-${kind}`, kind, title: `${kind} line`, summary: `Summary for ${kind}.`, evalCp: 10, positions };
+  return { id: `beginner-${kind === 'core' ? 'main' : kind}`, kind, title: `${kind} line`, summary: `Summary for ${kind}.`, evalCp: 10, positions };
 }
 
 function fixtureLesson(): Lesson {
   const variations = [
-    variation('main', [pos('main-1', OPENING, 'd2d4', 'd4'), pos('main-2', AFTER_D4_D5, 'b1c3', 'Nc3')]),
+    variation('core', [pos('main-1', OPENING, 'd2d4', 'd4'), pos('main-2', AFTER_D4_D5, 'b1c3', 'Nc3')]),
     variation('alternative', [pos('alt-1', OPENING, 'd2d4', 'd4')]),
   ];
-  return { level: 'beginner', title: 'Fixture', summary: 'Fixture lesson.', variations, positions: variations.flatMap((entry) => entry.positions) };
+  return { level: 'beginner', title: 'Fixture', summary: 'Fixture lesson.', variations, positions: variations.flatMap((entry) => entry.positions), lessonIdea: { anchorFen: OPENING, anchorSan: 'd4', plan: 'Build the centre.', opponentTrigger: 'Black changes the move order.', resultingPlan: 'Develop actively.' } };
 }
 
 /** Plays the current line correctly until the runner moves on or finishes. */

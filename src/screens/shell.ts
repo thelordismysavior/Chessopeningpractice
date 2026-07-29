@@ -27,7 +27,7 @@ export function brandMarkup(): string {
 }
 
 function topbarLink(link: { id: string; label: string }): string {
-  const routes: Partial<Record<string, HashRoute>> = { account: { name: 'account' }, 'settings-link': { name: 'settings' }, browse: { name: 'browse' }, sources: { name: 'sources' }, 'review-queue': { name: 'review-queue' }, 'queue-nav': { name: 'review-queue' } };
+  const routes: Partial<Record<string, HashRoute>> = { account: { name: 'account' }, 'settings-link': { name: 'settings' }, browse: { name: 'browse' }, lines: { name: 'lines' }, sources: { name: 'sources' }, 'review-queue': { name: 'review-queue' }, 'queue-nav': { name: 'review-queue' } };
   const route = routes[link.id];
   return route
     ? `<a id="${link.id}" href="${hashForRoute(route)}" class="quiet-button">${escapeHtml(link.label)}</a>`

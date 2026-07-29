@@ -224,7 +224,8 @@ export async function playLineTwice(page: Page, moves: string[]): Promise<void> 
 }
 
 export async function playLessonClean(page: Page, level: 'beginner' | 'intermediate' = 'beginner'): Promise<void> {
-  for (const moves of lineMoves(level)) await playLineTwice(page, moves);
+  const [moves] = lineMoves(level);
+  if (moves) await playLineTwice(page, moves);
 }
 
 export function wrongLegalMove(expected: string): string {

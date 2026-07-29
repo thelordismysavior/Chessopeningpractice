@@ -13,10 +13,12 @@ export type PracticeScreen = {
   entryHandoff?: { banked: string; next: string; verb?: string };
 };
 
-export type BrowseScreen = { name: 'browse'; courseId?: Course['id']; lineId?: string };
+export type BrowseScreen = { name: 'browse'; courseId?: Course['id']; lineId?: string; study?: boolean };
 
 export type Screen =
   | { name: 'dashboard' }
+  | { name: 'course'; course: Course; progress: CourseProgress }
+  | { name: 'lines' }
   | { name: 'settings' }
   | { name: 'account' }
   | { name: 'sources' }

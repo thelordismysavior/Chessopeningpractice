@@ -6,11 +6,13 @@ export const HOME_HASH = '#/home';
 
 export type HashRoute =
   | { name: 'dashboard' }
+  | { name: 'course'; courseId: Course['id'] }
+  | { name: 'lines' }
   | { name: 'settings' }
   | { name: 'account' }
   | { name: 'sources' }
   | { name: 'review-queue' }
-  | { name: 'browse'; courseId?: Course['id']; lineId?: string }
+  | { name: 'browse'; courseId?: Course['id']; lineId?: string; study?: boolean }
   | { name: 'practice'; courseId: Course['id']; level: LevelKey; variationId?: string; reviewPositionIds?: string[]; runIndex?: number; runGroups?: ReviewGroup[]; entryHandoff?: { banked: string; next: string; verb?: string } };
 
 function decode(value: string): string {
@@ -58,6 +60,11 @@ export function parseHash(hash: string): HashRoute {
   const [surface, first, second] = path;
 
   if (!surface || surface === 'home' || surface === 'dashboard') return { name: 'dashboard' };
+  if (surface === 'course') {
+    const selectedCourse = courseId(first);
+    return selectedCourse ? { name: 'course', courseId: selectedCourse } : { name: 'dashboard' };
+  }
+  if (surface === 'lines') return { name: 'lines' };
   if (surface === 'settings') return { name: 'settings' };
   if (surface === 'account') return { name: 'account' };
   if (surface === 'sources') return { name: 'sources' };
@@ -68,7 +75,7 @@ export function parseHash(hash: string): HashRoute {
     const lineId = second ?? query.get('line') ?? undefined;
     if (requestedCourse && !selectedCourse) return { name: 'dashboard' };
     if (lineId && (!selectedCourse || !LEVELS.some((candidate) => coursesById[selectedCourse].lessons[candidate].variations.some((variation) => variation.id === lineId)))) return { name: 'dashboard' };
-    return { name: 'browse', ...(selectedCourse ? { courseId: selectedCourse } : {}), ...(lineId ? { lineId } : {}) };
+    return { name: 'browse', ...(selectedCourse ? { courseId: selectedCourse } : {}), ...(lineId ? { lineId } : {}), ...(query.get('study') === '1' ? { study: true } : {}) };
   }
   if (surface === 'practice') {
     const selectedCourse = courseId(first);
@@ -112,6 +119,10 @@ function routeForScreen(screen: Screen): HashRoute {
   switch (screen.name) {
     case 'dashboard':
       return { name: 'dashboard' };
+    case 'course':
+      return { name: 'course', courseId: screen.course.id };
+    case 'lines':
+      return { name: 'lines' };
     case 'settings':
       return { name: 'settings' };
     case 'account':
@@ -144,6 +155,10 @@ export function hashForRoute(route: HashRoute): string {
   switch (route.name) {
     case 'dashboard':
       return HOME_HASH;
+    case 'course':
+      return `#/course/${encodeURIComponent(route.courseId)}`;
+    case 'lines':
+      return '#/lines';
     case 'settings':
       return '#/settings';
     case 'account':
@@ -153,7 +168,7 @@ export function hashForRoute(route: HashRoute): string {
     case 'review-queue':
       return '#/review-queue';
     case 'browse':
-      return `#/browse${route.courseId ? `/${encodeURIComponent(route.courseId)}` : ''}${route.lineId ? `/${encodeURIComponent(route.lineId)}` : ''}`;
+      return `#/browse${route.courseId ? `/${encodeURIComponent(route.courseId)}` : ''}${route.lineId ? `/${encodeURIComponent(route.lineId)}` : ''}${route.study ? '?study=1' : ''}`;
     case 'practice':
       return `#/practice/${encodeURIComponent(route.courseId)}/${route.level}${query({
         line: route.variationId,

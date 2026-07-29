@@ -4,7 +4,7 @@ import { positionIsDue } from './review-schedule';
 
 export type MasterySummary = { mastered: number; total: number; ratio: number };
 
-export type LineState = 'untouched' | 'banked' | 'mastered';
+export type LineState = 'untouched' | 'banked' | 'mastered' | 'reference';
 
 const summary = (mastered: number, total: number): MasterySummary => ({
   mastered,
@@ -14,6 +14,7 @@ const summary = (mastered: number, total: number): MasterySummary => ({
 
 /** A line is mastered when it is banked and none of its positions is due. */
 export function lineState(variation: Variation, progress: CourseProgress, now = Date.now()): LineState {
+  if (variation.kind === 'reference') return 'reference';
   if (!progress.completedVariationIds.includes(variation.id)) return 'untouched';
   const due = variation.positions.some((position) => positionIsDue(progress.positions[position.id], now));
   return due ? 'banked' : 'mastered';
@@ -24,6 +25,7 @@ export function courseMastery(course: Course, progress: CourseProgress, now = Da
   let total = 0;
   for (const level of LEVELS) {
     for (const variation of course.lessons[level].variations) {
+      if (variation.kind === 'reference') continue;
       total += 1;
       if (lineState(variation, progress, now) === 'mastered') mastered += 1;
     }

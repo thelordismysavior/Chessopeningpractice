@@ -11,7 +11,7 @@ export type PracticePosition = {
   explanation: string;
 };
 
-export type VariationKind = 'main' | 'alternative' | 'punish';
+export type VariationKind = 'core' | 'alternative' | 'reference' | 'punish';
 
 export type Variation = {
   id: string;
@@ -22,12 +22,21 @@ export type Variation = {
   positions: PracticePosition[];
 };
 
+export type LessonIdea = {
+  anchorFen: string;
+  anchorSan: string;
+  plan: string;
+  opponentTrigger: string;
+  resultingPlan: string;
+};
+
 export type Lesson = {
   level: LevelKey;
   title: string;
   summary: string;
   variations: Variation[];
   positions: PracticePosition[];
+  lessonIdea: LessonIdea;
 };
 
 export type Course = {
@@ -36,6 +45,7 @@ export type Course = {
   side: 'white' | 'black';
   coreLine: string;
   description: string;
+  promise: string;
   eco: string;
   sources: string[];
   lessons: Record<LevelKey, Lesson>;
@@ -63,6 +73,19 @@ type VariationDraft = {
   moves: string[];
   explanations: string[];
 };
+
+function lessonIdea(variations: Variation[]): LessonIdea {
+  const core = variations.find((variation) => variation.kind === 'core') ?? variations[0];
+  const branch = variations.find((variation) => variation.kind === 'alternative' || variation.kind === 'punish') ?? core;
+  const anchor = core.positions[0];
+  return {
+    anchorFen: anchor.fen,
+    anchorSan: anchor.expectedSan,
+    plan: core.summary,
+    opponentTrigger: `${branch.title}: ${branch.summary.split(';')[0]}`,
+    resultingPlan: core.positions.at(-1)?.explanation ?? core.summary,
+  };
+}
 
 function toUci(move: Move): string {
   return `${move.from}${move.to}${move.promotion ?? ''}`;
@@ -93,7 +116,7 @@ function positionLine(idPrefix: string, side: Course['side'], moves: string[], e
 
 function lesson(side: Course['side'], level: LevelKey, title: string, summary: string, drafts: VariationDraft[]): Lesson {
   const variations = drafts.map((draft) => {
-    const id = `${level}-${draft.id ?? draft.kind}`;
+    const id = `${level}-${draft.id ?? (draft.kind === 'core' ? 'main' : draft.kind)}`;
     return {
     id,
     kind: draft.kind,
@@ -109,6 +132,7 @@ function lesson(side: Course['side'], level: LevelKey, title: string, summary: s
     summary,
     variations,
     positions: variations.flatMap((variation) => variation.positions),
+    lessonIdea: lessonIdea(variations),
   };
 }
 
@@ -119,12 +143,13 @@ export const COURSES: Course[] = [
     side: 'white',
     coreLine: '1. d4 d5 2. Nc3 Nf6 3. Bf4',
     description: 'An assertive London setup with early pressure on the centre.',
+    promise: 'Build an active white setup that makes Black answer your plans early.',
     eco: 'D00',
     sources: ['https://github.com/lichess-org/chess-openings', 'https://en.wikibooks.org/wiki/Chess_Opening_Theory'],
     lessons: {
       beginner: lesson('white', 'beginner', 'Build the setup', 'Learn the three core moves and the shape of the position.', [
         {
-          kind: 'main',
+          kind: 'core',
           title: 'Main line 3...e6',
           summary: 'Black plays the solid 3...e6; support with e3, hit c7 with Nb5, develop Bd3, and castle into a playable middlegame.',
           evalCp: 18,
@@ -207,7 +232,7 @@ export const COURSES: Course[] = [
       ]),
       intermediate: lesson('white', 'intermediate', 'Meet the active defence', 'Keep your pieces active when Black chooses among the main third-move replies.', [
         {
-          kind: 'main',
+          kind: 'core',
           title: 'Main line 3...e6',
           summary: 'Against 3...e6, use Nb5 to provoke ...Na6 and ...c6, then retreat and centralise with Ne5.',
           evalCp: 22,
@@ -289,7 +314,7 @@ export const COURSES: Course[] = [
       ]),
       advanced: lesson('white', 'advanced', 'Play for the initiative', 'Push the main line into the resulting middlegame plan and keep punishing early ...Bf5.', [
         {
-          kind: 'main',
+          kind: 'core',
           title: 'Main line 3...e6',
           summary: 'Against 3...e6, force ...c6 with Nb5, centralise on e5, and castle before the centre opens.',
           evalCp: 16,
@@ -378,12 +403,13 @@ export const COURSES: Course[] = [
     side: 'white',
     coreLine: '1. d4 d5 2. Nf3 Nf6 3. Bf4',
     description: 'A dependable structure built around a safe king and clear plans.',
+    promise: 'Reach a repeatable structure, then choose the right central break.',
     eco: 'D02',
     sources: ['https://github.com/lichess-org/chess-openings', 'https://en.wikibooks.org/wiki/Chess_Opening_Theory'],
     lessons: {
       beginner: lesson('white', 'beginner', 'Build the system', 'Learn the reliable setup that makes the London easy to repeat.', [
         {
-          kind: 'main',
+          kind: 'core',
           title: 'Main line 3...e6',
           summary: 'Black plays 3...e6; complete the classic London setup and connect the pieces.',
           evalCp: 14,
@@ -400,7 +426,7 @@ export const COURSES: Course[] = [
           ],
         },
         {
-          kind: 'alternative',
+          kind: 'reference',
           title: 'Meet 3...c5',
           summary: 'Black challenges the centre with 3...c5; keep the London structure with e3 and c3.',
           evalCp: 6,
@@ -463,7 +489,7 @@ export const COURSES: Course[] = [
       ]),
       intermediate: lesson('white', 'intermediate', 'Handle central tension', 'Develop naturally while watching for ...c5 and premature bishop moves.', [
         {
-          kind: 'main',
+          kind: 'core',
           title: 'Main line 3...e6',
           summary: 'Against 3...e6 and ...c5, keep the London triangle and finish development.',
           evalCp: 20,
@@ -543,7 +569,7 @@ export const COURSES: Course[] = [
       ]),
       advanced: lesson('white', 'advanced', 'Use the full structure', 'Finish development and prepare the central plan that gives the system bite.', [
         {
-          kind: 'main',
+          kind: 'core',
           title: 'Main line 3...e6',
           summary: 'Complete the London setup against 3...e6 and place the queen where the middlegame plan starts.',
           evalCp: 18,
@@ -648,12 +674,13 @@ export const COURSES: Course[] = [
     side: 'black',
     coreLine: '1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3',
     description: 'A principled response to 1.e4 that contests the centre at once.',
+    promise: 'Meet 1.e4 with active central counterplay and a clear development shell.',
     eco: 'B32',
     sources: ['https://github.com/lichess-org/chess-openings', 'https://lichess.org/api#tag/Opening-Explorer', 'https://database.lichess.org/', 'https://en.wikibooks.org/wiki/Chess_Opening_Theory/Sicilian_Defence'],
     lessons: {
       beginner: lesson('black', 'beginner', 'Build the Sicilian', 'Learn the core Open Sicilian move order and the first reliable setups.', [
         {
-          kind: 'main',
+          kind: 'core',
           title: 'Main line Open Sicilian',
           summary: 'White opens with 3.d4; build the Classical shell with ...d6, ...e6, and castling.',
           evalCp: 10,
@@ -670,7 +697,7 @@ export const COURSES: Course[] = [
           ],
         },
         {
-          kind: 'alternative',
+          kind: 'reference',
           title: 'Meet 3.Bb5',
           summary: 'White chooses the Rossolimo; fianchetto and keep a solid kingside plan.',
           evalCp: 5,
@@ -747,7 +774,7 @@ export const COURSES: Course[] = [
       ]),
       intermediate: lesson('black', 'intermediate', 'Take dynamic space', 'Use the Open Sicilian main line and keep answers ready for quieter or inaccurate tries.', [
         {
-          kind: 'main',
+          kind: 'core',
           title: 'Main line 5...e5',
           summary: 'In the Open Sicilian, take space with ...e5 and expand on the queenside.',
           evalCp: -8,
@@ -858,7 +885,7 @@ export const COURSES: Course[] = [
       ]),
       advanced: lesson('black', 'advanced', 'Play the open Sicilian', 'Push the ...e5 Classical plan into the middlegame and keep refutations ready.', [
         {
-          kind: 'main',
+          kind: 'core',
           title: 'Main line 5...e5',
           summary: 'Drive the ...e5 and ...b5 plan into the resulting middlegame with ...Bg7.',
           evalCp: -12,
@@ -985,12 +1012,13 @@ export const COURSES: Course[] = [
     side: 'black',
     coreLine: '1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Bf5',
     description: 'A solid central defence that develops the light-square bishop early.',
+    promise: 'Challenge the centre while freeing the c8 bishop before building the structure.',
     eco: 'B18',
     sources: ['https://github.com/lichess-org/chess-openings', 'https://lichess.org/api#tag/Opening-Explorer', 'https://database.lichess.org/', 'https://en.wikibooks.org/wiki/Chess_Opening_Theory/Caro-Kann_Defence'],
     lessons: {
       beginner: lesson('black', 'beginner', 'Build the Caro-Kann', 'Learn the solid structure and the bishop development that define the defence.', [
         {
-          kind: 'main',
+          kind: 'core',
           title: 'Main line Classical',
           summary: 'White chooses 3.Nc3; develop the bishop outside the chain and meet the h-pawn probe.',
           evalCp: 6,
@@ -1098,7 +1126,7 @@ export const COURSES: Course[] = [
       ]),
       intermediate: lesson('black', 'intermediate', 'Keep the bishop active', 'Meet natural development while preserving the Caro-Kann’s best piece.', [
         {
-          kind: 'main',
+          kind: 'core',
           title: 'Main line Classical',
           summary: 'In the Classical, keep the bishop active, close with ...e6, and finish kingside development.',
           evalCp: 12,
@@ -1207,7 +1235,7 @@ export const COURSES: Course[] = [
       ]),
       advanced: lesson('black', 'advanced', 'Use the full structure', 'Combine active bishop play with a flexible king-side and queenside plan.', [
         {
-          kind: 'main',
+          kind: 'core',
           title: 'Main line Classical',
           summary: 'Push the Classical into queenside castling territory and meet it with ...Bb4.',
           evalCp: 15,
