@@ -1,5 +1,9 @@
 import './style.css';
 import { signOutUser, watchUser } from './firebase';
+import { COURSES, coursesById } from './courses';
+import { loadProgress } from './progress';
+import { reviewQueue } from './review-queue';
+import { hashForRoute, hashForScreen, HOME_HASH, parseHash, type HashRoute } from './router';
 import { app, escapeHtml, resetPageScroll } from './screens/shell';
 import { renderAuth, renderPendingApproval, type AuthOptions } from './screens/auth';
 import { renderDashboard } from './screens/dashboard';
@@ -12,8 +16,10 @@ import type { Navigate, Screen } from './screens/navigation';
 let signedInEmail: string | null = null;
 let pendingApprovalUid: string | null = null;
 let signUpInProgress = false;
+let routeGeneration = 0;
+let skipNextHashRender = false;
 
-const navigate: Navigate = async (screen: Screen) => {
+async function renderScreen(screen: Screen): Promise<void> {
   switch (screen.name) {
     case 'dashboard':
       return renderDashboard(navigate, signedInEmail);
@@ -28,10 +34,73 @@ const navigate: Navigate = async (screen: Screen) => {
     default:
       return renderDashboard(navigate, signedInEmail);
   }
+}
+
+async function screenForRoute(route: HashRoute): Promise<Screen> {
+  if (route.name === 'dashboard') return { name: 'dashboard' };
+  if (route.name === 'sources') return { name: 'sources' };
+  if (route.name === 'review-queue') return { name: 'review-queue' };
+  if (route.name === 'browse') return { name: 'browse', courseId: route.courseId, lineId: route.lineId };
+
+  const course = coursesById[route.courseId];
+  const progress = await loadProgress(course.id);
+  if (route.runIndex === undefined) {
+    return {
+      name: 'practice',
+      course,
+      level: route.level,
+      progress,
+      variationId: route.variationId,
+      reviewPositionIds: route.reviewPositionIds,
+      entryHandoff: route.entryHandoff,
+    };
+  }
+  const entries = await Promise.all(COURSES.map(async (candidate) => [candidate.id, await loadProgress(candidate.id)] as const));
+  const progressByCourse = Object.fromEntries(entries) as Parameters<typeof reviewQueue>[0];
+  const run = route.runGroups ? { groups: route.runGroups, total: 0 } : reviewQueue(progressByCourse);
+  const group = run.groups[route.runIndex];
+  return {
+    name: 'practice',
+    course,
+    level: route.level,
+    progress,
+    variationId: route.variationId,
+    reviewPositionIds: route.reviewPositionIds ?? group?.positionIds,
+    run: group ? { groups: run.groups, index: route.runIndex } : undefined,
+    entryHandoff: route.entryHandoff,
+  };
+}
+
+async function renderCurrentRoute(): Promise<void> {
+  const generation = ++routeGeneration;
+  const route = parseHash(window.location.hash);
+  const canonicalHash = hashForRoute(route);
+  document.title = `LINE/64 · ${route.name === 'dashboard' ? 'Home' : route.name === 'review-queue' ? 'Review queue' : route.name[0].toUpperCase() + route.name.slice(1)}`;
+  if (window.location.hash !== canonicalHash) window.history.replaceState(null, '', canonicalHash);
+  try {
+    const screen = await screenForRoute(route);
+    if (generation !== routeGeneration) return;
+    await renderScreen(screen);
+  } catch (error) {
+    if (generation !== routeGeneration) return;
+    app.innerHTML = `<main class="error-page" role="alert"><p class="eyebrow">LINE/64 unavailable</p><h1>Your repertoire is still here.</h1><p class="lede">${escapeHtml(error instanceof Error ? error.message : 'Check your connection and try again.')}</p><button id="retry-route">Try again</button></main>`;
+    document.querySelector('#retry-route')!.addEventListener('click', () => void renderCurrentRoute());
+  }
+}
+
+const navigate: Navigate = async (screen: Screen) => {
+  const nextHash = hashForScreen(screen);
+  if (window.location.hash !== nextHash) {
+    if (screen.name === 'browse' && screen.lineId) skipNextHashRender = true;
+    window.location.hash = nextHash;
+    return;
+  }
+  await renderCurrentRoute();
 };
 
 function renderAuthError(message: string, retry: () => void) {
   resetPageScroll();
+  document.title = 'LINE/64 · Error';
   app.innerHTML = `<main class="error-page"><p class="eyebrow">Authentication unavailable</p><h1>We lost the signal.</h1><p class="lede">${escapeHtml(message)}</p><button id="retry-auth">Try again</button></main>`;
   document.querySelector('#retry-auth')!.addEventListener('click', retry);
 }
@@ -85,6 +154,7 @@ function watchAuthentication() {
     if (signUpInProgress) return;
     if (!user) {
       signedInEmail = null;
+      if (window.location.hash !== HOME_HASH) window.history.replaceState(null, '', HOME_HASH);
       if (pendingApprovalUid) return renderPendingApproval(pendingApprovalUid, clearPending);
       return renderAuth('signin', authOptions);
     }
@@ -93,8 +163,16 @@ function watchAuthentication() {
       return;
     }
     signedInEmail = user.email;
-    void navigate({ name: 'dashboard' });
+    void renderCurrentRoute();
   }, (error) => renderAuthError(error.message || 'Check your connection and try again.', watchAuthentication));
 }
+
+window.addEventListener('hashchange', () => {
+  if (skipNextHashRender) {
+    skipNextHashRender = false;
+    return;
+  }
+  if (signedInEmail) void renderCurrentRoute();
+});
 
 watchAuthentication();

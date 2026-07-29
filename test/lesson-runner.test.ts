@@ -60,6 +60,15 @@ describe('sequencing', () => {
     expect(runner.snapshot.lineId).toBe('beginner-alternative');
   });
 
+  test('opens only a selected line and recalls it when already banked', () => {
+    const runner = new LessonRunner(lesson, base({ completedVariationIds: ['beginner-alternative'] }), { variationId: 'beginner-alternative' });
+    expect(runner.snapshot.lineId).toBe('beginner-alternative');
+    expect(runner.snapshot.lineCount).toBe(1);
+    expect(runner.snapshot.phase).toBe('recall');
+    playCurrentLine(runner);
+    expect(runner.progressFor('beginner').completedLevels).toEqual([]);
+  });
+
   test('completes the lesson when every line is banked', () => {
     const runner = new LessonRunner(lesson, base());
     playCurrentLine(runner);

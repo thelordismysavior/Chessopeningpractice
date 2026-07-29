@@ -13,19 +13,19 @@ import { planFenTransition, planMoveTransition, settleDisplayFen, type MoveTrans
 import { renderBoard, renderEvalBar, updateBoard, updateEvalBar, type BoardAnimation, type BoardState, type SquareRoute } from '../board-view';
 import { engine } from '../engine/engine-client';
 import { centipawnLoss, costPhrase, type EvalScore } from '../engine/eval-scale';
-import { app, bindSettings, escapeHtml, levelNames, resetPageScroll, settingsDialogMarkup, sideNames } from './shell';
+import { app, bindSettings, brandMarkup, escapeHtml, levelNames, resetPageScroll, settingsDialogMarkup, sideNames } from './shell';
 import type { Navigate, PracticeScreen } from './navigation';
 
 const DRAG_THRESHOLD_PX = 6;
 const TOUCH_LIFT_OFFSET_PX = -48;
 
 export async function startPractice(navigate: Navigate, email: string | null, options: PracticeScreen): Promise<void> {
-  const { course, level, progress, reviewPositionIds = [], run, entryHandoff } = options;
+  const { course, level, progress, variationId, reviewPositionIds = [], run, entryHandoff } = options;
   resetPageScroll();
   engine.reset();
   engine.warm();
   const lesson = course.lessons[level];
-  const session = new LessonRunner(lesson, progress, { reviewPositionIds });
+  const session = new LessonRunner(lesson, progress, { variationId, reviewPositionIds });
   const masteryBefore = courseMastery(course, progress);
   let selected: string | null = null;
   let feedback: RunnerFeedback | null = null;
@@ -108,15 +108,18 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   const draw = () => {
     const snapshot: RunnerSnapshot = session.snapshot;
     const lessonComplete = snapshot.lessonComplete && !sequenceActive;
+    const levelComplete = lessonComplete && session.progressFor(level).completedLevels.includes(level);
     const completionMessage = saveError
-      ? nextLevel ? `Save progress to unlock ${levelNames[nextLevel]}.` : 'Save progress before leaving the course.'
-      : nextLevel ? `${levelNames[level]} complete. ${levelNames[nextLevel]} unlocked.` : `${levelNames[level]} complete. Course complete.`;
+      ? 'Save progress before leaving the course.'
+      : levelComplete
+        ? nextLevel ? `${levelNames[level]} complete. ${levelNames[nextLevel]} unlocked.` : `${levelNames[level]} complete. Course complete.`
+        : 'Line complete.';
     const position = sequenceActive && sequencePosition ? sequencePosition : snapshot.position ?? lesson.positions[lesson.positions.length - 1];
     const chess = new Chess(animation?.plan.fromFen ?? displayFen ?? position.fen);
     const status = sequenceActive
       ? 'Playing move'
       : snapshot.status === 'complete'
-        ? (snapshot.lessonComplete ? 'Lesson complete' : 'Review complete')
+        ? (snapshot.lessonComplete ? variationId ? 'Line complete' : 'Lesson complete' : 'Review complete')
         : snapshot.status === 'retrying'
           ? 'Retry this position'
           : `${course.side === 'white' ? 'White' : 'Black'} to move`;
@@ -171,7 +174,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       ? settleDisplayFen(learnerAfterFen ?? position.fen, replyAfterFen, session.snapshot.position?.fen ?? null)
       : chess.fen());
     const boardState: BoardState = { chess, selected, side: course.side, guide: expectedRoute, route: routeFlash, animation, dragging, settling: sequenceActive, interactive: !busy || sequenceActive, selectableColor };
-    const nextMain = document.createRange().createContextualFragment(`<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame"></div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`).firstElementChild!;
+    const nextMain = document.createRange().createContextualFragment(`<main class="practice-shell"><header class="topbar"><div class="topbar-lead"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><a class="wordmark" href="#/home">${brandMarkup()}</a></div><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame"></div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`).firstElementChild!;
     app.append(nextMain);
     const frame = nextMain.querySelector<HTMLDivElement>('.board-frame');
     if (frame) {
@@ -537,7 +540,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     }
     try {
       await pendingSave;
-      if (nextLevel) await navigate({ name: 'practice', course, level: nextLevel, progress: liveProgress });
+      if (nextLevel && !variationId) await navigate({ name: 'practice', course, level: nextLevel, progress: liveProgress });
       else await navigate({ name: 'dashboard' });
     } catch {
       leaving = false;

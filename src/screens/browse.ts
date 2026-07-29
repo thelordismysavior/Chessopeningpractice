@@ -85,7 +85,10 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
     }));
     app.querySelectorAll<HTMLButtonElement>('[data-line]').forEach((button, index) => button.addEventListener('click', () => {
       const row = visible[index];
-      if (row) openWalker(row);
+      if (row) {
+        openWalker(row);
+        void navigate({ name: 'browse', courseId: row.course.id, lineId: row.variation.id });
+      }
     }));
   };
 
@@ -96,10 +99,6 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
     let index = 0;
     let evalScore: EvalScore | null = null;
     const positions = row.variation.positions;
-    const unlocked = progressByCourse
-      ? LEVELS.indexOf(row.level) <= progressByCourse[row.course.id].unlockedLevel
-      : false;
-
     const drawWalker = () => {
       if (generation !== walkerGeneration) return;
       const position = positions[index];
@@ -107,9 +106,12 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
       const guide = { from: position.expectedMove.slice(0, 2), to: position.expectedMove.slice(2, 4) };
       const moves = positions.map((entry, entryIndex) => `<li class="walker-move ${entryIndex === index ? 'is-current' : ''}">${String(entryIndex + 1).padStart(2, '0')} ${escapeHtml(entry.expectedSan)}</li>`).join('');
       const boardState = { chess, selected: null, side: row.course.side, guide, route: null, animation: null, dragging: false, settling: false, interactive: false, selectableColor: row.course.side === 'white' ? 'w' as const : 'b' as const };
-      app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'walker-back', label: 'Browse' } })}<section class="walker"><div class="walker-copy"><p class="eyebrow">${escapeHtml(row.course.name)} &middot; ${levelNames[row.level]} &middot; move ${index + 1} of ${positions.length}</p><span class="side-tag">${sideNames[row.course.side]}</span><p class="line-title">${escapeHtml(row.variation.title)}</p><p class="lede">${escapeHtml(row.variation.summary)}</p><div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div><ol class="walker-moves">${moves}</ol><div class="walker-actions"><button id="walker-prev" class="quiet-button"${index === 0 ? ' disabled' : ''}>&lt;- Previous</button><button id="walker-next" class="quiet-button"${index === positions.length - 1 ? ' disabled' : ''}>Next -&gt;</button>${unlocked ? '<button id="walker-practice">Practice this level</button>' : ''}</div><p class="walker-note">Studying only. Nothing here changes your progress.</p></div><div class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame">${renderBoard(boardState)}</div><div class="board-caption"><span>${escapeHtml(position.expectedSan)} is the move</span><span>Move ${index + 1} of ${positions.length}</span></div></div></section></main>`;
+      app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'walker-back', label: 'Browse' } })}<section class="walker"><div class="walker-copy"><p class="eyebrow">${escapeHtml(row.course.name)} &middot; ${levelNames[row.level]} &middot; move ${index + 1} of ${positions.length}</p><span class="side-tag">${sideNames[row.course.side]}</span><p class="line-title">${escapeHtml(row.variation.title)}</p><p class="lede">${escapeHtml(row.variation.summary)}</p><div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div><ol class="walker-moves">${moves}</ol><div class="walker-actions"><button id="walker-prev" class="quiet-button"${index === 0 ? ' disabled' : ''}>&lt;- Previous</button><button id="walker-next" class="quiet-button"${index === positions.length - 1 ? ' disabled' : ''}>Next -&gt;</button>${progressByCourse ? '<button id="walker-practice">Practice this line</button>' : ''}</div><p class="walker-note">Studying only. Nothing here changes your progress.</p></div><div class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame">${renderBoard(boardState)}</div><div class="board-caption"><span>${escapeHtml(position.expectedSan)} is the move</span><span>Move ${index + 1} of ${positions.length}</span></div></div></section></main>`;
 
-      document.querySelector('#walker-back')!.addEventListener('click', () => drawIndex());
+      document.querySelector('#walker-back')!.addEventListener('click', () => {
+        drawIndex();
+        void navigate({ name: 'browse' });
+      });
       document.querySelector('#sign-out')!.addEventListener('click', () => {
         disposeWalker();
         void signOutUser();
@@ -119,7 +121,7 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
       document.querySelector('#walker-practice')?.addEventListener('click', () => {
         if (!progressByCourse) return;
         disposeWalker();
-        void navigate({ name: 'practice', course: row.course, level: row.level, progress: progressByCourse[row.course.id] });
+        void navigate({ name: 'practice', course: row.course, level: row.level, progress: progressByCourse[row.course.id], variationId: row.variation.id });
       });
 
       const fen = position.fen;

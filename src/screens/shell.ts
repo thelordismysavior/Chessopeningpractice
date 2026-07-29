@@ -1,5 +1,6 @@
 import { loadMoveDuration, saveMoveDuration } from '../move-settings';
 import type { Course, LevelKey } from '../courses';
+import { hashForRoute, HOME_HASH, type HashRoute } from '../router';
 
 export const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -21,13 +22,25 @@ export type TopbarOptions = {
   links?: { id: string; label: string }[];
 };
 
+export function brandMarkup(): string {
+  return '<span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="brand-name">LINE/64</span>';
+}
+
+function topbarLink(link: { id: string; label: string }): string {
+  const routes: Partial<Record<string, HashRoute>> = { browse: { name: 'browse' }, sources: { name: 'sources' }, 'review-queue': { name: 'review-queue' }, 'queue-nav': { name: 'review-queue' } };
+  const route = routes[link.id];
+  return route
+    ? `<a id="${link.id}" href="${hashForRoute(route)}" class="quiet-button">${escapeHtml(link.label)}</a>`
+    : `<button id="${link.id}" class="quiet-button">${escapeHtml(link.label)}</button>`;
+}
+
 export function topbarMarkup(options: TopbarOptions): string {
   const lead = options.back
-    ? `<button id="${options.back.id}" class="back-button">&lt;- <span>${escapeHtml(options.back.label)}</span></button>`
+    ? `<div class="topbar-lead"><button id="${options.back.id}" class="back-button">&lt;- <span>${escapeHtml(options.back.label)}</span></button><a class="wordmark" href="${HOME_HASH}">${brandMarkup()}</a></div>`
     : options.wordmark
-      ? '<a class="wordmark" href="#">Chess Practice<span>.</span></a>'
+      ? `<a class="wordmark" href="${HOME_HASH}">${brandMarkup()}</a>`
       : '';
-  const links = (options.links ?? []).map((link) => `<button id="${link.id}" class="quiet-button">${escapeHtml(link.label)}</button>`).join('');
+  const links = (options.links ?? []).map(topbarLink).join('');
   return `<header class="topbar">${lead}<div class="account">${links}<span>${escapeHtml(options.email) || 'owner'}</span><button id="sign-out" class="quiet-button">Sign out</button></div></header>`;
 }
 
