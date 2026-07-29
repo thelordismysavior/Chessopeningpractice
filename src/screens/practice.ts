@@ -13,8 +13,8 @@ import { planFenTransition, planMoveTransition, settleDisplayFen, type MoveTrans
 import { renderBoard, renderEvalBar, updateBoard, updateEvalBar, type BoardAnimation, type BoardState, type SquareRoute } from '../board-view';
 import { engine } from '../engine/engine-client';
 import { centipawnLoss, costPhrase, type EvalScore } from '../engine/eval-scale';
-import { app, bindSettings, escapeHtml, levelNames, resetPageScroll, settingsDialogMarkup, sideNames } from './shell';
-import type { Navigate, PracticeScreen } from './navigation';
+import { app, bindSettings, escapeHtml, levelNames, resetPageScroll, settingsDialogMarkup, sideNames, topbarMarkup } from './shell';
+import type { Navigate, PracticeScreen, Screen } from './navigation';
 
 const DRAG_THRESHOLD_PX = 6;
 const TOUCH_LIFT_OFFSET_PX = -48;
@@ -171,7 +171,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       ? settleDisplayFen(learnerAfterFen ?? position.fen, replyAfterFen, session.snapshot.position?.fen ?? null)
       : chess.fen());
     const boardState: BoardState = { chess, selected, side: course.side, guide: expectedRoute, route: routeFlash, animation, dragging, settling: sequenceActive, interactive: !busy || sequenceActive, selectableColor };
-    const nextMain = document.createRange().createContextualFragment(`<main class="practice-shell"><header class="topbar"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame"></div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`).firstElementChild!;
+    const nextMain = document.createRange().createContextualFragment(`<main class="practice-shell">${topbarMarkup({ email, active: session.reviewMode ? 'review' : 'drill', back: { id: 'back-dashboard', label: 'Home' } })}${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-identity"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="practice-layout"><section class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame"></div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section></div>${settingsDialogMarkup(moveDuration, email)}</main>`).firstElementChild!;
     app.append(nextMain);
     const frame = nextMain.querySelector<HTMLDivElement>('.board-frame');
     if (frame) {
@@ -187,7 +187,16 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     Array.from(app.children).forEach((child) => {
       if (child !== nextMain) child.remove();
     });
-    bindSettings((duration) => { moveDuration = duration; });
+    bindSettings(
+      (duration) => { moveDuration = duration; },
+      undefined,
+      undefined,
+      undefined,
+      {
+        onSources: () => void leavePractice(false, { name: 'sources' }),
+        onSignOut: () => void leavePractice(true),
+      },
+    );
     if (!lessonComplete) completionFocusRequested = false;
     if (lessonComplete && !completionFocusRequested) {
       completionFocusRequested = true;
@@ -212,7 +221,14 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     }
 
     document.querySelector('#back-dashboard')!.addEventListener('click', () => void leavePractice());
-    document.querySelector('#practice-sign-out')!.addEventListener('click', () => void leavePractice(true));
+    app.querySelectorAll<HTMLElement>('[data-nav]').forEach((control) => control.addEventListener('click', (event) => {
+      event.preventDefault();
+      const destination = control.dataset.nav;
+      if (destination === 'home') void leavePractice(false, { name: 'dashboard' });
+      if (destination === 'learn') void leavePractice(false, { name: 'browse' });
+      if (destination === 'drill') void leavePractice(false, { name: 'drill' });
+      if (destination === 'review') void leavePractice(false, { name: 'review-queue' });
+    }));
     document.querySelector('#exit-practice')?.addEventListener('click', () => void leavePractice());
     document.querySelector('#back-after-complete')?.addEventListener('click', () => void leavePractice());
     document.querySelector('#back-to-queue')?.addEventListener('click', () => void (async () => {
@@ -546,14 +562,14 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     }
   };
 
-  const leavePractice = async (signOut = false) => {
+  const leavePractice = async (signOut = false, destination: Screen = { name: 'dashboard' }) => {
     leaving = true;
     if (handoffTimer !== null) window.clearTimeout(handoffTimer);
     try {
       await pendingSave;
       if (!saveError) {
         if (signOut) await signOutUser();
-        else await navigate({ name: 'dashboard' });
+        else await navigate(destination);
       }
     } catch {
       leaving = false;

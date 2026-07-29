@@ -1,8 +1,7 @@
 import { COURSES, coursesById, type Course, type LevelKey } from '../courses';
 import { loadProgress, type CourseProgress } from '../progress';
 import { reviewQueue, type ReviewGroup } from '../review-queue';
-import { signOutUser } from '../firebase';
-import { app, escapeHtml, levelNames, resetPageScroll, topbarMarkup } from './shell';
+import { app, bindPrimaryNavigation, bindSettings, escapeHtml, levelNames, loadMoveDuration, resetPageScroll, settingsDialogMarkup, topbarMarkup } from './shell';
 import type { Navigate } from './navigation';
 
 function groupRow(group: ReviewGroup, index: number): string {
@@ -21,10 +20,11 @@ export async function renderReviewQueue(navigate: Navigate, email: string | null
     const body = queue.groups.length
       ? `<p class="lede">${queue.total} position${queue.total === 1 ? '' : 's'} across ${queue.groups.length} lesson${queue.groups.length === 1 ? '' : 's'}. Two clean answers clear a position.</p><div class="queue-actions"><button id="review-all">Review all ${queue.total}</button></div><div class="queue-list">${queue.groups.map(groupRow).join('')}</div>`
       : '<p class="lede queue-empty">Nothing is due. Everything you have banked is holding.</p>';
-    app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'back-dashboard', label: 'Dashboard' } })}<section class="queue-page"><p class="eyebrow">Review queue</p><h1>What needs another look.</h1>${body}</section></main>`;
+    app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, active: 'review', reviewCount: queue.total, back: { id: 'back-dashboard', label: 'Home' } })}<section class="queue-page"><p class="eyebrow">Review · Honest state</p><h1>What needs another look.</h1>${body}</section>${settingsDialogMarkup(loadMoveDuration(), email)}</main>`;
 
     document.querySelector('#back-dashboard')!.addEventListener('click', () => void navigate({ name: 'dashboard' }));
-    document.querySelector('#sign-out')!.addEventListener('click', () => void signOutUser());
+    bindPrimaryNavigation(navigate);
+    bindSettings(() => undefined, undefined, undefined, navigate);
 
     const startGroup = (index: number, run = false) => {
       const group = queue.groups[index];

@@ -4,3 +4,4 @@ dist/
 .firebase/
 .worktrees/
 src-tauri/target/
+.scratch/**/vite.*.log

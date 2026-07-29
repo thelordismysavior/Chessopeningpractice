@@ -128,13 +128,13 @@ for (const viewport of VIEWPORTS) {
       await expect(row.locator('.meter-segment.is-banked')).toHaveCount(1);
       await expect(row.locator('.meter-segment.is-untouched')).toHaveCount(3);
       await expect(page.locator('.mastery-figure strong')).toHaveText(`${Math.round(1 / 72 * 100)}%`);
-      await expect(page.locator('#review-queue')).toContainText('Review 1 position');
+      await expect(page.locator('[data-nav="review"]:visible .nav-badge')).toHaveText('1');
     });
 
     test('the review entry is absent with nothing due, and the queue shows its empty state', async ({ page }) => {
       await stubEngine(page);
       await openDashboard(page, viewport.width, viewport.height);
-      await expect(page.locator('#review-queue')).toHaveCount(0);
+      await expect(page.locator('[data-nav="review"]:visible .nav-badge')).toHaveCount(0);
       await expect(page.locator('.mastery-figure strong')).toHaveText('0%');
     });
 
@@ -145,7 +145,7 @@ for (const viewport of VIEWPORTS) {
       await seedProgress(page, COURSES[1].id, bankedProgress(1, true));
       await page.reload();
 
-      await page.locator('#review-queue').click();
+      await page.locator('[data-nav="review"]:visible').click();
       await expect(page.locator('.queue-row')).toHaveCount(2);
       await expect(page.locator('.queue-row').first()).toContainText(COURSES[0].name);
       await expect(page.locator('.queue-row').nth(1)).toContainText(COURSES[1].name);
@@ -173,7 +173,7 @@ test('a failed Review all save blocks the next group until retry succeeds', asyn
   await seedProgress(page, COURSES[1].id, bankedProgress(1, true));
   await page.reload();
 
-  await page.locator('#review-queue').click();
+  await page.locator('[data-nav="review"]:visible').click();
   await page.locator('#review-all').click();
   const position = COURSES[0].lessons.beginner.variations[0].positions[0];
   await playMove(page, position.expectedMove);
@@ -186,7 +186,7 @@ test('a failed Review all save blocks the next group until retry succeeds', asyn
   await playMove(page, position.expectedMove);
   await expect(page.locator('#retry-save')).toBeVisible();
   await page.locator('#next-group').click();
-  await expect(page.locator('.practice-meta')).toContainText(COURSES[0].name);
+  await expect(page.locator('.practice-identity')).toContainText(COURSES[0].name);
   await expect(page.locator('#retry-save')).toBeVisible();
 
   await page.locator('#retry-save').click();
@@ -341,14 +341,14 @@ test('every screen works with the engine asset blocked', async ({ page }) => {
   await expect(page.locator('.move-cost')).toHaveCount(0);
 });
 
-test('the bar is vertical on a wide viewport and horizontal on a narrow one', async ({ page }) => {
+test('the bar stays horizontal with the one-column board layout', async ({ page }) => {
   await stubEngine(page);
   await openDashboard(page, 1440, 1000);
   await page.locator('#browse').click();
   await page.locator('.browse-row').first().click();
   await expect(page.locator('.eval-value')).toHaveText('+1.2');
   const wide = await page.locator('.eval-bar').boundingBox();
-  expect(wide!.height).toBeGreaterThan(wide!.width);
+  expect(wide!.width).toBeGreaterThan(wide!.height);
 
   await page.setViewportSize({ width: 390, height: 844 });
   const narrow = await page.locator('.eval-bar').boundingBox();

@@ -5,8 +5,8 @@ import { engine } from '../engine/engine-client';
 import type { EvalScore } from '../engine/eval-scale';
 import { lineState, type LineState } from '../mastery';
 import { loadProgress, type CourseProgress } from '../progress';
-import { signOutUser } from '../firebase';
-import { app, escapeHtml, levelNames, resetPageScroll, sideNames, topbarMarkup } from './shell';
+import { reviewQueue } from '../review-queue';
+import { app, bindPrimaryNavigation, bindSettings, escapeHtml, levelNames, loadMoveDuration, resetPageScroll, settingsDialogMarkup, sideNames, topbarMarkup } from './shell';
 import type { BrowseScreen, Navigate } from './navigation';
 
 type Row = { course: Course; level: LevelKey; variation: Variation; state: LineState | null };
@@ -50,6 +50,7 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
   }
 
   const rows = buildRows(progressByCourse);
+  const reviewCount = progressByCourse ? reviewQueue(progressByCourse).total : 0;
   const filters: Filters = { course: screen.courseId ?? 'all', state: 'all' };
   let walkerGeneration = 0;
   let removeWalkerKeyListener: (() => void) | null = null;
@@ -71,10 +72,11 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
     const list = visible.length
       ? `<div class="browse-list">${visible.map(rowMarkup).join('')}</div>`
       : '<p class="browse-note">No lines match those filters.</p>';
-    app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'back-dashboard', label: 'Dashboard' } })}<section class="browse-page"><p class="eyebrow">Browse &amp; study</p><h1>Read any line, any time.</h1><p class="lede">Every line in the repertoire, locked or not. Stepping through a line here changes no progress.</p>${note}<div class="filter-chips">${courseChips}</div><div class="filter-chips">${stateChipButtons}</div>${list}</section></main>`;
+    app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, active: 'learn', reviewCount, back: { id: 'back-dashboard', label: 'Home' } })}<section class="browse-page"><p class="eyebrow">Learn · Repertoire</p><h1>Read any line.<br>Change nothing.</h1><p class="lede">Every line is open for study. Walking through a position here never changes progress.</p>${note}<div class="filter-chips" aria-label="Filter by course">${courseChips}</div><div class="filter-chips" aria-label="Filter by state">${stateChipButtons}</div>${list}</section>${settingsDialogMarkup(loadMoveDuration(), email)}</main>`;
 
     document.querySelector('#back-dashboard')!.addEventListener('click', () => void navigate({ name: 'dashboard' }));
-    document.querySelector('#sign-out')!.addEventListener('click', () => void signOutUser());
+    bindPrimaryNavigation(navigate);
+    bindSettings(() => undefined, undefined, undefined, navigate);
     app.querySelectorAll<HTMLButtonElement>('[data-course-filter]').forEach((button) => button.addEventListener('click', () => {
       filters.course = button.dataset.courseFilter as Filters['course'];
       drawIndex();
@@ -107,13 +109,11 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
       const guide = { from: position.expectedMove.slice(0, 2), to: position.expectedMove.slice(2, 4) };
       const moves = positions.map((entry, entryIndex) => `<li class="walker-move ${entryIndex === index ? 'is-current' : ''}">${String(entryIndex + 1).padStart(2, '0')} ${escapeHtml(entry.expectedSan)}</li>`).join('');
       const boardState = { chess, selected: null, side: row.course.side, guide, route: null, animation: null, dragging: false, settling: false, interactive: false, selectableColor: row.course.side === 'white' ? 'w' as const : 'b' as const };
-      app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'walker-back', label: 'Browse' } })}<section class="walker"><div class="walker-copy"><p class="eyebrow">${escapeHtml(row.course.name)} &middot; ${levelNames[row.level]} &middot; move ${index + 1} of ${positions.length}</p><span class="side-tag">${sideNames[row.course.side]}</span><p class="line-title">${escapeHtml(row.variation.title)}</p><p class="lede">${escapeHtml(row.variation.summary)}</p><div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div><ol class="walker-moves">${moves}</ol><div class="walker-actions"><button id="walker-prev" class="quiet-button"${index === 0 ? ' disabled' : ''}>&lt;- Previous</button><button id="walker-next" class="quiet-button"${index === positions.length - 1 ? ' disabled' : ''}>Next -&gt;</button>${unlocked ? '<button id="walker-practice">Practice this level</button>' : ''}</div><p class="walker-note">Studying only. Nothing here changes your progress.</p></div><div class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame">${renderBoard(boardState)}</div><div class="board-caption"><span>${escapeHtml(position.expectedSan)} is the move</span><span>Move ${index + 1} of ${positions.length}</span></div></div></section></main>`;
+      app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, active: 'learn', reviewCount, back: { id: 'walker-back', label: 'Learn' } })}<section class="walker"><div class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame">${renderBoard(boardState)}</div><div class="board-caption"><span>${escapeHtml(position.expectedSan)} is the move</span><span>Move ${index + 1} of ${positions.length}</span></div></div><div class="walker-copy"><p class="eyebrow">${escapeHtml(row.course.name)} · ${levelNames[row.level]} · ${String(index + 1).padStart(2, '0')}/${String(positions.length).padStart(2, '0')}</p><span class="side-tag">${sideNames[row.course.side]}</span><p class="line-title">${escapeHtml(row.variation.title)}</p><p class="lede">${escapeHtml(row.variation.summary)}</p><div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div><ol class="walker-moves">${moves}</ol><div class="walker-actions"><button id="walker-prev" class="quiet-button"${index === 0 ? ' disabled' : ''}>Previous</button><button id="walker-next" class="quiet-button"${index === positions.length - 1 ? ' disabled' : ''}>Next</button>${unlocked ? '<button id="walker-practice">Practice this level</button>' : ''}</div><p class="walker-note">Study only. Progress stays exactly where it is.</p></div></section>${settingsDialogMarkup(loadMoveDuration(), email)}</main>`;
 
       document.querySelector('#walker-back')!.addEventListener('click', () => drawIndex());
-      document.querySelector('#sign-out')!.addEventListener('click', () => {
-        disposeWalker();
-        void signOutUser();
-      });
+      bindPrimaryNavigation(navigate);
+      bindSettings(() => undefined, undefined, undefined, navigate);
       document.querySelector('#walker-prev')?.addEventListener('click', () => step(-1));
       document.querySelector('#walker-next')?.addEventListener('click', () => step(1));
       document.querySelector('#walker-practice')?.addEventListener('click', () => {

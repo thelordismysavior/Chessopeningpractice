@@ -37,7 +37,7 @@ function submitLabel(button: HTMLButtonElement, label: string, arrow = false): v
 }
 
 function authFurniture(title: string, lede: string, body: string, links: string): string {
-  return `<main class="auth-page"><div class="brand-mark">CP</div><p class="eyebrow">A quieter way to learn openings</p><h1>${escapeHtml(title)}</h1><p class="lede">${escapeHtml(lede)}</p>${body}${links ? `<nav class="auth-links" aria-label="Account actions">${links}</nav>` : ''}</main>`;
+  return `<main class="auth-page"><div class="auth-wordmark" aria-label="LINE 64">LINE<span>/</span>64</div><p class="eyebrow">Board first · Recall over browse</p><h1>${escapeHtml(title)}</h1><p class="lede">${escapeHtml(lede)}</p>${body}${links ? `<nav class="auth-links" aria-label="Account actions">${links}</nav>` : ''}<p class="auth-foot">Learn the position. Produce the move. Bank the line.</p></main>`;
 }
 
 function errorMarkup(): string {
@@ -56,8 +56,8 @@ function bindModeLinks(options: AuthOptions): void {
 
 function signInMarkup(options: AuthOptions): void {
   app.innerHTML = authFurniture(
-    'Chess Practice',
-    'Private opening practice for one learner.',
+    'Recall the line.',
+    'A private opening repertoire for one learner. Nothing competes with the board.',
     `<form id="auth-form" class="auth-form" novalidate><label for="auth-email">Email</label><input id="auth-email" name="email" type="email" autocomplete="email" required aria-describedby="auth-error"><label for="auth-password">Password</label><input id="auth-password" name="password" type="password" autocomplete="current-password" required aria-describedby="auth-error">${errorMarkup()}<button type="submit" id="auth-submit" class="auth-submit">Sign in <span aria-hidden="true">-&gt;</span></button></form>`,
     '<a href="#create-account" data-auth-mode="signup">Create account</a><a href="#forgot-password" data-auth-mode="reset">Forgot password?</a>',
   );
@@ -185,6 +185,6 @@ export function renderAuth(mode: AuthMode, options: AuthOptions): void {
 
 export function renderPendingApproval(uid: string, onBack: () => void): void {
   resetPageScroll();
-  app.innerHTML = `<main class="auth-page pending-page"><div class="brand-mark">CP</div><p class="eyebrow">A quieter way to learn openings</p><h1>Approval needed</h1><p class="lede">Your account was created, but access still needs to be approved before progress can be saved.</p><section class="pending-content"><p>Set <code>config/access.approvedUid</code> to this UID in the Firebase console:</p><code class="pending-uid" tabindex="0">${escapeHtml(uid)}</code><p>After approval, return here and sign in with your new password.</p><button type="button" id="back-to-signin" class="auth-submit">Back to sign in</button></section></main>`;
+  app.innerHTML = `<main class="auth-page pending-page"><div class="auth-wordmark" aria-label="LINE 64">LINE<span>/</span>64</div><p class="eyebrow">Board first · Recall over browse</p><h1>Approval needed.</h1><p class="lede">Your account exists, but access must be approved before LINE/64 can save progress.</p><section class="pending-content"><p>Set <code>config/access.approvedUid</code> to this UID in the Firebase console:</p><code class="pending-uid" tabindex="0">${escapeHtml(uid)}</code><p>After approval, return here and sign in with your new password.</p><button type="button" id="back-to-signin" class="auth-submit">Back to sign in</button></section></main>`;
   app.querySelector<HTMLButtonElement>('#back-to-signin')!.addEventListener('click', onBack);
 }

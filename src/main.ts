@@ -7,6 +7,7 @@ import { renderSources } from './screens/sources';
 import { startPractice } from './screens/practice';
 import { renderReviewQueue } from './screens/review-queue';
 import { renderBrowse } from './screens/browse';
+import { renderDrillLauncher } from './screens/drill';
 import type { Navigate, Screen } from './screens/navigation';
 
 let signedInEmail: string | null = null;
@@ -19,6 +20,8 @@ const navigate: Navigate = async (screen: Screen) => {
       return renderDashboard(navigate, signedInEmail);
     case 'sources':
       return renderSources(navigate, signedInEmail);
+    case 'drill':
+      return renderDrillLauncher(navigate, signedInEmail);
     case 'practice':
       return startPractice(navigate, signedInEmail, screen);
     case 'review-queue':

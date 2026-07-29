@@ -79,15 +79,15 @@ test('summary, review clear streak, and Proceed route to Intermediate', async ({
   await expect(page.locator('#review-now')).toBeVisible();
 
   await page.locator('#back-dashboard').click();
-  await expect(page.locator('#review-queue')).toBeVisible();
+  await expect(page.locator('[data-nav="review"]:visible .nav-badge')).toBeVisible();
 
-  await page.locator('#review-queue').click();
+  await page.locator('[data-nav="review"]:visible').click();
   await page.locator('.queue-row button').first().click();
   const reviewMove = firstLine[0];
   await playMove(page, reviewMove);
   await playMove(page, reviewMove);
   await page.locator('#back-after-complete').click();
-  await expect(page.locator('#review-queue')).toHaveCount(0);
+  await expect(page.locator('[data-nav="review"]:visible .nav-badge')).toHaveCount(0);
   await expect(page.locator('.course-card').first().locator('button[data-level="intermediate"]')).toBeEnabled();
 });
 

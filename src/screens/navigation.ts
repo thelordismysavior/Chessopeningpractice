@@ -13,9 +13,11 @@ export type PracticeScreen = {
 };
 
 export type BrowseScreen = { name: 'browse'; courseId?: Course['id']; lineId?: string };
+export type PrimaryDestination = 'home' | 'learn' | 'drill' | 'review';
 
 export type Screen =
   | { name: 'dashboard' }
+  | { name: 'drill' }
   | { name: 'sources' }
   | { name: 'review-queue' }
   | BrowseScreen
