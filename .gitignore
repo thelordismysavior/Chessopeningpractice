@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .env.local
+src-tauri/gen/android/keystore.properties
+src-tauri/gen/android/release.keystore
 .firebase/
 .worktrees/
 src-tauri/target/
