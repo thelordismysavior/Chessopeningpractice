@@ -54,6 +54,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   let replyAfterFen: string | null = null;
   let cutRequested = false;
   let cutSquare: string | null = null;
+  let modeOverride: 'learn' | 'drill' | null = null;
   let releaseWait: (() => void) | null = null;
   let completionFocusRequested = false;
   let leaving = false;
@@ -127,7 +128,8 @@ export async function startPractice(navigate: Navigate, email: string | null, op
         : snapshot.status === 'retrying'
           ? 'Retry this position'
           : `${course.side === 'white' ? 'White' : 'Black'} to move`;
-    const showGuide = !sequenceActive && shouldShowMoveGuide(snapshot.phase, snapshot.status, snapshot.hintLevel);
+    const practiceMode = modeOverride ?? (snapshot.phase === 'teach' ? 'learn' : 'drill');
+    const showGuide = !sequenceActive && snapshot.status !== 'complete' && (modeOverride === 'learn' || (modeOverride === null && shouldShowMoveGuide(snapshot.phase, snapshot.status, snapshot.hintLevel)));
     const expectedRoute = showGuide ? { from: position.expectedMove.slice(0, 2), to: position.expectedMove.slice(2, 4) } : null;
     const moveCount = snapshot.positionCount || lesson.positions.length;
     const moveOrdinal = Math.min(snapshot.positionIndex + 1, moveCount);
@@ -192,7 +194,10 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     const settledFen = sequenceActive || animation ? null : chess.fen();
     if (settledFen && settledFen !== evalFen) evalScore = null;
     const boardState: BoardState = { chess, selected, side: course.side, guide: expectedRoute, hintSquare: snapshot.hintLevel === 2 ? position.expectedMove.slice(2, 4) : null, route: routeFlash, animation, dragging, settling: sequenceActive, interactive: !busy || sequenceActive, selectableColor };
-    const nextMain = document.createRange().createContextualFragment(`<main class="practice-shell"><header class="topbar"><div class="topbar-lead"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><a class="wordmark" href="#/home">${brandMarkup()}</a></div><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><nav class="topbar-nav" aria-label="Practice navigation"><button id="settings" class="quiet-button">Settings</button></nav><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why this move</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel"><div class="eval-host"></div><div class="board-frame"></div><div class="board-caption" aria-live="polite"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`).firstElementChild!;
+    const modeSwitchMarkup = snapshot.status === 'complete'
+      ? ''
+      : `<div class="mode-switch" role="tablist" aria-label="Practice mode"><button id="practice-learn" role="tab" aria-selected="${practiceMode === 'learn'}" type="button">Learn</button><button id="practice-drill" role="tab" aria-selected="${practiceMode === 'drill'}" type="button">Drill</button></div>`;
+    const nextMain = document.createRange().createContextualFragment(`<main class="practice-shell shell"><header class="appbar practice-appbar"><button id="back-dashboard" class="back-button" aria-label="Dashboard">&larr;<span>Dashboard</span></button><a class="wordmark" href="#/home">${brandMarkup()}</a><div class="practice-controls"><button id="settings" class="icon-button" type="button" aria-label="Settings">&middot;&middot;&middot;</button><button id="practice-sign-out" class="quiet-button utility-only" type="button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}${modeSwitchMarkup}</section><section class="board-panel"><div class="eval-host"></div><div class="board-frame"></div><div class="board-caption" aria-live="polite"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section><section class="practice-details"><div class="explanation"><span class="explanation-mark">Why this move</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section></div>${settingsDialogMarkup(moveDuration)}</main>`).firstElementChild!;
     app.append(nextMain);
     const panel = nextMain.querySelector<HTMLElement>('.board-panel');
     const evalHost = nextMain.querySelector<HTMLElement>('.eval-host');
@@ -241,6 +246,8 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       });
     }
 
+    document.querySelector('#practice-learn')?.addEventListener('click', () => { modeOverride = 'learn'; draw(); });
+    document.querySelector('#practice-drill')?.addEventListener('click', () => { modeOverride = 'drill'; draw(); });
     document.querySelector('#back-dashboard')!.addEventListener('click', () => void leavePractice());
     document.querySelector('#practice-sign-out')!.addEventListener('click', () => void leavePractice(true));
     document.querySelector('#exit-practice')?.addEventListener('click', () => void leavePractice());
