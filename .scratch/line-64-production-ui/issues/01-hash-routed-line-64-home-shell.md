@@ -4,15 +4,19 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** complete
 
-- [ ] Successful authentication lands on Home rather than entering Practice automatically.
-- [ ] Visible branding, titles, colors, typography, spacing, controls, focus, and responsive geometry follow the LINE/64 handoff.
-- [ ] Existing package, Firebase, storage, and Tauri identifiers remain unchanged.
-- [ ] Hash routes support addressable surfaces, route parameters, browser Back, refresh, and safe fallback to Home without a routing dependency.
-- [ ] Home shows the real four courses, existing progress, and one dominant due or recommended Continue action.
-- [ ] Authentication, approval, pending, loading, failure, retry, and sign-out behavior remain functional and use the LINE/64 visual language.
-- [ ] Shared navigation uses real links or buttons with accurate accessible names and 44 px minimum targets.
-- [ ] Loading, empty, and error states preserve layout and provide one clear recovery action.
-- [ ] Stubbed browser coverage proves Home entry, routing, Back, refresh, and deep-link fallback through observable behavior.
+- [x] Successful authentication lands on Home rather than entering Practice automatically.
+- [x] Visible branding, titles, colors, typography, spacing, controls, focus, and responsive geometry follow the LINE/64 handoff.
+- [x] Existing package, Firebase, storage, and Tauri identifiers remain unchanged.
+- [x] Hash routes support addressable surfaces, route parameters, browser Back, refresh, and safe fallback to Home without a routing dependency.
+- [x] Home shows the real four courses, existing progress, and one dominant due or recommended Continue action.
+- [x] Authentication, approval, pending, loading, failure, retry, and sign-out behavior remain functional and use the LINE/64 visual language.
+- [x] Shared navigation uses real links or buttons with accurate accessible names and 44 px minimum targets.
+- [x] Loading, empty, and error states preserve layout and provide one clear recovery action.
+- [x] Stubbed browser coverage proves Home entry, routing, Back, refresh, and deep-link fallback through observable behavior.
+
+## Comments
+
+Implemented in the hash-routed LINE/64 Home shell. Verified by build, unit tests, and 47 stubbed browser tests.
 
