@@ -1,7 +1,7 @@
 import type { DrillPhase, DrillStatus } from './line-drill';
 
-export function shouldShowMoveGuide(phase: DrillPhase, status: DrillStatus, hintVisible: boolean): boolean {
+export function shouldShowMoveGuide(phase: DrillPhase, status: DrillStatus, hintLevel: number | boolean): boolean {
   if (status === 'complete') return false;
   if (phase === 'teach') return true;
-  return hintVisible;
+  return typeof hintLevel === 'number' ? hintLevel >= 3 : hintLevel;
 }

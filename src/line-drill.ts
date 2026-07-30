@@ -9,7 +9,7 @@ export type DrillFeedbackKind = 'correct' | 'incorrect' | 'illegal' | 'complete'
 
 export type DrillConfig = { teachPass: boolean; mistakeBudget?: number };
 
-export type DrillOutcomeEntry = PositionOutcome & { positionId: string; phase: DrillPhase };
+export type DrillOutcomeEntry = PositionOutcome & { positionId: string; phase: DrillPhase; recovery?: boolean };
 
 export type DrillSnapshot = {
   phase: DrillPhase;
@@ -20,6 +20,7 @@ export type DrillSnapshot = {
   mistakes: number;
   mistakeBudget: number | null;
   hintVisible: boolean;
+  hintLevel: number;
   banked: boolean;
 };
 
@@ -33,7 +34,7 @@ export type DrillFeedback = {
 };
 
 export class LineDrill {
-  private readonly positions: PracticePosition[];
+  private positions: PracticePosition[];
   private readonly budget: number | null;
   private phase: DrillPhase;
   private status: DrillStatus = 'active';
@@ -44,6 +45,9 @@ export class LineDrill {
   private attemptsOnPosition = 0;
   private wrongOnPosition = false;
   private hintedOnPosition = false;
+  private hintLevel = 0;
+  private recovery = false;
+  private readonly missedPositions: PracticePosition[] = [];
   private readonly log: DrillOutcomeEntry[] = [];
 
   constructor(positions: PracticePosition[], config: DrillConfig) {
@@ -62,6 +66,7 @@ export class LineDrill {
       mistakes: this.mistakes,
       mistakeBudget: this.phase === 'recall' ? this.budget : null,
       hintVisible: this.hintVisible,
+      hintLevel: this.hintLevel,
       banked: this.banked,
     };
   }
@@ -72,6 +77,7 @@ export class LineDrill {
 
   requestHint(): DrillSnapshot {
     if (this.status === 'complete') return this.snapshot;
+    this.hintLevel = Math.min(3, this.hintLevel + 1);
     this.hintVisible = true;
     this.hintedOnPosition = true;
     return this.snapshot;
@@ -95,8 +101,9 @@ export class LineDrill {
     this.attemptsOnPosition += 1;
 
     if (move !== position.expectedMove) {
-      if (!this.wrongOnPosition && this.phase !== 'teach') this.mistakes += 1;
+      if (!this.wrongOnPosition && this.phase !== 'teach' && this.budget !== null) this.mistakes = Math.min(this.budget, this.mistakes + 1);
       this.wrongOnPosition = true;
+      if (this.phase === 'recall' && !this.missedPositions.some((entry) => entry.id === position.id)) this.missedPositions.push(position);
       this.status = 'retrying';
       return this.feedback('incorrect', `Not the repertoire move. ${position.expectedSan} keeps the plan: ${position.explanation}`, position, true);
     }
@@ -107,6 +114,7 @@ export class LineDrill {
       attempts: this.attemptsOnPosition,
       solvedFirstTry: !this.wrongOnPosition,
       hinted: this.hintedOnPosition,
+      ...(this.recovery ? { recovery: true } : {}),
     });
     this.resetPositionTracking();
     this.index += 1;
@@ -133,11 +141,13 @@ export class LineDrill {
       return this.feedback('correct', 'Review complete.', position, false);
     }
 
-    if (this.budget !== null && this.mistakes >= this.budget) {
+    if (!this.recovery && this.missedPositions.length) {
+      this.positions = [...this.missedPositions];
+      this.recovery = true;
       this.index = 0;
       this.mistakes = 0;
       this.status = 'active';
-      return this.feedback('correct', 'That pass had too many slips. Play the line again to bank it.', position, false);
+      return this.feedback('correct', 'Retry only the positions that slipped before banking.', position, false);
     }
 
     this.status = 'complete';
@@ -150,6 +160,7 @@ export class LineDrill {
     this.wrongOnPosition = false;
     this.hintedOnPosition = false;
     this.hintVisible = false;
+    this.hintLevel = 0;
   }
 
   private feedback(kind: DrillFeedbackKind, message: string, position: PracticePosition | null, retryRequired: boolean): DrillFeedback {

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { COURSES } from '../../src/courses';
+import { firstBranchPoint } from '../../src/lesson-runner';
 
 type LessonData = { lines: string[][] };
 
@@ -155,6 +156,9 @@ async function playLesson(page: Page, lines: string[][]): Promise<void> {
   if (!moves) return;
   for (const move of moves) await playMove(page, move);
   for (const move of moves) await playMove(page, move);
+  const lesson = COURSES[0].lessons.beginner;
+  const core = lesson.variations.find((variation) => variation.kind === 'core');
+  if (core) await playMove(page, firstBranchPoint(lesson, core)!.position.expectedMove);
 }
 
 test('click and drag moves work in Chromium', async ({ page }) => {
@@ -192,7 +196,7 @@ test('drag lift is owned by the app render tree', async ({ page }) => {
   await page.mouse.up();
 });
 
-test('completion focus is stable and Proceed returns to the dashboard', async ({ page }) => {
+test('completion focus is stable and Proceed opens Result', async ({ page }) => {
   await openDashboard(page);
   const data = lessonData();
   await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
@@ -201,7 +205,7 @@ test('completion focus is stable and Proceed returns to the dashboard', async ({
   await expect(page.locator('#proceed')).toBeVisible();
   await expect(page.locator('#proceed')).toBeFocused();
   await page.locator('#proceed').click();
-  await expect(page.locator('.dashboard-intro')).toBeVisible();
+  await expect(page.locator('.result-page')).toBeVisible();
 });
 
 test('save failure keeps completion recoverable without stealing focus', async ({ page }) => {
@@ -212,7 +216,7 @@ test('save failure keeps completion recoverable without stealing focus', async (
 
   await expect(page.locator('#retry-save')).toBeVisible();
   await expect(page.locator('#proceed')).toBeDisabled();
-  await expect(page.locator('.summary-panel')).toContainText('Save progress to unlock Intermediate.');
+  await expect(page.locator('.summary-panel')).toContainText('Save progress before leaving the course.');
   await page.locator('#retry-save').focus();
   await page.locator('#retry-save').click();
   await expect(page.locator('#proceed')).not.toBeFocused();

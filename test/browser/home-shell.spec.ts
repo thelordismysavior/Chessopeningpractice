@@ -39,3 +39,12 @@ test('hash navigation supports parameters, browser Back, refresh, and safe fallb
   await expect(page).toHaveURL(/#\/home$/);
   await expect(page.locator('.dashboard-intro')).toBeVisible();
 });
+
+test('Result without a current tab summary returns Home', async ({ page }) => {
+  await installAppStubs(page);
+  await page.goto('/');
+  await page.evaluate(() => sessionStorage.removeItem('chess-practice.latest-result'));
+  await page.goto('/#/result');
+  await expect(page).toHaveURL(/#\/home$/);
+  await expect(page.locator('.dashboard-intro')).toBeVisible();
+});

@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js';
 import { isDragPastThreshold, resolveBoardDrop, resolveTempoCut } from '../board-input';
-import { LEVELS, coursesById, type Course, type LevelKey } from '../courses';
+import { coursesById, type Course, type LevelKey } from '../courses';
 import { shouldShowMoveGuide } from '../guide-policy';
 import { effectiveMoveDuration, loadMoveDuration, moveBeats } from '../move-settings';
 import { pieceAppearance, pieceCode } from '../piece-appearance';
@@ -8,6 +8,7 @@ import { LessonRunner, type RunnerFeedback, type RunnerSnapshot } from '../lesso
 import { courseMastery } from '../mastery';
 import { diffProgress, loadProgress, saveProgress, type CourseProgress } from '../progress';
 import { duePositionIds } from '../review-schedule';
+import { saveResultSummary, type ResultSummary } from '../result';
 import { signOutUser } from '../firebase';
 import { planFenTransition, planMoveTransition, settleDisplayFen, type MoveTransition } from '../transition-plans';
 import { renderBoard, renderEvalBar, updateBoard, updateEvalBar, type BoardAnimation, type BoardState, type SquareRoute } from '../board-view';
@@ -65,7 +66,6 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   let moveCost: string | null = null;
   let costGeneration = 0;
   const selectableColor = course.side === 'white' ? 'w' : 'b';
-  const nextLevel = LEVELS[LEVELS.indexOf(level) + 1];
 
   const persist = () => {
     const write = saveQueue.catch(() => undefined).then(async () => {
@@ -112,28 +112,32 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     const lessonComplete = snapshot.lessonComplete && !sequenceActive;
     const levelComplete = lessonComplete && session.progressFor(level).completedLevels.includes(level);
     const completionMessage = saveError
-      ? nextLevel ? `Save progress to unlock ${levelNames[nextLevel]}.` : 'Save progress before leaving the course.'
+      ? 'Save progress before leaving the course.'
       : levelComplete
-        ? nextLevel ? `${levelNames[level]} complete. ${levelNames[nextLevel]} unlocked.` : `${levelNames[level]} complete. Course complete.`
+        ? `${levelNames[level]} complete.`
         : 'Line complete.';
     const position = sequenceActive && sequencePosition ? sequencePosition : snapshot.position ?? lesson.positions[lesson.positions.length - 1];
     const chess = new Chess(animation?.plan.fromFen ?? displayFen ?? position.fen);
     const status = sequenceActive
       ? 'Playing move'
+      : snapshot.branchReview
+        ? 'Branch review'
       : snapshot.status === 'complete'
         ? (snapshot.lessonComplete ? variationId ? 'Line complete' : 'Lesson complete' : 'Review complete')
         : snapshot.status === 'retrying'
           ? 'Retry this position'
           : `${course.side === 'white' ? 'White' : 'Black'} to move`;
-    const showGuide = !sequenceActive && shouldShowMoveGuide(snapshot.phase, snapshot.status, snapshot.hintVisible);
+    const showGuide = !sequenceActive && shouldShowMoveGuide(snapshot.phase, snapshot.status, snapshot.hintLevel);
     const expectedRoute = showGuide ? { from: position.expectedMove.slice(0, 2), to: position.expectedMove.slice(2, 4) } : null;
     const moveCount = snapshot.positionCount || lesson.positions.length;
     const moveOrdinal = Math.min(snapshot.positionIndex + 1, moveCount);
-    const phaseLabel = session.reviewMode ? 'Review' : snapshot.phase === 'teach' ? 'Learn the line' : 'Recall';
+    const phaseLabel = snapshot.branchReview ? 'Branch review' : session.reviewMode ? 'Review' : snapshot.phase === 'teach' ? 'Learn the line' : 'Recall';
     const budgetMarkup = snapshot.mistakeBudget === null
       ? ''
       : `<p class="mistake-budget" aria-label="${snapshot.mistakes} of ${snapshot.mistakeBudget} mistakes used">${Array.from({ length: snapshot.mistakeBudget }, (_, slot) => `<span class="budget-slot ${slot < snapshot.mistakes ? 'is-spent' : ''}"></span>`).join('')}<small>${snapshot.mistakes} of ${snapshot.mistakeBudget} slips used</small></p>`;
-    const copyHeader = session.reviewMode || !snapshot.lineTitle
+    const copyHeader = snapshot.branchReview
+      ? `<p class="eyebrow">Branch review &middot; recognize the change</p><p class="line-title">${escapeHtml(snapshot.branchReview.variationTitle)}</p><h1>What is the resulting plan?</h1><p class="lesson-summary"><strong>Opponent trigger:</strong> ${escapeHtml(snapshot.branchReview.opponentTrigger)} <strong>Resulting plan:</strong> ${escapeHtml(snapshot.branchReview.resultingPlan)} Produce the move that starts it.</p>`
+      : session.reviewMode || !snapshot.lineTitle
       ? `<p class="eyebrow">${levelNames[level]} review - ${moveOrdinal} of ${moveCount}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lede">${escapeHtml(lesson.summary)}</p>`
       : `<p class="eyebrow">${phaseLabel} &middot; line ${snapshot.lineIndex + 1} of ${snapshot.lineCount} &middot; move ${moveOrdinal} of ${moveCount}</p><p class="line-title">${escapeHtml(snapshot.lineTitle)}</p><p class="lede">${escapeHtml(snapshot.lineSummary)}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lesson-summary">${escapeHtml(lesson.summary)}</p>${budgetMarkup}`;
     const handoffMarkup = handoff
@@ -161,8 +165,15 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     const reviewNowMarkup = dueAfterLesson.length
       ? `<button id="review-now" class="quiet-button">Review ${dueAfterLesson.length} position${dueAfterLesson.length === 1 ? '' : 's'}</button>`
       : '';
-    const canHint = !sequenceActive && snapshot.status !== 'complete' && snapshot.phase !== 'teach' && !snapshot.hintVisible;
-    const hintMarkup = canHint ? '<button id="show-hint" class="quiet-button">Show me</button>' : '';
+    const canHint = !sequenceActive && snapshot.status !== 'complete' && snapshot.phase !== 'teach' && snapshot.hintLevel < 3;
+    const hintText = snapshot.hintLevel === 1
+      ? `<p class="hint-copy"><strong>Plan:</strong> ${escapeHtml(lesson.lessonIdea.plan)}</p>`
+      : snapshot.hintLevel === 2
+        ? `<p class="hint-copy"><strong>Destination:</strong> ${escapeHtml(position.expectedMove.slice(2, 4))}</p>`
+        : snapshot.hintLevel >= 3
+          ? `<p class="hint-copy"><strong>Move:</strong> ${escapeHtml(position.expectedSan)} (${escapeHtml(position.expectedMove)})</p>`
+          : '';
+    const hintMarkup = `${hintText}${canHint ? `<button id="show-hint" class="quiet-button">${snapshot.hintLevel ? 'Show more' : 'Show me'}</button>` : ''}`;
     const nextGroup = run ? run.groups[run.index + 1] : undefined;
     const nextGroupLabel = nextGroup ? `${coursesById[nextGroup.courseId].name}, ${levelNames[nextGroup.level]}` : '';
     const actionMarkup = lessonComplete
@@ -180,7 +191,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       : chess.fen());
     const settledFen = sequenceActive || animation ? null : chess.fen();
     if (settledFen && settledFen !== evalFen) evalScore = null;
-    const boardState: BoardState = { chess, selected, side: course.side, guide: expectedRoute, route: routeFlash, animation, dragging, settling: sequenceActive, interactive: !busy || sequenceActive, selectableColor };
+    const boardState: BoardState = { chess, selected, side: course.side, guide: expectedRoute, hintSquare: snapshot.hintLevel === 2 ? position.expectedMove.slice(2, 4) : null, route: routeFlash, animation, dragging, settling: sequenceActive, interactive: !busy || sequenceActive, selectableColor };
     const nextMain = document.createRange().createContextualFragment(`<main class="practice-shell"><header class="topbar"><div class="topbar-lead"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><a class="wordmark" href="#/home">${brandMarkup()}</a></div><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why this move</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel"><div class="eval-host"></div><div class="board-frame"></div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`).firstElementChild!;
     app.append(nextMain);
     const panel = nextMain.querySelector<HTMLElement>('.board-panel');
@@ -556,8 +567,33 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     }
     try {
       await pendingSave;
-      if (nextLevel && !variationId) await navigate({ name: 'practice', course, level: nextLevel, progress: liveProgress });
-      else await navigate({ name: 'dashboard' });
+      const completedSummary = session.summary();
+      const resultSummary: ResultSummary = {
+        courseId: course.id,
+        level,
+        lineId: variationId ?? completedSummary.bankedLines[0]?.id ?? '',
+        lineTitle: completedSummary.bankedLines[0]?.title ?? lesson.title,
+        lineState: session.reviewMode ? 'reviewed' : 'banked',
+        settledScore: evalScore,
+        mistakes: completedSummary.missed.length,
+        hints: completedSummary.hints,
+        elapsedMs: completedSummary.elapsedMs,
+        missed: completedSummary.missed,
+        authoredCorrection: completedSummary.branch?.position.explanation ?? lesson.positions.at(-1)?.explanation ?? lesson.summary,
+        branch: completedSummary.branch
+          ? {
+              variationId: completedSummary.branch.variationId,
+              variationTitle: completedSummary.branch.variationTitle,
+              positionId: completedSummary.branch.position.id,
+              expectedSan: completedSummary.branch.position.expectedSan,
+              opponentTrigger: completedSummary.branch.opponentTrigger,
+              resultingPlan: completedSummary.branch.resultingPlan,
+              explanation: completedSummary.branch.position.explanation,
+            }
+          : null,
+      };
+      saveResultSummary(resultSummary);
+      await navigate({ name: 'result', summary: resultSummary });
     } catch {
       leaving = false;
       saveError = true;

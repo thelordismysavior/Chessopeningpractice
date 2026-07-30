@@ -2,7 +2,7 @@ import { LEVELS, type Lesson, type LevelKey, type PracticePosition, type Variati
 import { isTrainableVariation } from './repertoire';
 import { LineDrill, type DrillFeedback, type DrillPhase, type DrillStatus } from './line-drill';
 import type { CourseProgress } from './progress';
-import { applyOutcome, emptyRecord, type PositionRecord } from './review-schedule';
+import { applyOutcome, emptyRecord, reviewAt, withSchedule, type PositionRecord } from './review-schedule';
 
 export const MISTAKE_BUDGET = 2;
 
@@ -18,13 +18,23 @@ export type RunnerSnapshot = {
   mistakes: number;
   mistakeBudget: number | null;
   hintVisible: boolean;
+  hintLevel: number;
   lineId: string | null;
   lineTitle: string | null;
   lineSummary: string | null;
   lineIndex: number;
   lineCount: number;
   bankedVariationIds: string[];
+  branchReview: BranchReview | null;
   lessonComplete: boolean;
+};
+
+export type BranchReview = {
+  variationId: string;
+  variationTitle: string;
+  position: PracticePosition;
+  opponentTrigger: string;
+  resultingPlan: string;
 };
 
 export type LessonSummary = {
@@ -32,6 +42,7 @@ export type LessonSummary = {
   missed: { positionId: string; lineTitle: string; expectedSan: string }[];
   hints: number;
   elapsedMs: number;
+  branch: BranchReview | null;
 };
 
 type RunnerOptions = {
@@ -42,6 +53,21 @@ type RunnerOptions = {
 
 type Line = { variation: Variation | null; positions: PracticePosition[]; teachPass: boolean };
 
+export function firstBranchPoint(lesson: Lesson, core: Variation): BranchReview | null {
+  const alternative = lesson.variations.find((variation) => isTrainableVariation(variation) && variation.kind !== 'core');
+  if (!alternative) return null;
+  const divergenceIndex = alternative.positions.findIndex((position, index) => position.expectedMove !== core.positions[index]?.expectedMove);
+  const position = divergenceIndex >= 0 ? alternative.positions[divergenceIndex] : undefined;
+  if (!position) return null;
+  return {
+    variationId: alternative.id,
+    variationTitle: alternative.title,
+    position,
+    opponentTrigger: lesson.lessonIdea.opponentTrigger,
+    resultingPlan: lesson.lessonIdea.resultingPlan,
+  };
+}
+
 export class LessonRunner {
   private readonly lesson: Lesson;
   private readonly base: CourseProgress;
@@ -49,14 +75,18 @@ export class LessonRunner {
   private readonly startedAt: number;
   private readonly isReview: boolean;
   private readonly lines: Line[];
+  private readonly branch: BranchReview | null;
   private readonly banked: string[] = [];
   private readonly records: Record<string, PositionRecord>;
   private readonly missed: LessonSummary['missed'] = [];
+  private readonly missedIds = new Set<string>();
   private appliedOutcomes = 0;
   private lineIndex = 0;
   private drill: LineDrill | null = null;
   private hints = 0;
   private finishedAt: number | null = null;
+  private branchStarted = false;
+  private branchCompleted = false;
 
   constructor(lesson: Lesson, base: CourseProgress, options: RunnerOptions = {}) {
     this.lesson = lesson;
@@ -77,6 +107,7 @@ export class LessonRunner {
 
     if (this.isReview) {
       this.lines = [{ variation: null, positions: reviewPositions, teachPass: false }];
+      this.branch = null;
     } else {
       const bankedAlready = new Set(base.completedVariationIds);
       const variations = options.variationId
@@ -87,6 +118,8 @@ export class LessonRunner {
         positions: variation.positions,
         teachPass: !bankedAlready.has(variation.id),
       }));
+      const selected = this.lines[0]?.variation;
+      this.branch = selected?.kind === 'core' && !bankedAlready.has(selected.id) ? firstBranchPoint(lesson, selected) : null;
     }
 
     this.openDrill();
@@ -100,6 +133,7 @@ export class LessonRunner {
     const line = this.lines[this.lineIndex] ?? null;
     const drill = this.drill?.snapshot ?? null;
     const complete = this.drill === null;
+    const branch = this.branchStarted && !this.branchCompleted ? this.branch : null;
     return {
       phase: drill?.phase ?? (this.isReview ? 'review' : 'recall'),
       status: drill?.status ?? 'complete',
@@ -109,13 +143,15 @@ export class LessonRunner {
       mistakes: drill?.mistakes ?? 0,
       mistakeBudget: drill?.mistakeBudget ?? null,
       hintVisible: drill?.hintVisible ?? false,
-      lineId: line?.variation?.id ?? null,
-      lineTitle: line?.variation?.title ?? null,
-      lineSummary: line?.variation?.summary ?? null,
+      hintLevel: drill?.hintLevel ?? 0,
+      lineId: branch?.variationId ?? line?.variation?.id ?? null,
+      lineTitle: branch?.variationTitle ?? line?.variation?.title ?? null,
+      lineSummary: branch ? `Recognize the alternative after ${branch.opponentTrigger}.` : line?.variation?.summary ?? null,
       lineIndex: this.lineIndex,
       lineCount: this.lines.length,
       bankedVariationIds: [...this.banked],
-      lessonComplete: complete && !this.isReview,
+      branchReview: branch,
+      lessonComplete: complete && !this.isReview && !branch,
     };
   }
 
@@ -146,6 +182,7 @@ export class LessonRunner {
   }
 
   progressFor(level: LevelKey): CourseProgress {
+    if (this.isReview && this.lines.every((line) => line.positions.length === 0)) return this.base;
     const completedLevels = [...this.base.completedLevels];
     const completedVariationIds = [...new Set([...this.base.completedVariationIds, ...this.banked])];
     let unlockedLevel = this.base.unlockedLevel;
@@ -174,6 +211,7 @@ export class LessonRunner {
       missed: [...this.missed],
       hints: this.hints,
       elapsedMs: this.elapsedMs(),
+      branch: this.branch,
     };
   }
 
@@ -194,7 +232,19 @@ export class LessonRunner {
     this.appliedOutcomes = 0;
   }
 
+  private openBranchDrill(): void {
+    if (!this.branch) return;
+    this.drill = new LineDrill([this.branch.position], { teachPass: false });
+    this.appliedOutcomes = 0;
+  }
+
   private closeDrill(): void {
+    if (this.branchStarted && !this.branchCompleted) {
+      this.branchCompleted = true;
+      this.drill = null;
+      this.finishedAt = this.now();
+      return;
+    }
     const line = this.lines[this.lineIndex];
     if (this.isReview && line) {
       const remaining = line.positions.filter((position) => this.records[position.id]?.due);
@@ -205,6 +255,11 @@ export class LessonRunner {
       }
     }
     if (this.drill?.snapshot.banked && line?.variation) this.banked.push(line.variation.id);
+    if (this.branch && !this.branchStarted && line?.variation?.kind === 'core') {
+      this.branchStarted = true;
+      this.openBranchDrill();
+      return;
+    }
     this.lineIndex += 1;
     this.openDrill();
   }
@@ -212,21 +267,26 @@ export class LessonRunner {
   private absorbOutcomes(): void {
     if (!this.drill) return;
     const log = this.drill.outcomeLog;
-    const lineTitle = this.lines[this.lineIndex]?.variation?.title ?? 'Review';
+    const lineTitle = this.branchStarted && !this.branchCompleted
+      ? this.branch?.variationTitle ?? 'Branch review'
+      : this.lines[this.lineIndex]?.variation?.title ?? 'Review';
 
     for (let index = this.appliedOutcomes; index < log.length; index += 1) {
       const entry = log[index];
       const context = entry.phase;
-      this.records[entry.positionId] = applyOutcome(
+      const clean = entry.solvedFirstTry && !entry.hinted;
+      let record = applyOutcome(
         this.records[entry.positionId] ?? emptyRecord(),
         { attempts: entry.attempts, solvedFirstTry: entry.solvedFirstTry, hinted: entry.hinted },
         context,
         this.now(),
       );
+      if (entry.recovery && clean) record = withSchedule({ ...record, due: false, reviewStreak: 0 }, 0, reviewAt(0, this.now()));
+      this.records[entry.positionId] = record;
 
       const scored = context !== 'teach';
-      const clean = entry.solvedFirstTry && !entry.hinted;
-      if (scored && !clean) {
+      if (scored && !clean && !this.missedIds.has(entry.positionId)) {
+        this.missedIds.add(entry.positionId);
         const position = this.lesson.positions.find((candidate) => candidate.id === entry.positionId);
         this.missed.push({
           positionId: entry.positionId,

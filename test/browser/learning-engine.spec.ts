@@ -3,9 +3,12 @@ import {
   lineMoves,
   openDashboard,
   playLessonClean,
+  playLineTwice,
   playMove,
   wrongLegalMove,
 } from './app-stubs';
+import { COURSES } from '../../src/courses';
+import { firstBranchPoint } from '../../src/lesson-runner';
 
 test('teach shows the guide, recall withholds it, and Show me reveals without spending budget', async ({ page }) => {
   await openDashboard(page, 1440, 1000);
@@ -23,6 +26,10 @@ test('teach shows the guide, recall withholds it, and Show me reveals without sp
   await expect(page.locator('#show-hint')).toBeVisible();
   await expect(page.locator('.budget-slot.is-spent')).toHaveCount(0);
 
+  await page.locator('#show-hint').click();
+  await expect(page.locator('.hint-copy')).toContainText('Plan:');
+  await page.locator('#show-hint').click();
+  await expect(page.locator('.hint-copy')).toContainText('Destination:');
   await page.locator('#show-hint').click();
   await expect(page.locator('.guide-overlay .route-arrow')).toBeVisible();
   await expect(page.locator('.budget-slot.is-spent')).toHaveCount(0);
@@ -58,6 +65,10 @@ test('one mistake spends one slot and completes the selected line', async ({ pag
   await expect(page.locator('.budget-slot.is-spent')).toHaveCount(1);
   await playMove(page, firstLine[0]);
   for (const move of firstLine.slice(1)) await playMove(page, move);
+  await playMove(page, firstLine[0]);
+  const lesson = COURSES[0].lessons.beginner;
+  const core = lesson.variations.find((variation) => variation.kind === 'core')!;
+  await playMove(page, firstBranchPoint(lesson, core)!.position.expectedMove);
 
   await expect(page.locator('.summary-panel')).toBeVisible();
 });
@@ -71,6 +82,10 @@ test('summary, timed queue, and Proceed route to Intermediate', async ({ page })
   await playMove(page, wrongLegalMove(firstLine[0]));
   await playMove(page, firstLine[0]);
   for (const move of firstLine.slice(1)) await playMove(page, move);
+  await playMove(page, firstLine[0]);
+  const lesson = COURSES[0].lessons.beginner;
+  const core = lesson.variations.find((variation) => variation.kind === 'core')!;
+  await playMove(page, firstBranchPoint(lesson, core)!.position.expectedMove);
 
   await expect(page.locator('.summary-panel')).toBeVisible();
   await expect(page.locator('.summary-panel')).toContainText('Lines banked');
@@ -89,12 +104,38 @@ test('summary, timed queue, and Proceed route to Intermediate', async ({ page })
   await expect(page.locator('.course-card').first().locator('button[data-level="intermediate"]')).toBeEnabled();
 });
 
-test('Proceed returns to the dashboard after a clean one-line lesson', async ({ page }) => {
+test('Proceed opens the restorable Result after a clean one-line lesson', async ({ page }) => {
   await openDashboard(page, 1440, 1000);
   await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
   await playLessonClean(page);
   await expect(page.locator('.summary-panel')).toBeVisible();
   await expect(page.locator('#review-now')).toHaveCount(0);
   await page.locator('#proceed').click();
-  await expect(page.locator('.dashboard-intro')).toBeVisible();
+  await expect(page.locator('.result-page')).toBeVisible();
+  await expect(page).toHaveURL(/#\/result$/);
+  await expect(page.getByText('Settled Score')).toBeVisible();
+});
+
+test('first core bank asks one branch question before Result and restores after refresh', async ({ page }) => {
+  await openDashboard(page, 1440, 1000);
+  const [firstLine] = lineMoves();
+  const lesson = COURSES[0].lessons.beginner;
+  const core = lesson.variations.find((variation) => variation.kind === 'core')!;
+  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await playLineTwice(page, firstLine);
+  const branch = firstBranchPoint(lesson, core)!;
+  await expect(page.locator('.lesson-copy')).toContainText('Branch review');
+  await expect(page.locator('.lesson-copy')).toContainText(branch.opponentTrigger);
+  await playMove(page, branch.position.expectedMove);
+  await page.locator('#proceed').click();
+  await expect(page.locator('.result-page')).toBeVisible();
+  await expect(page.locator('.result-branch')).toContainText('Authored correction');
+  await expect(page.locator('.result-actions button')).toHaveCount(1);
+  await page.goBack();
+  await expect(page.locator('.practice-shell')).toBeVisible();
+  await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Recall');
+  await page.goto('/#/result');
+  await expect(page.locator('.result-page')).toBeVisible();
+  await page.reload();
+  await expect(page.locator('.result-page')).toBeVisible();
 });

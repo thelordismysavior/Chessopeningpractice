@@ -15,6 +15,8 @@ import { renderSources } from './screens/sources';
 import { startPractice } from './screens/practice';
 import { renderReviewQueue } from './screens/review-queue';
 import { renderBrowse } from './screens/browse';
+import { renderResult } from './screens/result';
+import { loadResultSummary } from './result';
 import type { Navigate, Screen } from './screens/navigation';
 
 let signedInEmail: string | null = null;
@@ -41,6 +43,8 @@ async function renderScreen(screen: Screen): Promise<void> {
       return startPractice(navigate, signedInEmail, screen);
     case 'review-queue':
       return renderReviewQueue(navigate, signedInEmail);
+    case 'result':
+      return renderResult(navigate, signedInEmail, screen.summary);
     case 'browse':
       return renderBrowse(navigate, signedInEmail, screen);
     default:
@@ -59,6 +63,14 @@ async function screenForRoute(route: HashRoute): Promise<Screen> {
   if (route.name === 'account') return { name: 'account' };
   if (route.name === 'sources') return { name: 'sources' };
   if (route.name === 'review-queue') return { name: 'review-queue' };
+  if (route.name === 'result') {
+    const summary = loadResultSummary();
+    if (!summary) {
+      window.history.replaceState(null, '', HOME_HASH);
+      return { name: 'dashboard' };
+    }
+    return { name: 'result', summary };
+  }
   if (route.name === 'browse') return { name: 'browse', courseId: route.courseId, lineId: route.lineId, study: route.study };
 
   const course = coursesById[route.courseId];

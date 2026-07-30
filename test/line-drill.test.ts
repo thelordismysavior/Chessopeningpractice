@@ -80,7 +80,9 @@ describe('mistake budget', () => {
     playLine(drill);
 
     drill.submitMove('b1c3');
-    playLine(drill);
+    drill.submitMove('d2d4');
+    drill.submitMove('b1c3');
+    drill.submitMove('d2d4');
 
     expect(drill.snapshot.status).toBe('complete');
     expect(drill.snapshot.banked).toBe(true);

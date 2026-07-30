@@ -12,6 +12,7 @@ export type HashRoute =
   | { name: 'account' }
   | { name: 'sources' }
   | { name: 'review-queue' }
+  | { name: 'result' }
   | { name: 'browse'; courseId?: Course['id']; lineId?: string; study?: boolean }
   | { name: 'practice'; courseId: Course['id']; level: LevelKey; variationId?: string; reviewPositionIds?: string[]; runIndex?: number; runGroups?: ReviewGroup[]; entryHandoff?: { banked: string; next: string; verb?: string } };
 
@@ -69,6 +70,7 @@ export function parseHash(hash: string): HashRoute {
   if (surface === 'account') return { name: 'account' };
   if (surface === 'sources') return { name: 'sources' };
   if (surface === 'queue' || surface === 'review-queue') return { name: 'review-queue' };
+  if (surface === 'result') return { name: 'result' };
   if (surface === 'browse') {
     const requestedCourse = first ?? query.get('course') ?? undefined;
     const selectedCourse = courseId(requestedCourse);
@@ -131,6 +133,8 @@ function routeForScreen(screen: Screen): HashRoute {
       return { name: 'sources' };
     case 'review-queue':
       return { name: 'review-queue' };
+    case 'result':
+      return { name: 'result' };
     case 'browse':
       return screen;
     case 'practice':
@@ -167,6 +171,8 @@ export function hashForRoute(route: HashRoute): string {
       return '#/sources';
     case 'review-queue':
       return '#/review-queue';
+    case 'result':
+      return '#/result';
     case 'browse':
       return `#/browse${route.courseId ? `/${encodeURIComponent(route.courseId)}` : ''}${route.lineId ? `/${encodeURIComponent(route.lineId)}` : ''}${route.study ? '?study=1' : ''}`;
     case 'practice':

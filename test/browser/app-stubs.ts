@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { COURSES } from '../../src/courses';
+import { firstBranchPoint } from '../../src/lesson-runner';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -225,7 +226,13 @@ export async function playLineTwice(page: Page, moves: string[]): Promise<void> 
 
 export async function playLessonClean(page: Page, level: 'beginner' | 'intermediate' = 'beginner'): Promise<void> {
   const [moves] = lineMoves(level);
-  if (moves) await playLineTwice(page, moves);
+  if (moves) {
+    await playLineTwice(page, moves);
+    const lesson = COURSES[0].lessons[level];
+    const core = lesson.variations.find((variation) => variation.kind === 'core');
+    const branch = core ? firstBranchPoint(lesson, core) : null;
+    if (branch) await playMove(page, branch.position.expectedMove);
+  }
 }
 
 export function wrongLegalMove(expected: string): string {

@@ -19,6 +19,7 @@ export type BoardState = {
   selected: string | null;
   side: Course['side'];
   guide: SquareRoute | null;
+  hintSquare?: string | null;
   route: SquareRoute | null;
   animation: BoardAnimation | null;
   dragging: boolean;
@@ -93,7 +94,8 @@ export function renderBoard(state: BoardState): string {
     return `<button type="button" class="board-square ${dark ? 'is-dark' : 'is-light'} ${view.selected ? 'is-selected' : ''}${view.movable ? ' is-movable' : ''}" data-square="${square}" data-piece="${view.code}" aria-pressed="${view.selected}" aria-label="${view.label}"${interactive ? '' : ' disabled'}>${fileLabel}${rankLabel}${pieceMarkup}</button>`;
   })).join('');
   const animatedPieces = animatedPiecesMarkup(state);
-  return `<div class="board ${dragging ? 'is-dragging' : ''}" role="group" aria-label="Chess board" aria-busy="${settling}">${squares}${renderRoute(guide, side, 'guide-overlay', false)}<div class="piece-layer" aria-hidden="true">${animatedPieces}</div>${renderRoute(route, side, 'feedback-overlay')}</div>`;
+  const hint = state.hintSquare ? `<span class="hint-square" style="${markerPosition(state.hintSquare, side)}" aria-hidden="true"></span>` : '';
+  return `<div class="board ${dragging ? 'is-dragging' : ''}" role="group" aria-label="Chess board" aria-busy="${settling}">${squares}${hint}${renderRoute(guide, side, 'guide-overlay', false)}<div class="piece-layer" aria-hidden="true">${animatedPieces}</div>${renderRoute(route, side, 'feedback-overlay')}</div>`;
 }
 
 export function updateBoard(board: Element, state: BoardState): void {
@@ -129,6 +131,7 @@ export function updateBoard(board: Element, state: BoardState): void {
   };
   replaceOverlay('.guide-overlay', renderRoute(state.guide, state.side, 'guide-overlay', false));
   replaceOverlay('.feedback-overlay', renderRoute(state.route, state.side, 'feedback-overlay'));
+  replaceOverlay('.hint-square', state.hintSquare ? `<span class="hint-square" style="${markerPosition(state.hintSquare, state.side)}" aria-hidden="true"></span>` : '');
   const layer = board.querySelector('.piece-layer');
   if (layer) layer.innerHTML = animatedPiecesMarkup(state);
 }

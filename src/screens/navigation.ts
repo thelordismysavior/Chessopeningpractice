@@ -1,6 +1,7 @@
 import type { Course, LevelKey } from '../courses';
 import type { CourseProgress } from '../progress';
 import type { ReviewRun } from '../review-queue';
+import type { ResultSummary } from '../result';
 
 export type PracticeScreen = {
   name: 'practice';
@@ -23,6 +24,7 @@ export type Screen =
   | { name: 'account' }
   | { name: 'sources' }
   | { name: 'review-queue' }
+  | { name: 'result'; summary: ResultSummary }
   | BrowseScreen
   | PracticeScreen;
 
