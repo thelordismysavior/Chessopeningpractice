@@ -65,7 +65,10 @@ export class LessonRunner {
     this.startedAt = this.now();
     this.records = { ...base.positions };
 
-    const reviewIds = options.reviewPositionIds ?? [];
+    const trainablePositionIds = new Set(lesson.variations
+      .filter(isTrainableVariation)
+      .flatMap((variation) => variation.positions.map((position) => position.id)));
+    const reviewIds = (options.reviewPositionIds ?? []).filter((id) => trainablePositionIds.has(id));
     const reviewPositions = reviewIds
       .map((id) => lesson.positions.find((position) => position.id === id))
       .filter((position): position is PracticePosition => Boolean(position));

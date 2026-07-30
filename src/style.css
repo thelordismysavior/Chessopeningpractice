@@ -697,8 +697,11 @@ dialog::backdrop { background: rgb(8 11 16 / .78); }
   .lesson-row { grid-template-columns: 1.6rem 1fr auto auto; }
   .lesson-idea { grid-template-columns: 1fr; padding: 18px; }
   .course-line-row, .line-selection-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
-  .course-line-row .line-role, .course-line-row .line-status { display: none; }
-  .course-line-action { grid-column: 2; grid-row: 1; }
+  .course-line-main { grid-row: span 2; align-self: center; }
+  .course-line-row .line-role { grid-column: 2; grid-row: 1; }
+  .course-line-row .line-status { grid-column: 2; grid-row: 2; }
+  .course-line-action { grid-column: 1 / -1; grid-row: 3; text-align: right; }
+  .course-line-main small, .line-selection-row small { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
   .line-selection-row > span:last-child { display: none; }
   .dashboard-summary, .dashboard-focus { min-height: 0; }
   .dashboard-focus { padding: 20px; }

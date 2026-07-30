@@ -402,6 +402,15 @@ test('Course, Lines, search, direct level access, and reference Study stay hones
   await expect(page.locator('.course-page')).toBeVisible();
   await expect(page.locator('.lesson-idea')).toContainText('Opponent trigger');
   await expect(page.locator('[data-start-level="advanced"]')).toBeEnabled();
+  await page.locator('[data-start-level="advanced"]').click();
+  await expect(page.locator('.practice-shell')).toBeVisible();
+  await page.goto(`/#/course/${COURSES[0].id}`);
+  await expect(page.locator('.course-page')).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('.course-line-row').first().locator('.line-role')).toBeVisible();
+  await expect(page.locator('.course-line-row').first().locator('.line-status')).toBeVisible();
+  await expectNoOverflow(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.locator('#course-line-sort').selectOption('category');
   await expect(page.locator('.line-role').first()).toBeVisible();
   await page.locator('.course-line-row').first().click();

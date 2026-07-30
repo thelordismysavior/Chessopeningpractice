@@ -18,6 +18,7 @@ function fixtureLesson(): Lesson {
   const variations = [
     variation('core', [pos('main-1', OPENING, 'd2d4', 'd4'), pos('main-2', AFTER_D4_D5, 'b1c3', 'Nc3')]),
     variation('alternative', [pos('alt-1', OPENING, 'd2d4', 'd4')]),
+    variation('reference', [pos('reference-1', OPENING, 'd2d4', 'd4')]),
   ];
   return { level: 'beginner', title: 'Fixture', summary: 'Fixture lesson.', variations, positions: variations.flatMap((entry) => entry.positions), lessonIdea: { anchorFen: OPENING, anchorSan: 'd4', plan: 'Build the centre.', opponentTrigger: 'Black changes the move order.', resultingPlan: 'Develop actively.' } };
 }
@@ -92,6 +93,13 @@ describe('review mode', () => {
     runner.submitMove('b1c3');
     expect(runner.snapshot.lessonComplete).toBe(false);
     expect(runner.snapshot.bankedVariationIds).toEqual([]);
+  });
+
+  test('ignores reference positions in a crafted review request', () => {
+    const runner = new LessonRunner(lesson, base(), { reviewPositionIds: ['main-2', 'reference-1'] });
+    expect(runner.reviewMode).toBe(true);
+    expect(runner.snapshot.positionCount).toBe(1);
+    expect(runner.snapshot.position?.id).toBe('main-2');
   });
 
   test('clears a due position after one clean answer in a review session', () => {
