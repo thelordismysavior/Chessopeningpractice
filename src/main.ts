@@ -134,7 +134,7 @@ const navigate: Navigate = async (screen: Screen) => {
 function renderAuthError(message: string, retry: () => void) {
   resetPageScroll();
   document.title = 'LINE/64 · Error';
-  app.innerHTML = `<main class="error-page"><p class="eyebrow">Authentication unavailable</p><h1>We lost the signal.</h1><p class="lede">${escapeHtml(message)}</p><button id="retry-auth">Try again</button></main>`;
+  app.innerHTML = `<main class="error-page" role="alert"><p class="eyebrow">Authentication unavailable</p><h1>We lost the signal.</h1><p class="lede">${escapeHtml(message)}</p><button id="retry-auth">Try again</button></main>`;
   document.querySelector('#retry-auth')!.addEventListener('click', retry);
 }
 

@@ -2,7 +2,8 @@ import { evalLabel } from '../engine/eval-scale';
 import { COURSES, coursesById } from '../courses';
 import { loadProgress, type CourseProgress } from '../progress';
 import { nextResultAction, type ResultSummary } from '../result';
-import { app, escapeHtml, levelNames, resetPageScroll } from './shell';
+import { signOutUser } from '../firebase';
+import { app, escapeHtml, levelNames, resetPageScroll, topbarMarkup } from './shell';
 import type { Navigate } from './navigation';
 
 export async function renderResult(navigate: Navigate, email: string | null, summary: ResultSummary): Promise<void> {
@@ -18,7 +19,8 @@ export async function renderResult(navigate: Navigate, email: string | null, sum
     ? `<ul class="summary-missed">${summary.missed.map((entry) => `<li><strong>${escapeHtml(entry.expectedSan)}</strong><span>${escapeHtml(entry.lineTitle)}</span></li>`).join('')}</ul>`
     : '<p class="summary-clean">No missed positions.</p>';
   const lineState = summary.lineState[0].toUpperCase() + summary.lineState.slice(1);
-  app.innerHTML = `<main class="app-shell result-page"><header class="topbar"><a class="wordmark" href="#/home"><span class="brand-name">LINE/64</span></a><span>${escapeHtml(email) || 'owner'}</span></header><section class="result-content"><p class="eyebrow">Session result &middot; ${escapeHtml(levelNames[summary.level])}</p><h1>${escapeHtml(summary.lineTitle)}</h1><p class="lede">Your latest completed practice is saved in this tab.</p><section class="summary-panel"><dl class="summary-stats"><div><dt>Settled Score</dt><dd>${summary.settledScore ? escapeHtml(evalLabel(summary.settledScore)) : '--'}</dd></div><div><dt>Mistakes</dt><dd>${summary.mistakes}</dd></div><div><dt>Line state</dt><dd>${lineState}</dd></div><div><dt>Hints</dt><dd>${summary.hints}</dd></div></dl><h2 class="summary-heading">Authored correction</h2><p>${escapeHtml(summary.authoredCorrection)}</p><h2 class="summary-heading">Missed positions</h2>${missed}</section>${branch}<div class="result-actions"><button id="result-next-action">${actionLabel}</button></div></section></main>`;
+  app.innerHTML = `<main class="app-shell result-page">${topbarMarkup({ email, wordmark: true })}<section class="result-content"><p class="eyebrow">Session result &middot; ${escapeHtml(levelNames[summary.level])}</p><h1>${escapeHtml(summary.lineTitle)}</h1><p class="lede">Your latest completed practice is saved in this tab.</p><section class="summary-panel"><dl class="summary-stats"><div><dt>Settled Score</dt><dd>${summary.settledScore ? escapeHtml(evalLabel(summary.settledScore)) : '--'}</dd></div><div><dt>Mistakes</dt><dd>${summary.mistakes}</dd></div><div><dt>Line state</dt><dd>${lineState}</dd></div><div><dt>Hints</dt><dd>${summary.hints}</dd></div></dl><h2 class="summary-heading">Authored correction</h2><p>${escapeHtml(summary.authoredCorrection)}</p><h2 class="summary-heading">Missed positions</h2>${missed}</section>${branch}<div class="result-actions"><button id="result-next-action">${actionLabel}</button></div></section></main>`;
+  app.querySelector('#sign-out')?.addEventListener('click', () => void signOutUser());
   app.querySelector('#result-next-action')?.addEventListener('click', () => {
     if (action.kind === 'home') return void navigate({ name: 'dashboard' });
     if (action.kind === 'review') return void navigate({ name: 'review-queue' });

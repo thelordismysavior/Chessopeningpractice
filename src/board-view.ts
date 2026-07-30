@@ -51,7 +51,7 @@ function squareView(state: BoardState, square: string, piece: ReturnType<Chess['
     appearance: visiblePiece ? pieceAppearance(code) : null,
     selected: state.selected === square,
     movable: state.interactive && !state.settling && piece?.color === state.selectableColor,
-    label: `${square}${visiblePiece ? `, ${visiblePiece.color === 'w' ? 'white' : 'black'} ${visiblePiece.type}` : ''}`,
+    label: `${square}, ${visiblePiece ? `${visiblePiece.color === 'w' ? 'white' : 'black'} ${visiblePiece.type}` : 'empty'}`,
   };
 }
 
@@ -137,10 +137,10 @@ export function updateBoard(board: Element, state: BoardState): void {
 }
 
 export function renderEvalBar(score: EvalScore | null, status: EngineStatus): string {
-  if (status === 'unavailable') return '<p class="eval-note">Engine unavailable</p>';
+  if (status === 'unavailable') return '<p class="eval-note" role="status">Engine unavailable</p>';
   const percent = score ? fillFraction(score) * 100 : 50;
   const value = score ? evalLabel(score) : '--';
-  return `<div class="eval-bar ${score ? '' : 'is-pending'}" role="img" aria-label="${value}"><span class="eval-track" aria-hidden="true"><span class="eval-fill" style="--eval-fill:${percent.toFixed(1)}%"></span></span><span class="eval-value">${value}</span></div>`;
+  return `<div class="eval-bar ${score ? '' : 'is-pending'}" role="img" aria-label="${value}" aria-busy="${!score}" aria-live="polite"><span class="eval-track" aria-hidden="true"><span class="eval-fill" style="--eval-fill:${percent.toFixed(1)}%"></span></span><span class="eval-value">${value}</span></div>`;
 }
 
 export function updateEvalBar(panel: Element, score: EvalScore | null, status: EngineStatus): void {
@@ -152,6 +152,7 @@ export function updateEvalBar(panel: Element, score: EvalScore | null, status: E
     return;
   }
   bar.classList.toggle('is-pending', !score);
+  bar.setAttribute('aria-busy', String(!score));
   bar.querySelector<HTMLElement>('.eval-fill')?.style.setProperty('--eval-fill', `${((score ? fillFraction(score) : 0.5) * 100).toFixed(1)}%`);
   const value = score ? evalLabel(score) : '--';
   bar.querySelector('.eval-value')!.textContent = value;

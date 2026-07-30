@@ -41,7 +41,8 @@ export function topbarMarkup(options: TopbarOptions): string {
       ? `<a class="wordmark" href="${HOME_HASH}">${brandMarkup()}</a>`
       : '';
   const links = (options.links ?? []).map(topbarLink).join('');
-  return `<header class="topbar">${lead}<div class="account">${links}<span>${escapeHtml(options.email) || 'owner'}</span><button id="sign-out" class="quiet-button">Sign out</button></div></header>`;
+  const navigation = links ? `<nav class="topbar-nav" aria-label="Primary navigation">${links}</nav>` : '';
+  return `<header class="topbar">${lead}<div class="account">${navigation}<span class="account-email">${escapeHtml(options.email) || 'owner'}</span><button id="sign-out" class="quiet-button">Sign out</button></div></header>`;
 }
 
 export function settingsPreferenceMarkup(duration: number): string {
@@ -49,7 +50,7 @@ export function settingsPreferenceMarkup(duration: number): string {
 }
 
 export function progressResetMarkup(): string {
-  return `<section class="reset-progress" aria-labelledby="reset-progress-title"><h3 id="reset-progress-title">Progress</h3><p>Clear every course's learning records: completed lines, counters, and review schedules. Device Move Animation preferences stay unchanged.</p><button type="button" id="show-reset-progress" class="danger-button">Reset all progress</button><div id="reset-progress-confirmation" class="reset-confirmation" hidden><p>This cannot be undone.</p><div class="settings-actions"><button type="button" id="cancel-reset-progress" class="quiet-button">Cancel</button><button type="button" id="confirm-reset-progress" class="danger-button">Reset progress</button></div></div><p id="reset-progress-error" role="alert" hidden>Progress could not be reset. Check your connection and try again.</p></section>`;
+  return `<section class="reset-progress" aria-labelledby="reset-progress-title"><h3 id="reset-progress-title">Progress</h3><p>Clear every course's learning records: completed lines, counters, and review schedules. Device Move Animation preferences stay unchanged.</p><button type="button" id="show-reset-progress" class="danger-button">Reset all progress</button><div id="reset-progress-confirmation" class="reset-confirmation" aria-live="polite" aria-labelledby="reset-confirmation-title" hidden><p id="reset-confirmation-title">This cannot be undone.</p><div class="settings-actions"><button type="button" id="cancel-reset-progress" class="quiet-button">Cancel</button><button type="button" id="confirm-reset-progress" class="danger-button">Reset progress</button></div></div><p id="reset-progress-error" role="alert" hidden>Progress could not be reset. Check your connection and try again.</p></section>`;
 }
 
 export function settingsDialogMarkup(duration: number, includeProgressReset = false): string {

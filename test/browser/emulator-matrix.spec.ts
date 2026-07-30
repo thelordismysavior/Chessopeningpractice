@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { COURSES, type LevelKey } from '../../src/courses';
+import { firstBranchPoint } from '../../src/lesson-runner';
 import { expectNoOverflow } from './app-stubs';
 import { resetEmulatorProgress, TEST_ACCOUNT } from './emulator';
 
@@ -39,12 +40,19 @@ async function completeLine(page: Page, level: LevelKey, useDrag = false): Promi
     await playMove(page, move, useDrag && index === 0);
     if (index < sequence.length - 1) await expect(page.locator('#proceed')).toHaveCount(0);
   }
+  const core = COURSES[0].lessons[level].variations.find((variation) => variation.kind === 'core');
+  const branch = core && firstBranchPoint(COURSES[0].lessons[level], core);
+  if (branch) await playMove(page, branch.position.expectedMove);
   await expect(page.locator('.summary-panel')).toBeVisible();
   await expect(page.locator('#proceed')).toBeFocused();
 }
 
 async function proceed(page: Page): Promise<void> {
   await page.locator('#proceed').click();
+  await expect(page.locator('.result-page')).toBeVisible();
+  await expect(page.locator('#result-next-action')).toHaveCount(1);
+  await page.locator('.wordmark').click();
+  await expect(page.locator('.dashboard-intro')).toBeVisible();
 }
 
 test('emulator-backed Chromium journey keeps levels directly accessible', async ({ page }) => {
@@ -62,17 +70,14 @@ test('emulator-backed Chromium journey keeps levels directly accessible', async 
   await expect(page.locator('.guide-overlay .route-arrow')).toHaveCSS('height', '6px');
   await completeLine(page, 'beginner');
   await proceed(page);
-  await expect(page.locator('.dashboard-intro')).toBeVisible();
 
   await firstCourse.locator('button[data-level="intermediate"]').click();
   await completeLine(page, 'intermediate', true);
   await proceed(page);
-  await expect(page.locator('.dashboard-intro')).toBeVisible();
 
   await firstCourse.locator('button[data-level="advanced"]').click();
   await completeLine(page, 'advanced');
   await proceed(page);
-  await expect(page.locator('.dashboard-intro')).toBeVisible();
   await expect(page.locator('.course-count').first()).toHaveText('00 / 03');
   await expectNoOverflow(page);
 });
@@ -88,13 +93,17 @@ test('emulator-backed save failure remains recoverable after the final move', as
   await page.waitForTimeout(300);
   await page.context().setOffline(true);
   await playMove(page, sequence.at(-1)!);
+  const lesson = COURSES[0].lessons.beginner;
+  const core = lesson.variations.find((variation) => variation.kind === 'core');
+  const branch = core && firstBranchPoint(lesson, core);
+  if (branch) await playMove(page, branch.position.expectedMove);
 
   await expect(page.locator('#proceed')).toBeVisible();
   await page.locator('#proceed').dispatchEvent('click');
   await expect(page.locator('#proceed')).toHaveText('Saving...');
   await expect(page.locator('#retry-save')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('#proceed')).toBeDisabled();
-  await expect(page.locator('.summary-panel')).toContainText('Save progress to unlock Intermediate.');
+  await expect(page.locator('.summary-panel')).toContainText('Save progress before leaving the course.');
   await page.context().setOffline(false);
   await page.locator('#retry-save').click();
   await expect(page.locator('#proceed')).toBeEnabled();

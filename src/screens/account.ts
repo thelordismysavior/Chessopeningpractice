@@ -8,7 +8,7 @@ import type { Navigate } from './navigation';
 
 export async function renderAccount(navigate: Navigate, email: string | null): Promise<void> {
   resetPageScroll();
-  app.innerHTML = '<main class="loading-page"><p class="eyebrow">Reading your account</p><div class="loading-line"></div></main>';
+  app.innerHTML = '<main class="loading-page" aria-busy="true" aria-live="polite"><p class="eyebrow">Reading your account</p><div class="loading-line"></div></main>';
   try {
     const entries = await Promise.all(COURSES.map(async (course) => [course.id, await loadProgress(course.id)] as const));
     const progressByCourse = Object.fromEntries(entries) as Record<Course['id'], CourseProgress>;

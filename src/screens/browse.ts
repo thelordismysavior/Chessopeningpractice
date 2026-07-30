@@ -44,7 +44,7 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
   resetPageScroll();
   engine.reset();
   engine.warm();
-  app.innerHTML = '<main class="loading-page"><p class="eyebrow">Reading your repertoire</p><div class="loading-line"></div></main>';
+  app.innerHTML = '<main class="loading-page" aria-busy="true" aria-live="polite"><p class="eyebrow">Reading your repertoire</p><div class="loading-line"></div></main>';
 
   let progressByCourse: Record<Course['id'], CourseProgress> | null = null;
   try {
