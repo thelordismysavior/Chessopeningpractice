@@ -74,7 +74,7 @@ Leave the zero-duration test unchanged: a zero preference still means no tempo a
 - [ ] **Step 2: Run the test and confirm it fails**
 
 ```powershell
-npx vitest run test/guided-move-interactions.test.ts
+bunx vitest run test/guided-move-interactions.test.ts
 ```
 
 Expected: FAIL on the two beat assertions.
@@ -92,7 +92,7 @@ export const MOVE_BEAT_AFTER_REPLY_TEACHING = 300;
 - [ ] **Step 4: Run the test and the build**
 
 ```powershell
-npx vitest run test/guided-move-interactions.test.ts
+bunx vitest run test/guided-move-interactions.test.ts
 bun run build
 ```
 
@@ -159,7 +159,7 @@ test('formats pawns with a sign and one decimal', () => {
 - [ ] **Step 2: Run and confirm failure**
 
 ```powershell
-npx vitest run test/eval-scale.test.ts
+bunx vitest run test/eval-scale.test.ts
 ```
 
 Expected: FAIL on the missing exports and the label format.
@@ -201,7 +201,7 @@ Add a second test proving a search that never passes the gate still resolves wit
 - [ ] **Step 5: Run and confirm failure**
 
 ```powershell
-npx vitest run test/engine-client.test.ts
+bunx vitest run test/engine-client.test.ts
 ```
 
 - [ ] **Step 6: Thread the callback through the client**
@@ -255,7 +255,7 @@ warm(): void {
 - [ ] **Step 8: Run the engine tests and the build**
 
 ```powershell
-npx vitest run test/eval-scale.test.ts test/engine-client.test.ts
+bunx vitest run test/eval-scale.test.ts test/engine-client.test.ts
 bun run build
 ```
 
@@ -388,9 +388,9 @@ the walker behaves the same way
 - [ ] **Step 8: Run tests and build**
 
 ```powershell
-npx vitest run --exclude test/browser/** --exclude test/auth.test.ts --exclude test/rules.test.ts
+bunx vitest run --exclude test/browser/** --exclude test/auth.test.ts --exclude test/rules.test.ts
 bun run build
-npx playwright test --project=stubbed
+bunx playwright test --project=stubbed
 ```
 
 Expected: PASS. The stubbed engine in `test/browser/surfaces.spec.ts` resolves requests manually and ignores a third argument, so it needs no change.
@@ -475,9 +475,9 @@ The focused square button now survives a draw, so remove the `focusedSquare` `re
 - [ ] **Step 6: Verify no behaviour changed**
 
 ```powershell
-npx vitest run --exclude test/browser/** --exclude test/auth.test.ts --exclude test/rules.test.ts
+bunx vitest run --exclude test/browser/** --exclude test/auth.test.ts --exclude test/rules.test.ts
 bun run build
-npx playwright test --project=stubbed
+bunx playwright test --project=stubbed
 ```
 
 Expected: PASS with no spec changes. This task is a pure refactor; any required spec edit is a signal that behaviour drifted.
@@ -542,7 +542,7 @@ The captured-ghost case is covered by the caller passing the settled position's 
 - [ ] **Step 2: Run and confirm failure**
 
 ```powershell
-npx vitest run test/guided-move-interactions.test.ts
+bunx vitest run test/guided-move-interactions.test.ts
 ```
 
 - [ ] **Step 3: Add the pure decision**
@@ -618,9 +618,9 @@ Set a long move duration in the harness so the sequence window is comfortable to
 - [ ] **Step 9: Run everything**
 
 ```powershell
-npx vitest run --exclude test/browser/** --exclude test/auth.test.ts --exclude test/rules.test.ts
+bunx vitest run --exclude test/browser/** --exclude test/auth.test.ts --exclude test/rules.test.ts
 bun run build
-npx playwright test --project=stubbed
+bunx playwright test --project=stubbed
 ```
 
 Expected: PASS, including the three unchanged `aria-busy` helpers.

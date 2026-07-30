@@ -65,7 +65,7 @@ expect(COURSES[0].lessons.beginner.variations.map(({ id }) => id))
 
 - [ ] **Step 2: Run the focused test and verify RED**
 
-Run: `npx vitest run test/course-content.test.ts`
+Run: `bunx vitest run test/course-content.test.ts`
 
 Expected: FAIL because `beginner-meet-g6` does not exist.
 
@@ -135,7 +135,7 @@ expect(LEVELS.map((level) => COURSES[0].lessons[level].variations.length)).toEqu
 
 - [ ] **Step 2: Run and verify RED**
 
-Run: `npx vitest run test/course-content.test.ts`
+Run: `bunx vitest run test/course-content.test.ts`
 
 Expected: FAIL with missing Jobava IDs.
 
@@ -156,7 +156,7 @@ Use a bundled-engine terminal-position evaluation rounded to the nearest 5 centi
 
 - [ ] **Step 4: Run and verify GREEN**
 
-Run: `npx vitest run test/course-content.test.ts`
+Run: `bunx vitest run test/course-content.test.ts`
 
 Expected: PASS, including legality and consecutive-position checks.
 
@@ -194,7 +194,7 @@ expect(LEVELS.map((level) => london[level].variations.length)).toEqual([5, 5, 6]
 
 - [ ] **Step 2: Run and verify RED**
 
-Run: `npx vitest run test/course-content.test.ts`
+Run: `bunx vitest run test/course-content.test.ts`
 
 Expected: FAIL with missing London IDs.
 
@@ -214,7 +214,7 @@ All are `alternative` except `poisoned-pawn`, which is `punish`. Add one explana
 
 - [ ] **Step 4: Run and verify GREEN**
 
-Run: `npx vitest run test/course-content.test.ts`
+Run: `bunx vitest run test/course-content.test.ts`
 
 Expected: PASS.
 
@@ -259,7 +259,7 @@ expect(LEVELS.map((level) => sicilian[level].variations.length)).toEqual([6, 7, 
 
 - [ ] **Step 2: Run and verify RED**
 
-Run: `npx vitest run test/course-content.test.ts`
+Run: `bunx vitest run test/course-content.test.ts`
 
 Expected: FAIL with missing Sicilian IDs.
 
@@ -283,7 +283,7 @@ Use `alternative` for all except no new `punish` line is required. Explanations 
 
 - [ ] **Step 4: Run and verify GREEN**
 
-Run: `npx vitest run test/course-content.test.ts`
+Run: `bunx vitest run test/course-content.test.ts`
 
 Expected: PASS.
 
@@ -326,7 +326,7 @@ expect(LEVELS.map((level) => caro[level].variations.length)).toEqual([7, 7, 7]);
 
 - [ ] **Step 2: Run and verify RED**
 
-Run: `npx vitest run test/course-content.test.ts`
+Run: `bunx vitest run test/course-content.test.ts`
 
 Expected: FAIL with missing Caro-Kann IDs.
 
@@ -351,7 +351,7 @@ Use `alternative` for all. Add an explanation for every Black move and engine-de
 
 - [ ] **Step 4: Run and verify GREEN**
 
-Run: `npx vitest run test/course-content.test.ts`
+Run: `bunx vitest run test/course-content.test.ts`
 
 Expected: PASS.
 
@@ -401,7 +401,7 @@ await expect(page.locator('.mastery-figure strong')).toHaveText(`${Math.round(1 
 Run:
 
 ```powershell
-npx vitest run test/course-content.test.ts test/mastery.test.ts
+bunx vitest run test/course-content.test.ts test/mastery.test.ts
 ```
 
 Expected: PASS after Tasks 1-5. If the browser assertion cannot run without emulators, leave it for Step 5.

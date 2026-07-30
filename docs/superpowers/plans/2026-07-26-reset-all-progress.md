@@ -100,7 +100,7 @@ describe('reset all progress', () => {
 Run:
 
 ```powershell
-npx vitest run test/progress-reset.test.ts
+bunx vitest run test/progress-reset.test.ts
 ```
 
 Expected: FAIL because `resetAllProgress` is not exported by `src/progress.ts`.
@@ -130,7 +130,7 @@ export async function resetAllProgress(courseIds: string[]): Promise<void> {
 Run:
 
 ```powershell
-npx vitest run test/progress-reset.test.ts
+bunx vitest run test/progress-reset.test.ts
 ```
 
 Expected: 2 tests PASS.
@@ -163,8 +163,8 @@ test('owner deletes only their own progress', async () => {
 Run:
 
 ```powershell
-npx vitest run test/progress-reset.test.ts
-npx firebase emulators:exec --only firestore "vitest run test/rules.test.ts"
+bunx vitest run test/progress-reset.test.ts
+bunx firebase emulators:exec --only firestore "vitest run test/rules.test.ts"
 bun run build
 ```
 
@@ -274,7 +274,7 @@ test('failed reset stays open and can be retried', async ({ page }) => {
 Run:
 
 ```powershell
-npx playwright test test/browser/targeted-ui-repair.spec.ts --grep "reset"
+bunx playwright test test/browser/targeted-ui-repair.spec.ts --grep "reset"
 ```
 
 Expected: FAIL because the settings dialog has no reset controls.
@@ -396,7 +396,7 @@ Extend the existing dark-mode block:
 Run:
 
 ```powershell
-npx playwright test test/browser/targeted-ui-repair.spec.ts --grep "reset"
+bunx playwright test test/browser/targeted-ui-repair.spec.ts --grep "reset"
 bun run build
 ```
 

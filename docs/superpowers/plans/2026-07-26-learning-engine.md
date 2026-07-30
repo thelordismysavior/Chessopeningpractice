@@ -127,7 +127,7 @@ describe('due query', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run test/review-schedule.test.ts`
+Run: `bunx vitest run test/review-schedule.test.ts`
 Expected: FAIL — `Failed to resolve import "../src/review-schedule"`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -202,7 +202,7 @@ export function duePositionIds(positions: Record<string, PositionRecord>, candid
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run test/review-schedule.test.ts`
+Run: `bunx vitest run test/review-schedule.test.ts`
 Expected: PASS, 10 tests.
 
 - [ ] **Step 5: Commit**
@@ -358,7 +358,7 @@ describe('merge', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run test/progress-store.test.ts`
+Run: `bunx vitest run test/progress-store.test.ts`
 Expected: FAIL — `migrateProgress` / `diffProgress` / `mergeProgress` are not exported from `../src/progress`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -509,10 +509,10 @@ Note: `transaction.set` writes the whole document, which drops the legacy `attem
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run test/progress-store.test.ts`
+Run: `bunx vitest run test/progress-store.test.ts`
 Expected: PASS, 8 tests.
 
-Run: `npx vitest run test/progress-reset.test.ts`
+Run: `bunx vitest run test/progress-reset.test.ts`
 Expected: PASS, 2 tests — `resetAllProgress` was not changed.
 
 TypeScript will now report errors in `src/main.ts` and `src/progress-state.ts`. That is expected and is fixed in Task 7. Do not run `bun run build` yet.
@@ -606,7 +606,7 @@ describe('overall mastery', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run test/mastery.test.ts`
+Run: `bunx vitest run test/mastery.test.ts`
 Expected: FAIL — `Failed to resolve import "../src/mastery"`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -656,7 +656,7 @@ export function overallMastery(progressByCourse: Record<Course['id'], CourseProg
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run test/mastery.test.ts`
+Run: `bunx vitest run test/mastery.test.ts`
 Expected: PASS, 6 tests.
 
 - [ ] **Step 5: Commit**
@@ -881,7 +881,7 @@ describe('outcome log', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run test/line-drill.test.ts`
+Run: `bunx vitest run test/line-drill.test.ts`
 Expected: FAIL — `Failed to resolve import "../src/line-drill"`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -1058,7 +1058,7 @@ export class LineDrill {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run test/line-drill.test.ts`
+Run: `bunx vitest run test/line-drill.test.ts`
 Expected: PASS, 15 tests.
 
 - [ ] **Step 5: Commit**
@@ -1114,7 +1114,7 @@ describe('guided move policy', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run test/guided-move-interactions.test.ts`
+Run: `bunx vitest run test/guided-move-interactions.test.ts`
 Expected: FAIL — TypeScript rejects the string arguments, or the assertions fail, because `shouldShowMoveGuide` still takes a boolean first argument.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -1133,7 +1133,7 @@ export function shouldShowMoveGuide(phase: DrillPhase, status: DrillStatus, hint
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run test/guided-move-interactions.test.ts`
+Run: `bunx vitest run test/guided-move-interactions.test.ts`
 Expected: PASS, 16 tests — the 4 new guide-policy tests plus 12 unchanged ones (5 board input, 4 transition plans, 3 move duration).
 
 - [ ] **Step 5: Commit**
@@ -1328,7 +1328,7 @@ describe('summary', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run test/lesson-runner.test.ts`
+Run: `bunx vitest run test/lesson-runner.test.ts`
 Expected: FAIL — `Failed to resolve import "../src/lesson-runner"`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -1558,7 +1558,7 @@ export class LessonRunner {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run test/lesson-runner.test.ts`
+Run: `bunx vitest run test/lesson-runner.test.ts`
 Expected: PASS, 12 tests.
 
 - [ ] **Step 5: Commit**
@@ -1591,10 +1591,10 @@ git rm src/practice-session.ts src/progress-state.ts test/practice-session.test.
 
 - [ ] **Step 2: Run the suite to see the expected breakage**
 
-Run: `npx vitest run --exclude "test/browser/**" --exclude "test/auth.test.ts" --exclude "test/rules.test.ts"`
+Run: `bunx vitest run --exclude "test/browser/**" --exclude "test/auth.test.ts" --exclude "test/rules.test.ts"`
 Expected: PASS for all remaining files. `src/main.ts` is not covered by Vitest, so its breakage only shows in the build.
 
-Run: `npx tsc --noEmit`
+Run: `bunx tsc --noEmit`
 Expected: FAIL with errors in `src/main.ts` about the missing `./practice-session` and `./progress-state` modules and the changed `saveProgress` signature.
 
 - [ ] **Step 3: Update the imports**
@@ -1743,7 +1743,7 @@ In `proceedAfterLesson` (line 549), `startPractice(course, nextLevel, liveProgre
 
 - [ ] **Step 8: Verify the build and the full suite**
 
-Run: `npx tsc --noEmit`
+Run: `bunx tsc --noEmit`
 Expected: PASS, no errors.
 
 Run: `bun run test:emulators`
@@ -1857,7 +1857,7 @@ Append to `src/style.css`:
 
 - [ ] **Step 5: Verify**
 
-Run: `npx tsc --noEmit`
+Run: `bunx tsc --noEmit`
 Expected: PASS.
 
 Run: `bun run dev` and confirm at a Beginner lesson: the eyebrow reads "Learn the line" then "Recall"; "Show me" appears only during recall; pressing it reveals the arrow and does not fill a budget slot; a wrong move fills one slot.
@@ -1997,7 +1997,7 @@ Append to `src/style.css`:
 
 - [ ] **Step 4: Verify**
 
-Run: `npx tsc --noEmit`
+Run: `bunx tsc --noEmit`
 Expected: PASS.
 
 Run: `bun run dev`. Bank the first line of a Beginner lesson and confirm the handoff names both lines, the board shows the next line's opening position, and the notice clears itself after about 1.6 seconds.
@@ -2164,7 +2164,7 @@ Append to `src/style.css`:
 
 - [ ] **Step 5: Verify**
 
-Run: `npx tsc --noEmit`
+Run: `bunx tsc --noEmit`
 Expected: PASS.
 
 Run: `bun run test:emulators`
