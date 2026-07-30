@@ -102,6 +102,15 @@ describe('review mode', () => {
     expect(runner.snapshot.position?.id).toBe('main-2');
   });
 
+  test('does not fall back to practice for a reference-only review request', () => {
+    const runner = new LessonRunner(lesson, base(), { reviewPositionIds: ['reference-1'] });
+    expect(runner.reviewMode).toBe(true);
+    expect(runner.snapshot.position).toBeNull();
+    expect(runner.snapshot.positionCount).toBe(0);
+    runner.submitMove('d2d4');
+    expect(runner.progressFor('beginner')).toEqual(base());
+  });
+
   test('clears a due position after one clean answer in a review session', () => {
     const due = base({ positions: { 'main-2': { attempts: 1, corrects: 0, misses: 1, hints: 0, reviewStreak: 0, due: true } } });
 

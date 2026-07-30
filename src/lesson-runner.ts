@@ -68,11 +68,12 @@ export class LessonRunner {
     const trainablePositionIds = new Set(lesson.variations
       .filter(isTrainableVariation)
       .flatMap((variation) => variation.positions.map((position) => position.id)));
-    const reviewIds = (options.reviewPositionIds ?? []).filter((id) => trainablePositionIds.has(id));
+    const requestedReviewIds = options.reviewPositionIds ?? [];
+    const reviewIds = requestedReviewIds.filter((id) => trainablePositionIds.has(id));
     const reviewPositions = reviewIds
       .map((id) => lesson.positions.find((position) => position.id === id))
       .filter((position): position is PracticePosition => Boolean(position));
-    this.isReview = reviewPositions.length > 0;
+    this.isReview = requestedReviewIds.length > 0;
 
     if (this.isReview) {
       this.lines = [{ variation: null, positions: reviewPositions, teachPass: false }];
