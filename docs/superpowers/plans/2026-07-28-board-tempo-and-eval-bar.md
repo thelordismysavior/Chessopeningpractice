@@ -93,7 +93,7 @@ export const MOVE_BEAT_AFTER_REPLY_TEACHING = 300;
 
 ```powershell
 npx vitest run test/guided-move-interactions.test.ts
-npm run build
+bun run build
 ```
 
 Expected: PASS.
@@ -256,7 +256,7 @@ warm(): void {
 
 ```powershell
 npx vitest run test/eval-scale.test.ts test/engine-client.test.ts
-npm run build
+bun run build
 ```
 
 Expected: PASS.
@@ -389,7 +389,7 @@ the walker behaves the same way
 
 ```powershell
 npx vitest run --exclude test/browser/** --exclude test/auth.test.ts --exclude test/rules.test.ts
-npm run build
+bun run build
 npx playwright test --project=stubbed
 ```
 
@@ -476,7 +476,7 @@ The focused square button now survives a draw, so remove the `focusedSquare` `re
 
 ```powershell
 npx vitest run --exclude test/browser/** --exclude test/auth.test.ts --exclude test/rules.test.ts
-npm run build
+bun run build
 npx playwright test --project=stubbed
 ```
 
@@ -619,7 +619,7 @@ Set a long move duration in the harness so the sequence window is comfortable to
 
 ```powershell
 npx vitest run --exclude test/browser/** --exclude test/auth.test.ts --exclude test/rules.test.ts
-npm run build
+bun run build
 npx playwright test --project=stubbed
 ```
 
@@ -653,21 +653,21 @@ Verify no logs, `test-results/`, environment files, or unrelated changes were co
 - [ ] **Step 2: Pure tests, build, and release check**
 
 ```powershell
-npm test
-npm run build
-npm run release:check
+bun run test
+bun run build
+bun run release:check
 ```
 
 - [ ] **Step 3: Emulator suite**
 
 ```powershell
-npm run test:emulators
+bun run test:emulators
 ```
 
 - [ ] **Step 4: Full browser matrix**
 
 ```powershell
-npm run test:browser
+bun run test:browser
 ```
 
 - [ ] **Step 5: Walk the spec's browser checks**

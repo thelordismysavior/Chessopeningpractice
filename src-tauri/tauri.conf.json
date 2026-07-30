@@ -3,7 +3,7 @@
   "productName": "Chess Practice",
   "version": "0.1.0",
   "identifier": "com.chesspractice.app",
-  "build": { "beforeDevCommand": "npm run dev", "devUrl": "http://localhost:5173", "beforeBuildCommand": "npm run build", "frontendDist": "../dist" },
+  "build": { "beforeDevCommand": "bun run dev", "devUrl": "http://localhost:5173", "beforeBuildCommand": "bun run build", "frontendDist": "../dist" },
   "app": { "windows": [{ "title": "Chess Practice", "width": 960, "height": 720 }], "security": { "csp": null } },
   "bundle": { "active": true, "targets": "all" }
 }

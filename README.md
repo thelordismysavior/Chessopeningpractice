@@ -3,8 +3,8 @@
 ## Local development
 
 ```sh
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 Copy `.env.example` to `.env.local`, set Firebase project values and the approved owner email. For local emulator work, put `VITE_FIREBASE_USE_EMULATORS=true` in `.env.development.local`; production builds ignore emulator wiring and should keep the value `false`.
@@ -15,11 +15,11 @@ Create the owner account through the app's **Create account** form using the ema
 
 | Command | Covers | Needs emulators |
 | --- | --- | --- |
-| `npm test` | Unit and course-content tests | No |
-| `npm run test:browser:fast` | Browser tests against stubbed Firebase | No |
-| `npm run test:emulators` | Unit tests plus the Firestore rules and auth contracts | Yes |
-| `npm run test:browser` | Every browser test, including the emulator-backed journey | Yes |
-| `npm run test:browser:emulated` | The emulator-backed journey alone | Yes |
+| `bun run test` | Unit and course-content tests | No |
+| `bun run test:browser:fast` | Browser tests against stubbed Firebase | No |
+| `bun run test:emulators` | Unit tests plus the Firestore rules and auth contracts | Yes |
+| `bun run test:browser` | Every browser test, including the emulator-backed journey | Yes |
+| `bun run test:browser:emulated` | The emulator-backed journey alone | Yes |
 
 The two `:fast` and plain commands need no Java and are the ones to reach for while iterating. The
 emulator-backed browser tests live in `test/browser/emulator-matrix.spec.ts`; every other browser
@@ -39,4 +39,4 @@ Before production use:
 
 Tauri v2 scaffolding lives in `src-tauri/`; install Rust and Tauri prerequisites before running it.
 
-Run the release checks with `npm run release:check`, build with `npm run build`, then deploy the browser build with `firebase deploy --only hosting`.
+Run the release checks with `bun run release:check`, build with `bun run build`, then deploy the browser build with `firebase deploy --only hosting`.

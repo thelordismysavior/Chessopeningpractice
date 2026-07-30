@@ -122,7 +122,7 @@ Run:
 
 ```powershell
 npx vitest run test/guided-move-interactions.test.ts test/practice-session.test.ts
-npm run build
+bun run build
 ```
 
 Expected: both test files and the build pass.
@@ -388,7 +388,7 @@ Run:
 
 ```powershell
 npx vitest run test/practice-session.test.ts test/progress-state.test.ts
-npm run build
+bun run build
 ```
 
 Expected: PASS.
@@ -506,7 +506,7 @@ guide remains directional and sits below pieces
 Run:
 
 ```powershell
-npm run build
+bun run build
 ```
 
 Expected: PASS.
@@ -559,7 +559,7 @@ Expected: all pure tests pass.
 Run:
 
 ```powershell
-npm run build
+bun run build
 ```
 
 Expected: TypeScript passes and Vite creates `dist`.
@@ -569,7 +569,7 @@ Expected: TypeScript passes and Vite creates `dist`.
 Run:
 
 ```powershell
-npm run test:emulators
+bun run test:emulators
 ```
 
 Expected: Auth, Firestore rules, and all other tests pass under the emulators.

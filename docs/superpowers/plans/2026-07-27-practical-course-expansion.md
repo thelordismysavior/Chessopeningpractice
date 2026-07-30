@@ -408,19 +408,19 @@ Expected: PASS after Tasks 1-5. If the browser assertion cannot run without emul
 
 - [ ] **Step 3: Run all unit tests**
 
-Run: `npm test`
+Run: `bun run test`
 
 Expected: all unit tests pass with zero failures.
 
 - [ ] **Step 4: Run the production build**
 
-Run: `npm run build`
+Run: `bun run build`
 
 Expected: TypeScript and Vite exit 0.
 
 - [ ] **Step 5: Run browser verification**
 
-Run: `npm run test:browser -- test/browser/surfaces.spec.ts`
+Run: `bun run test:browser -- test/browser/surfaces.spec.ts`
 
 Expected: dashboard opens, course rows render, browse shows 72 lines, and an added line opens in the walker.
 

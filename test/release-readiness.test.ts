@@ -11,7 +11,7 @@ describe('v1 release wiring', () => {
   });
 
   test('points Tauri at the production frontend build', () => {
-    expect(tauri.build).toMatchObject({ beforeBuildCommand: 'npm run build', frontendDist: '../dist' });
+    expect(tauri.build).toMatchObject({ beforeBuildCommand: 'bun run build', frontendDist: '../dist' });
     expect(existsSync('src-tauri/gen/android')).toBe(true);
   });
 

@@ -165,7 +165,7 @@ Run:
 ```powershell
 npx vitest run test/progress-reset.test.ts
 npx firebase emulators:exec --only firestore "vitest run test/rules.test.ts"
-npm run build
+bun run build
 ```
 
 Expected: both Vitest commands PASS and the TypeScript/Vite build succeeds.
@@ -397,7 +397,7 @@ Run:
 
 ```powershell
 npx playwright test test/browser/targeted-ui-repair.spec.ts --grep "reset"
-npm run build
+bun run build
 ```
 
 Expected: both reset tests PASS and the build succeeds.
@@ -450,7 +450,7 @@ test('Dashboard reset clears saved progress and preserves move duration', async 
 Run:
 
 ```powershell
-npm run test:browser -- --grep "Dashboard reset"
+bun run test:browser -- --grep "Dashboard reset"
 ```
 
 Expected: PASS against the Auth and Firestore emulators.
@@ -460,10 +460,10 @@ Expected: PASS against the Auth and Firestore emulators.
 Run:
 
 ```powershell
-npm run test:emulators
-npm run build
-npm run test:browser
-npm run release:check
+bun run test:emulators
+bun run build
+bun run test:browser
+bun run release:check
 git diff --check
 git status --short
 ```

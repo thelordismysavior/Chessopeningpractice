@@ -19,7 +19,7 @@
 - No changes to `firestore.rules`, authentication, or the `users/{uid}/courses/{courseId}` document path.
 - `mistakeBudget` is `2`: the first mistake is forgiven, the second forces a replay. `REVIEW_CLEAR_STREAK` is `2`.
 - "Cleanly" always means solved on the first attempt with no hint used. A hint counts as a miss for statistics but never spends mistake budget.
-- The real test gate is `npm run test:emulators`. Plain `npm test` cannot pass, because `test/auth.test.ts` and `test/rules.test.ts` require the Firebase emulators. Verified baseline on branch `learning-engine`: 10 files, 43 tests, 0 failures.
+- The real test gate is `bun run test:emulators`. Plain `bun run test` cannot pass, because `test/auth.test.ts` and `test/rules.test.ts` require the Firebase emulators. Verified baseline on branch `learning-engine`: 10 files, 43 tests, 0 failures.
 - Preserve existing behaviour not named in this plan: drag-and-drop, click-to-move, keyboard input, reduced-motion handling, scroll reset between screens, the settings dialog, and progress reset.
 - Commit after every task using the message given in that task's final step.
 
@@ -515,7 +515,7 @@ Expected: PASS, 8 tests.
 Run: `npx vitest run test/progress-reset.test.ts`
 Expected: PASS, 2 tests — `resetAllProgress` was not changed.
 
-TypeScript will now report errors in `src/main.ts` and `src/progress-state.ts`. That is expected and is fixed in Task 7. Do not run `npm run build` yet.
+TypeScript will now report errors in `src/main.ts` and `src/progress-state.ts`. That is expected and is fixed in Task 7. Do not run `bun run build` yet.
 
 - [ ] **Step 5: Commit**
 
@@ -1746,12 +1746,12 @@ In `proceedAfterLesson` (line 549), `startPractice(course, nextLevel, liveProgre
 Run: `npx tsc --noEmit`
 Expected: PASS, no errors.
 
-Run: `npm run test:emulators`
+Run: `bun run test:emulators`
 Expected: PASS, 13 files, zero failures — `auth`, `board-legibility`, `course-content`, `guided-move-interactions`, `line-drill`, `lesson-runner`, `mastery`, `progress-reset`, `progress-store`, `release-readiness`, `review-schedule`, `route-arrow`, `rules`. That is the original 10 files, minus the 2 deleted in Step 1, plus the 5 added in Tasks 1-6.
 
 - [ ] **Step 9: Manually smoke-test the app**
 
-Run: `npm run dev`, sign in, open a Beginner lesson. Confirm the line runs a teach pass with arrows and then restarts without them, that a wrong move shows the arrow, and that completing every line reaches Proceed.
+Run: `bun run dev`, sign in, open a Beginner lesson. Confirm the line runs a teach pass with arrows and then restarts without them, that a wrong move shows the arrow, and that completing every line reaches Proceed.
 
 - [ ] **Step 10: Commit**
 
@@ -1860,7 +1860,7 @@ Append to `src/style.css`:
 Run: `npx tsc --noEmit`
 Expected: PASS.
 
-Run: `npm run dev` and confirm at a Beginner lesson: the eyebrow reads "Learn the line" then "Recall"; "Show me" appears only during recall; pressing it reveals the arrow and does not fill a budget slot; a wrong move fills one slot.
+Run: `bun run dev` and confirm at a Beginner lesson: the eyebrow reads "Learn the line" then "Recall"; "Show me" appears only during recall; pressing it reveals the arrow and does not fill a budget slot; a wrong move fills one slot.
 
 - [ ] **Step 6: Commit**
 
@@ -2000,7 +2000,7 @@ Append to `src/style.css`:
 Run: `npx tsc --noEmit`
 Expected: PASS.
 
-Run: `npm run dev`. Bank the first line of a Beginner lesson and confirm the handoff names both lines, the board shows the next line's opening position, and the notice clears itself after about 1.6 seconds.
+Run: `bun run dev`. Bank the first line of a Beginner lesson and confirm the handoff names both lines, the board shows the next line's opening position, and the notice clears itself after about 1.6 seconds.
 
 - [ ] **Step 5: Commit**
 
@@ -2167,10 +2167,10 @@ Append to `src/style.css`:
 Run: `npx tsc --noEmit`
 Expected: PASS.
 
-Run: `npm run test:emulators`
+Run: `bun run test:emulators`
 Expected: PASS, zero failures.
 
-Run: `npm run build`
+Run: `bun run build`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -2211,17 +2211,17 @@ Mirror the existing spec's approach for driving moves — use its board-square c
 
 - [ ] **Step 2: Run the browser suite**
 
-Run: `npm run test:browser`
+Run: `bun run test:browser`
 Expected: PASS for the new spec and for `test/browser/emulator-matrix.spec.ts`.
 
 `test/browser/targeted-ui-repair.spec.ts` will have failures where it asserts the old behaviour — specifically any assertion that the guide arrow is visible on a first pass, or that a mistake produces a "Replay this line" button. Update those assertions to the new rules rather than deleting the tests; its click-to-move, drag, scroll, responsive, and Proceed coverage must all keep passing.
 
 - [ ] **Step 3: Run the whole gate**
 
-Run: `npm run test:emulators`
+Run: `bun run test:emulators`
 Expected: PASS.
 
-Run: `npm run release:check`
+Run: `bun run release:check`
 Expected: PASS.
 
 - [ ] **Step 4: Commit**
@@ -2237,8 +2237,8 @@ git commit -m "test: verify the teach and recall engine in the browser"
 
 Verify before declaring completion:
 
-- `npm run test:emulators` passes with zero failures.
-- `npm run test:browser` passes.
-- `npm run release:check` passes.
+- `bun run test:emulators` passes with zero failures.
+- `bun run test:browser` passes.
+- `bun run release:check` passes.
 - `src/practice-session.ts` and `src/progress-state.ts` no longer exist.
 - A learner who misses a position, then reviews it correctly twice, sees the dashboard review count fall.
