@@ -7,6 +7,8 @@ bun install
 bun run dev
 ```
 
+Bun is the repository's package manager. Use `bun install` for dependency changes and commit the resulting `bun.lock` file; do not create or maintain an npm lockfile.
+
 Copy `.env.example` to `.env.local`, set Firebase project values and the approved owner email. For local emulator work, put `VITE_FIREBASE_USE_EMULATORS=true` in `.env.development.local`; production builds ignore emulator wiring and should keep the value `false`.
 
 Create the owner account through the app's **Create account** form using the email in `VITE_APPROVED_EMAIL`. After sign-up, set `config/access.approvedUid` to the UID shown on the approval screen; access remains blocked until that server-managed document is updated.
