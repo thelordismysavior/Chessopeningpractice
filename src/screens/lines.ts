@@ -28,7 +28,13 @@ export async function renderLines(navigate: Navigate, email: string | null): Pro
     app.querySelector('#back-dashboard')?.addEventListener('click', () => void navigate({ name: 'dashboard' }));
     app.querySelector('#sign-out')?.addEventListener('click', () => void signOutUser());
     app.querySelectorAll<HTMLButtonElement>('[data-line-id]').forEach((button) => button.addEventListener('click', () => {
-      void navigate({ name: 'browse', courseId: button.dataset.courseId as Course['id'], lineId: button.dataset.lineId });
+      const line = lines.find((candidate) => candidate.course.id === button.dataset.courseId && candidate.variation.id === button.dataset.lineId);
+      if (!line) return;
+      if (line.state === 'reference' || line.state === 'untouched') {
+        void navigate({ name: 'browse', courseId: line.course.id, lineId: line.variation.id, study: line.state === 'reference' });
+        return;
+      }
+      void navigate({ name: 'practice', course: line.course, level: line.level, progress: progressByCourse[line.course.id], variationId: line.variation.id });
     }));
   } catch (error) {
     app.innerHTML = `<main class="error-page" role="alert"><p class="eyebrow">Lines unavailable</p><h1>Your repertoire is still here.</h1><p class="lede">${escapeHtml(error instanceof Error ? error.message : 'Check your connection and try again.')}</p><button id="retry-lines">Try again</button></main>`;

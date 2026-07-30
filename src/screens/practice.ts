@@ -46,6 +46,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   let dragging = false;
   let suppressClick = false;
   let boardEl: HTMLDivElement | null = null;
+  let evalEl: HTMLElement | null = null;
   let displayedChess = new Chess();
   let settledChess = displayedChess;
   let learnerAfterFen: string | null = null;
@@ -149,7 +150,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
           return `<div class="summary-panel" role="status" aria-live="polite"><strong>${escapeHtml(completionMessage)}</strong><dl class="summary-stats"><div><dt>Lines banked</dt><dd>${summary.bankedLines.length}</dd></div><div><dt>Hints used</dt><dd>${summary.hints}</dd></div><div><dt>Time</dt><dd>${minutes} min</dd></div><div><dt>Course mastery</dt><dd>${Math.round(masteryBefore.ratio * 100)}% &rarr; ${Math.round(masteryAfter.ratio * 100)}%</dd></div></dl><h2 class="summary-heading">To review</h2>${missedMarkup}</div>`;
         })()
       : feedback
-        ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>${moveCost ? `<span class="move-cost">${escapeHtml(moveCost)}</span>` : ''}` : ''}</div>`
+        ? `<div class="feedback feedback-${feedback.kind}"><strong>${escapeHtml(feedback.message)}</strong>${feedback.kind === 'incorrect' ? `<span>Expected: ${escapeHtml(feedback.expectedSan)}</span>${moveCost ? `<details class="engine-note"><summary>Engine</summary><span class="move-cost">${escapeHtml(moveCost)}</span></details>` : ''}` : ''}</div>`
         : `<p class="move-hint">${snapshot.phase === 'teach' ? 'Follow the arrow to learn the line.' : `Select a ${course.side} piece, then select its destination.`}</p>`;
     const dueAfterLesson = lessonComplete
       ? [...new Set([
@@ -177,9 +178,21 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     settledChess = new Chess(sequenceActive
       ? settleDisplayFen(learnerAfterFen ?? position.fen, replyAfterFen, session.snapshot.position?.fen ?? null)
       : chess.fen());
+    const settledFen = sequenceActive || animation ? null : chess.fen();
+    if (settledFen && settledFen !== evalFen) evalScore = null;
     const boardState: BoardState = { chess, selected, side: course.side, guide: expectedRoute, route: routeFlash, animation, dragging, settling: sequenceActive, interactive: !busy || sequenceActive, selectableColor };
-    const nextMain = document.createRange().createContextualFragment(`<main class="practice-shell"><header class="topbar"><div class="topbar-lead"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><a class="wordmark" href="#/home">${brandMarkup()}</a></div><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame"></div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`).firstElementChild!;
+    const nextMain = document.createRange().createContextualFragment(`<main class="practice-shell"><header class="topbar"><div class="topbar-lead"><button id="back-dashboard" class="back-button">&lt;- <span>Dashboard</span></button><a class="wordmark" href="#/home">${brandMarkup()}</a></div><div class="practice-meta"><span class="side-tag">${sideNames[course.side]}</span><span>${escapeHtml(course.name)}</span></div><div class="account"><button id="settings" class="quiet-button">Settings</button><button id="practice-sign-out" class="quiet-button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}<div class="explanation"><span class="explanation-mark">Why this move</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section><section class="board-panel"><div class="eval-host"></div><div class="board-frame"></div><div class="board-caption"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div>${settingsDialogMarkup(moveDuration)}</main>`).firstElementChild!;
     app.append(nextMain);
+    const panel = nextMain.querySelector<HTMLElement>('.board-panel');
+    const evalHost = nextMain.querySelector<HTMLElement>('.eval-host');
+    if (panel && evalHost) {
+      if (!evalEl) {
+        evalEl = document.createRange().createContextualFragment(renderEvalBar(evalScore, engine.status)).firstElementChild as HTMLElement;
+      }
+      evalHost.append(evalEl);
+      updateEvalBar(panel, evalScore, engine.status);
+      evalEl = panel.querySelector<HTMLElement>('.eval-bar, .eval-note');
+    }
     const frame = nextMain.querySelector<HTMLDivElement>('.board-frame');
     if (frame) {
       if (!boardEl) {
@@ -200,7 +213,6 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       completionFocusRequested = true;
       window.requestAnimationFrame(() => app.querySelector<HTMLButtonElement>('#proceed')?.focus());
     }
-    const settledFen = sequenceActive || animation ? null : chess.fen();
     if (settledFen && settledFen !== evalFen) {
       evalFen = settledFen;
       const paint = (score: EvalScore | null) => {

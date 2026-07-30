@@ -99,7 +99,11 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
       const row = visible[index];
       if (row) {
         if (row.state === 'untouched' && isTrainableVariation(row.variation)) openConcept(row);
-        else openWalker(row);
+        else if (row.state === 'reference' || !progressByCourse) openWalker(row);
+        else {
+          void navigate({ name: 'practice', course: row.course, level: row.level, progress: progressByCourse[row.course.id], variationId: row.variation.id });
+          return;
+        }
         void navigate({ name: 'browse', courseId: row.course.id, lineId: row.variation.id, study: row.state !== 'untouched' });
       }
     }));
@@ -199,6 +203,10 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
     ));
     if (row) {
       if (row.state === 'untouched' && isTrainableVariation(row.variation) && !screen.study) openConcept(row);
+      else if (row.state && row.state !== 'reference' && progressByCourse && !screen.study) {
+        void navigate({ name: 'practice', course: row.course, level: row.level, progress: progressByCourse[row.course.id], variationId: row.variation.id });
+        return;
+      }
       else openWalker(row);
       return;
     }

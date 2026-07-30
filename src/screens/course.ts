@@ -52,7 +52,13 @@ export async function renderCourse(navigate: Navigate, email: string | null, scr
       render();
     });
     app.querySelectorAll<HTMLButtonElement>('[data-line-id]').forEach((button) => button.addEventListener('click', () => {
-      void navigate({ name: 'browse', courseId: course.id, lineId: button.dataset.lineId });
+      const line = lines.find((candidate) => candidate.variation.id === button.dataset.lineId);
+      if (!line) return;
+      if (line.state === 'reference' || line.state === 'untouched') {
+        void navigate({ name: 'browse', courseId: course.id, lineId: line.variation.id, study: line.state === 'reference' });
+        return;
+      }
+      void navigate({ name: 'practice', course, level: line.level, progress, variationId: line.variation.id });
     }));
   };
 

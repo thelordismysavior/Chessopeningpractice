@@ -28,6 +28,26 @@ test('teach shows the guide, recall withholds it, and Show me reveals without sp
   await expect(page.locator('.budget-slot.is-spent')).toHaveCount(0);
 });
 
+test('keeps the Board and Eval Bar nodes through a move redraw', async ({ page }) => {
+  await openDashboard(page, 1440, 1000);
+  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await expect(page.locator('.board')).toBeVisible();
+  await page.evaluate(() => {
+    const state = globalThis as typeof globalThis & { __practiceRefs: { board: Element | null; evalBar: Element | null } };
+    state.__practiceRefs = { board: document.querySelector('.board'), evalBar: document.querySelector('.eval-bar, .eval-note') };
+  });
+  await playMove(page, lineMoves()[0][0]);
+  const refs = await page.evaluate(() => {
+    const state = globalThis as typeof globalThis & { __practiceRefs: { board: Element | null; evalBar: Element | null } };
+    return {
+      board: state.__practiceRefs.board === document.querySelector('.board'),
+      evalBar: state.__practiceRefs.evalBar === document.querySelector('.eval-bar, .eval-note'),
+    };
+  });
+  expect(refs.board).toBe(true);
+  expect(refs.evalBar).toBe(true);
+});
+
 test('one mistake spends one slot and completes the selected line', async ({ page }) => {
   await openDashboard(page, 1440, 1000);
   const [firstLine] = lineMoves();

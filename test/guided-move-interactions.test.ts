@@ -53,13 +53,13 @@ describe('guided move policy', () => {
 
   test('withholds the guide during recall until it is earned', () => {
     expect(shouldShowMoveGuide('recall', 'active', false)).toBe(false);
-    expect(shouldShowMoveGuide('recall', 'retrying', false)).toBe(true);
+    expect(shouldShowMoveGuide('recall', 'retrying', false)).toBe(false);
     expect(shouldShowMoveGuide('recall', 'active', true)).toBe(true);
   });
 
   test('treats a review like a recall pass', () => {
     expect(shouldShowMoveGuide('review', 'active', false)).toBe(false);
-    expect(shouldShowMoveGuide('review', 'retrying', false)).toBe(true);
+    expect(shouldShowMoveGuide('review', 'retrying', false)).toBe(false);
     expect(shouldShowMoveGuide('review', 'active', true)).toBe(true);
   });
 

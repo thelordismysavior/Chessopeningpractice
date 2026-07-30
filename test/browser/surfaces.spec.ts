@@ -206,6 +206,10 @@ test('the browse index filters, and the walker steps without touching progress',
 
   await page.locator('[data-state-filter="all"]').click();
   await page.locator('.browse-row').first().click();
+  await expect(page.locator('.practice-shell')).toBeVisible();
+  await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Recall');
+
+  await page.goto(`/#/browse/${COURSES[0].id}/${COURSES[0].lessons.beginner.variations[0].id}?study=1`);
   await expect(page.locator('.walker')).toBeVisible();
   await expect(page.locator('.walker-move.is-current')).toHaveText(/^01 /);
   await page.locator('#walker-next').click();
@@ -229,6 +233,19 @@ test('an untouched line opens with a concept entry and direct practice access', 
   await page.locator('.browse-row').last().click();
   await expect(page.locator('.line-concept')).toBeVisible();
   await expect(page.locator('#start-line-lesson')).toBeVisible();
+});
+
+test('banked line rows enter one-line Recall directly', async ({ page }) => {
+  await stubEngine(page);
+  await openDashboard(page, 1440, 1000);
+  await seedProgress(page, COURSES[0].id, bankedProgress(0, false));
+  await page.reload();
+
+  await page.locator('#lines').click();
+  await page.locator('.lines-section').filter({ hasText: 'Banked and mastered' }).locator('.line-selection-row').first().click();
+  await expect(page.locator('.practice-shell')).toBeVisible();
+  await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Recall');
+  await expect(page.locator('.guide-overlay .route-arrow')).toHaveCount(0);
 });
 
 test('the bar reads from the learner side in a white and a black course', async ({ page }) => {
