@@ -6,6 +6,8 @@ import type { MoveTransition } from './transition-plans';
 import { evalLabel, fillFraction, type EvalScore } from './engine/eval-scale';
 import type { EngineStatus } from './engine/engine-client';
 
+const pieceNames = { k: 'king', q: 'queen', r: 'rook', b: 'bishop', n: 'knight', p: 'pawn' } as const;
+
 export function squareName(row: number, column: number, side: Course['side']): string {
   const boardRow = side === 'black' ? 7 - row : row;
   const boardColumn = side === 'black' ? 7 - column : column;
@@ -51,7 +53,7 @@ function squareView(state: BoardState, square: string, piece: ReturnType<Chess['
     appearance: visiblePiece ? pieceAppearance(code) : null,
     selected: state.selected === square,
     movable: state.interactive && !state.settling && piece?.color === state.selectableColor,
-    label: `${square}, ${visiblePiece ? `${visiblePiece.color === 'w' ? 'white' : 'black'} ${visiblePiece.type}` : 'empty'}`,
+    label: `${square}, ${visiblePiece ? `${visiblePiece.color === 'w' ? 'white' : 'black'} ${pieceNames[visiblePiece.type]}` : 'empty'}`,
   };
 }
 
