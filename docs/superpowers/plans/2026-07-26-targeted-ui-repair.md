@@ -71,7 +71,7 @@ test('settles on the next line start when no reply joins the positions', () => {
 Run:
 
 ```powershell
-npx vitest run test/guided-move-interactions.test.ts
+bunx vitest run test/guided-move-interactions.test.ts
 ```
 
 Expected: FAIL because `settleDisplayFen` is not exported.
@@ -91,7 +91,7 @@ export function settleDisplayFen(learnerAfterFen: string, replyAfterFen: string 
 Run:
 
 ```powershell
-npx vitest run test/guided-move-interactions.test.ts
+bunx vitest run test/guided-move-interactions.test.ts
 ```
 
 Expected: PASS.
@@ -121,8 +121,8 @@ This keeps normal opponent replies unchanged, selects the next variation's start
 Run:
 
 ```powershell
-npx vitest run test/guided-move-interactions.test.ts test/practice-session.test.ts
-npm run build
+bunx vitest run test/guided-move-interactions.test.ts test/practice-session.test.ts
+bun run build
 ```
 
 Expected: both test files and the build pass.
@@ -216,7 +216,7 @@ Keep the existing capture release in `finishPointer`.
 Run:
 
 ```powershell
-npx vitest run test/guided-move-interactions.test.ts
+bunx vitest run test/guided-move-interactions.test.ts
 ```
 
 Expected: PASS.
@@ -263,7 +263,7 @@ Exclude the pre-existing drag-lift parent change from the staged diff.
 Run:
 
 ```powershell
-npx vitest run test/practice-session.test.ts test/progress-state.test.ts
+bunx vitest run test/practice-session.test.ts test/progress-state.test.ts
 ```
 
 Expected: PASS, including all-three-variations completion and sequential unlocking.
@@ -387,8 +387,8 @@ Extend the primary button selector:
 Run:
 
 ```powershell
-npx vitest run test/practice-session.test.ts test/progress-state.test.ts
-npm run build
+bunx vitest run test/practice-session.test.ts test/progress-state.test.ts
+bun run build
 ```
 
 Expected: PASS.
@@ -506,7 +506,7 @@ guide remains directional and sits below pieces
 Run:
 
 ```powershell
-npm run build
+bun run build
 ```
 
 Expected: PASS.
@@ -549,7 +549,7 @@ Verify no unrelated deletions, generated logs, environment files, or the pre-exi
 Run:
 
 ```powershell
-npx vitest run --exclude test/rules.test.ts --exclude test/auth.test.ts
+bunx vitest run --exclude test/rules.test.ts --exclude test/auth.test.ts
 ```
 
 Expected: all pure tests pass.
@@ -559,7 +559,7 @@ Expected: all pure tests pass.
 Run:
 
 ```powershell
-npm run build
+bun run build
 ```
 
 Expected: TypeScript passes and Vite creates `dist`.
@@ -569,7 +569,7 @@ Expected: TypeScript passes and Vite creates `dist`.
 Run:
 
 ```powershell
-npm run test:emulators
+bun run test:emulators
 ```
 
 Expected: Auth, Firestore rules, and all other tests pass under the emulators.

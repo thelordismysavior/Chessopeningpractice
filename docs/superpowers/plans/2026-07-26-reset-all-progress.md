@@ -100,7 +100,7 @@ describe('reset all progress', () => {
 Run:
 
 ```powershell
-npx vitest run test/progress-reset.test.ts
+bunx vitest run test/progress-reset.test.ts
 ```
 
 Expected: FAIL because `resetAllProgress` is not exported by `src/progress.ts`.
@@ -130,7 +130,7 @@ export async function resetAllProgress(courseIds: string[]): Promise<void> {
 Run:
 
 ```powershell
-npx vitest run test/progress-reset.test.ts
+bunx vitest run test/progress-reset.test.ts
 ```
 
 Expected: 2 tests PASS.
@@ -163,9 +163,9 @@ test('owner deletes only their own progress', async () => {
 Run:
 
 ```powershell
-npx vitest run test/progress-reset.test.ts
-npx firebase emulators:exec --only firestore "vitest run test/rules.test.ts"
-npm run build
+bunx vitest run test/progress-reset.test.ts
+bunx firebase emulators:exec --only firestore "vitest run test/rules.test.ts"
+bun run build
 ```
 
 Expected: both Vitest commands PASS and the TypeScript/Vite build succeeds.
@@ -274,7 +274,7 @@ test('failed reset stays open and can be retried', async ({ page }) => {
 Run:
 
 ```powershell
-npx playwright test test/browser/targeted-ui-repair.spec.ts --grep "reset"
+bunx playwright test test/browser/targeted-ui-repair.spec.ts --grep "reset"
 ```
 
 Expected: FAIL because the settings dialog has no reset controls.
@@ -396,8 +396,8 @@ Extend the existing dark-mode block:
 Run:
 
 ```powershell
-npx playwright test test/browser/targeted-ui-repair.spec.ts --grep "reset"
-npm run build
+bunx playwright test test/browser/targeted-ui-repair.spec.ts --grep "reset"
+bun run build
 ```
 
 Expected: both reset tests PASS and the build succeeds.
@@ -450,7 +450,7 @@ test('Dashboard reset clears saved progress and preserves move duration', async 
 Run:
 
 ```powershell
-npm run test:browser -- --grep "Dashboard reset"
+bun run test:browser -- --grep "Dashboard reset"
 ```
 
 Expected: PASS against the Auth and Firestore emulators.
@@ -460,10 +460,10 @@ Expected: PASS against the Auth and Firestore emulators.
 Run:
 
 ```powershell
-npm run test:emulators
-npm run build
-npm run test:browser
-npm run release:check
+bun run test:emulators
+bun run build
+bun run test:browser
+bun run release:check
 git diff --check
 git status --short
 ```
