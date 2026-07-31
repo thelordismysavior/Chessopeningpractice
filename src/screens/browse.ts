@@ -6,7 +6,6 @@ import type { EvalScore } from '../engine/eval-scale';
 import { lineState, type LineState } from '../mastery';
 import { loadProgress, type CourseProgress } from '../progress';
 import { isReferenceVariation, isTrainableVariation, roleNames } from '../repertoire';
-import { signOutUser } from '../firebase';
 import { app, escapeHtml, levelNames, resetPageScroll, sideNames, topbarMarkup } from './shell';
 import type { BrowseScreen, Navigate } from './navigation';
 
@@ -77,9 +76,11 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
       ? `<div class="browse-list">${visible.map(rowMarkup).join('')}</div>`
       : '<p class="browse-note browse-empty">No lines match your search or filters.</p>';
     app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'back-dashboard', label: 'Dashboard' }, links: [{ id: 'lines', label: 'Lines' }] })}<section class="browse-page"><p class="eyebrow">Browse &amp; study</p><h1>Read any line, any time.</h1><p class="lede">Every bundled line is searchable. Study is progress-neutral; trainable lines can be opened directly at any level.</p>${note}<label class="browse-search">Search repertoire<input id="browse-search" type="search" value="${escapeHtml(filters.query)}" placeholder="Opening, line, or role" autocomplete="off"></label><div class="filter-chips">${courseChips}</div><div class="filter-chips">${stateChipButtons}</div>${list}</section></main>`;
+    app.querySelector('.browse-page > .eyebrow')?.replaceChildren('Repertoire');
+    app.querySelector('.browse-page > h1')?.replaceChildren('Browse your lines.');
+    app.querySelector('.browse-page > .lede')?.replaceChildren('Keep the repertoire small enough to recall. Search by Course or line name.');
 
     document.querySelector('#back-dashboard')!.addEventListener('click', () => void navigate({ name: 'dashboard' }));
-    document.querySelector('#sign-out')?.addEventListener('click', () => void signOutUser());
     app.querySelectorAll<HTMLButtonElement>('[data-course-filter]').forEach((button) => button.addEventListener('click', () => {
       filters.course = button.dataset.courseFilter as Filters['course'];
       drawIndex();
@@ -115,7 +116,6 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
     const preview = row.variation.positions.map((position, index) => `<li>${String(index + 1).padStart(2, '0')} ${escapeHtml(position.expectedSan)}</li>`).join('');
     app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'concept-back', label: 'Browse' } })}<section class="line-concept"><div><p class="eyebrow">${escapeHtml(row.course.name)} &middot; ${levelNames[row.level]} &middot; ${roleNames[row.variation.kind]}</p><h1>${escapeHtml(row.variation.title)}</h1><p class="lede">${escapeHtml(row.variation.summary)}</p><article class="lesson-idea"><div><p class="eyebrow">Lesson idea</p><h2>Anchor: ${escapeHtml(idea.anchorSan)}</h2><p>${escapeHtml(idea.plan)}</p></div><dl><div><dt>Opponent trigger</dt><dd>${escapeHtml(idea.opponentTrigger)}</dd></div><div><dt>Resulting plan</dt><dd>${escapeHtml(idea.resultingPlan)}</dd></div></dl></article><div class="line-concept-actions"><button id="start-line-lesson">Start lesson</button><button id="study-line" class="quiet-button">Study preview</button></div></div><div class="line-preview"><span class="state">MOVE PREVIEW</span><ol>${preview}</ol><p>One authored move at each position. The lesson will teach this line before recall.</p></div></section></main>`;
     app.querySelector('#concept-back')?.addEventListener('click', () => { drawIndex(); void navigate({ name: 'browse', courseId: screen.courseId }); });
-    app.querySelector('#sign-out')?.addEventListener('click', () => void signOutUser());
     app.querySelector('#start-line-lesson')?.addEventListener('click', () => {
       if (!progressByCourse) return;
       void navigate({ name: 'practice', course: row.course, level: row.level, progress: progressByCourse[row.course.id], variationId: row.variation.id });
@@ -144,10 +144,6 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
       document.querySelector('#walker-back')!.addEventListener('click', () => {
         drawIndex();
         void navigate({ name: 'browse' });
-      });
-      document.querySelector('#sign-out')?.addEventListener('click', () => {
-        disposeWalker();
-        void signOutUser();
       });
       document.querySelector('#walker-prev')?.addEventListener('click', () => step(-1));
       document.querySelector('#walker-next')?.addEventListener('click', () => step(1));

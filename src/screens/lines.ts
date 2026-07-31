@@ -1,7 +1,6 @@
 import { COURSES, type Course } from '../courses';
 import { loadProgress, type CourseProgress } from '../progress';
 import { lineStatusLabel, recommendedLines, roleNames, type RepertoireLine } from '../repertoire';
-import { signOutUser } from '../firebase';
 import { app, escapeHtml, levelNames, resetPageScroll, topbarMarkup } from './shell';
 import type { Navigate } from './navigation';
 
@@ -25,8 +24,10 @@ export async function renderLines(navigate: Navigate, email: string | null): Pro
     const next = lines.filter((line) => line.state === 'untouched').slice(0, 6);
     const banked = lines.filter((line) => line.state === 'banked' || line.state === 'mastered').slice(0, 6);
     app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'back-dashboard', label: 'Dashboard' }, links: [{ id: 'browse', label: 'Browse' }, { id: 'review-queue', label: 'Queue' }, { id: 'sources', label: 'Sources' }] })}<section class="lines-page"><p class="eyebrow">Lines</p><h1>A short path through the repertoire.</h1><p class="lede">Due work first, then the next untouched lines and the material you have already banked.</p>${section('Due now', due)}${section('Next to learn', next)}${section('Banked and mastered', banked)}${!due.length && !next.length && !banked.length ? '<p class="lines-empty">No trainable lines yet. Browse the repertoire to study a reference line.</p>' : ''}</section></main>`;
+    app.querySelector('.lines-page > .eyebrow')?.replaceChildren('Your repertoire');
+    app.querySelector('.lines-page > h1')?.replaceChildren('Choose a line.');
+    app.querySelector('.lines-page > .lede')?.replaceChildren('Start with a review-due line, or return to one you have already banked.');
     app.querySelector('#back-dashboard')?.addEventListener('click', () => void navigate({ name: 'dashboard' }));
-    app.querySelector('#sign-out')?.addEventListener('click', () => void signOutUser());
     app.querySelectorAll<HTMLButtonElement>('[data-line-id]').forEach((button) => button.addEventListener('click', () => {
       const line = lines.find((candidate) => candidate.course.id === button.dataset.courseId && candidate.variation.id === button.dataset.lineId);
       if (!line) return;

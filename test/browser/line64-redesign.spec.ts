@@ -30,11 +30,12 @@ test('LINE/64 practice keeps the board in the focused reading rail', async ({ pa
   await expect(page.locator('.guide-overlay .route-arrow')).toHaveCount(0);
 });
 
-test('Home course cards are single links and shared navigation stays sparse', async ({ page }) => {
+test('Home Courses are single links and shared navigation stays sparse', async ({ page }) => {
   await openDashboard(page, 1440, 900);
 
   await expect(page.locator('.course-card')).toHaveCount(4);
   await expect(page.locator('.course-card').first()).toHaveAttribute('href', /#\/course\/jobava-london$/);
   await expect(page.locator('.course-card button')).toHaveCount(0);
+  await expect(page.locator('#courses-nav')).toHaveText('Courses');
   await expect(page.locator('.topbar .account-email, .topbar #sign-out')).toHaveCount(0);
 });

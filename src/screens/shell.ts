@@ -30,6 +30,7 @@ export const backIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="n
 export const settingsIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
 
 function topbarLink(link: { id: string; label: string }): string {
+  if (link.id === 'courses-nav') return `<a id="courses-nav" href="${HOME_HASH}">${escapeHtml(link.label)}</a>`;
   const routes: Partial<Record<string, HashRoute>> = { account: { name: 'account' }, 'settings-link': { name: 'settings' }, browse: { name: 'browse' }, lines: { name: 'lines' }, sources: { name: 'sources' }, 'review-queue': { name: 'review-queue' }, 'queue-nav': { name: 'review-queue' } };
   const route = routes[link.id];
   return route
@@ -42,7 +43,7 @@ export function topbarMarkup(options: TopbarOptions): string {
     ? `<button id="${options.back.id}" class="back-button icon-button" aria-label="${escapeHtml(options.back.label)}">${backIcon}</button>`
     : '';
   const links = options.wordmark
-    ? (options.links ?? []).filter((link) => link.id === 'queue-nav' || link.id === 'account')
+    ? [{ id: 'courses-nav', label: 'Courses' }, ...(options.links ?? []).filter((link) => link.id === 'queue-nav' || link.id === 'account')]
     : options.links ?? [];
   const navigationMarkup = links.map(topbarLink).join('');
   const navigation = navigationMarkup ? `<nav class="topbar-nav" aria-label="Primary navigation">${navigationMarkup}</nav>` : '';

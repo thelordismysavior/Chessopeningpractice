@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { COURSES } from '../../src/courses';
 import { firstBranchPoint } from '../../src/lesson-runner';
+import { startFirstCoursePractice } from './app-stubs';
 
 type LessonData = { lines: string[][] };
 
@@ -130,12 +131,6 @@ async function openDashboard(page: Page, failCompleteSave = false): Promise<void
   await installAppStubs(page, failCompleteSave);
   await page.goto('/');
   await expect(page.locator('.dashboard-intro')).toBeVisible();
-}
-
-async function startFirstCoursePractice(page: Page): Promise<void> {
-  await page.locator('.course-card').first().click();
-  await page.locator('[data-start-level="beginner"]').click();
-  await expect(page.locator('.practice-shell')).toBeVisible();
 }
 
 function lessonData(level: 'beginner' | 'intermediate' = 'beginner'): LessonData {

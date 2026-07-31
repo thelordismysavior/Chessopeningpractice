@@ -2,7 +2,6 @@ import { COURSES, coursesById, type Course, type LevelKey } from '../courses';
 import { loadProgress, type CourseProgress } from '../progress';
 import { reviewQueue, type ReviewGroup } from '../review-queue';
 import { formatReviewTime } from '../review-schedule';
-import { signOutUser } from '../firebase';
 import { app, escapeHtml, levelNames, resetPageScroll, topbarMarkup } from './shell';
 import type { Navigate } from './navigation';
 
@@ -28,9 +27,10 @@ export async function renderReviewQueue(navigate: Navigate, email: string | null
       : '';
     const body = `${dueBody}${upcomingBody}`;
     app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'back-dashboard', label: 'Dashboard' } })}<section class="queue-page"><p class="eyebrow">Review queue</p><h1>What needs another look.</h1>${body}</section></main>`;
+    app.querySelector('.queue-page > h1')?.replaceChildren('Return to the lines.');
+    app.querySelector('.queue-page > h1')?.insertAdjacentHTML('afterend', '<p class="queue-intro lede">Review due positions first. Banked lines stay available when you want to revisit them.</p>');
 
     document.querySelector('#back-dashboard')!.addEventListener('click', () => void navigate({ name: 'dashboard' }));
-    document.querySelector('#sign-out')?.addEventListener('click', () => void signOutUser());
 
     const startGroup = (index: number, run = false) => {
       const group = queue.dueGroups[index];

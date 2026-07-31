@@ -15,8 +15,17 @@ export async function renderAccount(navigate: Navigate, email: string | null): P
     const mastery = overallMastery(progressByCourse);
     const queue = reviewQueue(progressByCourse);
     app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'back-dashboard', label: 'Dashboard' }, links: [{ id: 'settings-link', label: 'Settings' }, { id: 'sources', label: 'Sources' }] })}<section class="account-page"><p class="eyebrow">Account</p><h1>${escapeHtml(email)}</h1><p class="lede">Signed-in learner account. Progress belongs to this account; device preferences stay local.</p><div class="account-summary surface"><span class="state">OVERALL LEARNING</span><strong>${Math.round(mastery.ratio * 100)}%</strong><p>${mastery.mastered} of ${mastery.total} lines mastered. ${queue.total} position${queue.total === 1 ? '' : 's'} due now.</p></div><nav class="account-links" aria-label="Account links"><a class="button secondary" id="settings-link-card" href="#/settings">Settings</a><a class="button secondary" id="sources-link-card" href="#/sources">Sources</a></nav><section class="account-actions"><button id="account-sign-out" class="quiet-button">Sign out</button></section><section class="account-reset">${progressResetMarkup()}</section></section></main>`;
+    const accountPage = app.querySelector<HTMLElement>('.account-page');
+    accountPage?.querySelector('.eyebrow')?.replaceChildren('Local account');
+    accountPage?.querySelector('h1')?.replaceChildren('One repertoire. Yours.');
+    accountPage?.querySelector('.lede')?.replaceChildren('Your practice data stays with this learner account. Adjust preferences or return to the review queue.');
+    accountPage?.querySelector('.lede')?.insertAdjacentHTML('afterend', `<p class="account-identity"><span class="state">SIGNED IN</span><br>${escapeHtml(email)}</p>`);
+    const summary = accountPage?.querySelector<HTMLElement>('.account-summary');
+    if (summary) {
+      summary.className = 'account-grid';
+      summary.innerHTML = `<div class="surface"><span class="state">LINES MASTERED</span><strong>${mastery.mastered}</strong></div><div class="surface"><span class="state">REVIEW DUE</span><strong>${queue.total}</strong></div>`;
+    }
     app.querySelector('#back-dashboard')?.addEventListener('click', () => void navigate({ name: 'dashboard' }));
-    app.querySelector('#sign-out')?.addEventListener('click', () => void signOutUser());
     app.querySelector('#account-sign-out')?.addEventListener('click', () => void signOutUser());
     bindProgressReset(
       () => resetAllProgress(COURSES.map((course) => course.id)),

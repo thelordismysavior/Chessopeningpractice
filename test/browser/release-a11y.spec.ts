@@ -41,7 +41,7 @@ test('supported viewports keep controls reachable and the board accessible', asy
 
     await page.goto('/');
 
-    const heights = await page.locator('button:visible, input:visible, select:visible, summary:visible, a.button:visible, a.quiet-button:visible, a.course-card-link:visible').evaluateAll((controls) => controls.map((control) => control.getBoundingClientRect().height));
+    const heights = await page.locator('button:visible, input:visible, select:visible, summary:visible, a.button:visible, a.quiet-button:visible, a.course-card:visible').evaluateAll((controls) => controls.map((control) => control.getBoundingClientRect().height));
     expect(Math.min(...heights)).toBeGreaterThanOrEqual(44);
 
     const headingLevels = await page.locator('h1, h2, h3').evaluateAll((headings) => headings.map((heading) => Number(heading.tagName.slice(1))));

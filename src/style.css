@@ -115,6 +115,10 @@ button:disabled, input:disabled { cursor: not-allowed; opacity: .55; }
 .source-item p { margin: 4px 0 0; color: var(--muted); }
 .account-summary { margin-top: 28px; }
 .account-summary > strong { display: block; font: 34px var(--font-mono); }
+.account-identity { margin-top: 20px; color: var(--muted); }
+.account-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 28px; }
+.account-grid .surface { min-height: 140px; }
+.account-grid strong { display: block; margin-top: 8px; font: 24px var(--font-mono); }
 .account-links, .account-actions, .account-reset { margin-top: 28px; }
 
 .practice-shell { width: min(100%, 1180px); }
@@ -191,12 +195,15 @@ dialog::backdrop { background: color-mix(in oklch, var(--bg) 76%, transparent); 
 @media (max-width: 620px) {
   :root { --gutter: 18px; }
   .topbar { grid-template-columns: 44px 1fr auto; gap: 8px; }
-  .topbar:not(.has-back) { grid-template-columns: 1fr auto; padding-block: 8px; }
+  .topbar:not(.has-back) { grid-template-columns: 1fr; row-gap: 4px; padding-block: 8px; }
+  .topbar:not(.has-back) .wordmark,
+  .topbar:not(.has-back) .topbar-end { grid-column: 1; }
+  .topbar:not(.has-back) .topbar-end { justify-content: flex-start; }
   .topbar.has-back .wordmark { justify-self: start; }
   .topbar.has-back .topbar-nav { display: none; }
   .topbar-nav { gap: 10px; }
   .topbar-nav a { font-size: 10px; }
-  .course-grid, .dashboard-grid, .summary-stats { grid-template-columns: 1fr; }
+  .course-grid, .dashboard-grid, .summary-stats, .account-grid { grid-template-columns: 1fr; }
   .toolbar { align-items: stretch; flex-direction: column; }
   .toolbar .button, .actions .button { width: 100%; }
   .course-card-detail { align-items: flex-start; flex-direction: column; }

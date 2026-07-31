@@ -25,6 +25,7 @@ test('Practice Mode changes assistance without changing teach and recall progres
   await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Recall');
   await page.getByRole('tab', { name: 'Drill', exact: true }).click();
   await expect(page.locator('.guide-overlay .route-arrow')).toHaveCount(0);
+  await expect(page.locator('.explanation')).toHaveCount(0);
   await expect(page.locator('#show-hint')).toBeVisible();
   await expect(page.locator('.budget-slot.is-spent')).toHaveCount(0);
 

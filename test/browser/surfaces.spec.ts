@@ -390,7 +390,7 @@ test('Account and Settings are addressable and share device preference ownership
   await openDashboard(page, 1440, 1000);
   await page.locator('#account').click();
   await expect(page.locator('.account-page')).toBeVisible();
-  await expect(page.locator('.account-page h1')).toHaveText('test@example.com');
+  await expect(page.locator('.account-identity')).toContainText('test@example.com');
 
   await page.locator('#settings-link-card').click();
   await expect(page.locator('.settings-page')).toBeVisible();
@@ -413,7 +413,7 @@ test('Course, Lines, search, direct level access, and reference Study stay hones
   await stubEngine(page);
   await openDashboard(page, 1440, 1000);
 
-  await page.locator('.course-card-link').first().click();
+  await page.locator('.course-card').first().click();
   await expect(page.locator('.course-page')).toBeVisible();
   await expect(page.locator('.lesson-idea')).toContainText('Opponent trigger');
   await expect(page.locator('[data-start-level="advanced"]')).toBeEnabled();

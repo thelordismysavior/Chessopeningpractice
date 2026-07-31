@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { COURSES, type LevelKey } from '../../src/courses';
 import { firstBranchPoint } from '../../src/lesson-runner';
-import { expectNoOverflow } from './app-stubs';
+import { expectNoOverflow, startFirstCoursePractice } from './app-stubs';
 import { resetEmulatorProgress, TEST_ACCOUNT } from './emulator';
 
 test.describe.configure({ mode: 'serial' });
@@ -20,12 +20,6 @@ async function openDashboard(page: Page, width: number): Promise<void> {
     await signInForBrowserTest(email, password);
   }, TEST_ACCOUNT);
   await expect(page.locator('.dashboard-intro')).toBeVisible();
-}
-
-async function startFirstCoursePractice(page: Page): Promise<void> {
-  await page.locator('.course-card').first().click();
-  await page.locator('[data-start-level="beginner"]').click();
-  await expect(page.locator('.practice-shell')).toBeVisible();
 }
 
 async function playMove(page: Page, move: string, drag = false): Promise<void> {
