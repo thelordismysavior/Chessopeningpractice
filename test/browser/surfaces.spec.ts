@@ -116,7 +116,7 @@ function bankedProgress(courseIndex: number, dueInFirstLine: boolean) {
 
 for (const viewport of VIEWPORTS) {
   test.describe(`${viewport.width}x${viewport.height}`, () => {
-    test('course and overall progress agree when a banked line is due', async ({ page }) => {
+    test('course and overall progress count banked lines even when one is due', async ({ page }) => {
       await stubEngine(page);
       await openDashboard(page, viewport.width, viewport.height);
       await seedProgress(page, COURSES[0].id, bankedProgress(0, true));
@@ -125,7 +125,9 @@ for (const viewport of VIEWPORTS) {
       const card = page.locator('.course-card').first();
       await expect(card.locator('[role="progressbar"]')).toHaveAttribute('aria-valuenow', '13');
       await expect(card).toContainText('13% banked');
-      await expect(page.locator('.mastery-figure strong')).toHaveText(`${Math.round(1 / 72 * 100)}%`);
+      await expect(page.locator('.mastery-figure strong')).toHaveText('3%');
+      await expect(page.locator('.mastery-figure .progress-label')).toContainText('2 of 70 lines');
+      await expect(page.locator('.mastery-figure [role="progressbar"]')).toHaveAttribute('aria-valuenow', '3');
       await expect(page.locator('#review-queue')).toContainText('Review 1 position');
     });
 

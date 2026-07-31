@@ -35,6 +35,15 @@ function progressPercent(course: Course, progress: CourseProgress): number {
   return total ? Math.round((banked / total) * 100) : 0;
 }
 
+function overallBanked(progressByCourse: Record<Course['id'], CourseProgress>): { banked: number; total: number } {
+  return COURSES.reduce((summary, course) => {
+    const trainableIds = new Set(trainableVariations(course).map((variation) => variation.id));
+    const completedIds = new Set(progressByCourse[course.id].completedVariationIds);
+    const banked = [...trainableIds].filter((id) => completedIds.has(id)).length;
+    return { banked: summary.banked + banked, total: summary.total + trainableIds.size };
+  }, { banked: 0, total: 0 });
+}
+
 function courseCard(course: Course, progress: CourseProgress, index: number): string {
   const completed = progress.completedLevels.length;
   const percent = progressPercent(course, progress);
@@ -48,11 +57,8 @@ export async function renderDashboard(navigate: Navigate, email: string | null):
   try {
     const progressEntries = await Promise.all(COURSES.map(async (course) => [course.id, await loadProgress(course.id)] as const));
     const progressByCourse = Object.fromEntries(progressEntries) as Record<Course['id'], CourseProgress>;
-    const mastery = Object.values(progressByCourse).reduce((summary, progress, index) => {
-      const courseSummary = courseMastery(COURSES[index], progress);
-      return { mastered: summary.mastered + courseSummary.mastered, total: summary.total + courseSummary.total };
-    }, { mastered: 0, total: 0 });
-    const masteryRatio = mastery.total ? mastery.mastered / mastery.total : 0;
+    const banked = overallBanked(progressByCourse);
+    const bankedRatio = banked.total ? banked.banked / banked.total : 0;
     const queue = reviewQueue(progressByCourse);
     const next = recommendation(progressByCourse);
     const due = next.duePositionIds.length > 0;
@@ -61,7 +67,7 @@ export async function renderDashboard(navigate: Navigate, email: string | null):
       : queue.upcomingTotal
         ? `${queue.upcomingTotal} position${queue.upcomingTotal === 1 ? '' : 's'} banked. The next review is scheduled.`
         : 'Nothing is due. Continue with the next recommended line when you are ready.';
-    const masteryMarkup = `<div class="surface dashboard-summary mastery-figure"><div class="mastery-heading"><span class="state">OVERALL PROGRESS</span><strong>${Math.round(masteryRatio * 100)}%</strong></div><div class="progress-row"><div class="progress-label"><span>Banked</span><span>${mastery.mastered} of ${mastery.total} lines</span></div><div class="progress-track" role="progressbar" aria-label="Overall course progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(masteryRatio * 100)}"><div class="progress-fill" style="width:${Math.round(masteryRatio * 100)}%"></div></div></div><p class="note">${timingNote}</p>${queue.total ? `<a id="review-queue" class="button ghost review-entry" href="#/review-queue">Review ${queue.total} position${queue.total === 1 ? '' : 's'} <span aria-hidden="true">-&gt;</span></a>` : ''}</div>`;
+    const masteryMarkup = `<div class="surface dashboard-summary mastery-figure"><div class="mastery-heading"><span class="state">OVERALL PROGRESS</span><strong>${Math.round(bankedRatio * 100)}%</strong></div><div class="progress-row"><div class="progress-label"><span>Banked</span><span>${banked.banked} of ${banked.total} lines</span></div><div class="progress-track" role="progressbar" aria-label="Overall course progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(bankedRatio * 100)}"><div class="progress-fill" style="width:${Math.round(bankedRatio * 100)}%"></div></div></div><p class="note">${timingNote}</p>${queue.total ? `<a id="review-queue" class="button ghost review-entry" href="#/review-queue">Review ${queue.total} position${queue.total === 1 ? '' : 's'} <span aria-hidden="true">-&gt;</span></a>` : ''}</div>`;
     app.innerHTML = `<main class="app-shell home-shell" data-surface="home">${topbarMarkup({ email, wordmark: true, links: [{ id: 'lines', label: 'Lines' }, { id: 'browse', label: 'Browse' }, { id: 'queue-nav', label: 'Review queue' }, { id: 'sources', label: 'Sources' }, { id: 'settings', label: 'Settings' }, { id: 'account', label: 'Account' }] })}<section class="reading-rail home-content"><div class="dashboard-intro"><p class="label">HOME &middot; 04 COURSES</p><h1>Keep the line close.</h1><p class="lede">Choose a course, learn its named lines, then return when a position is due.</p></div><section id="courses" class="home-section section-rule"><div class="toolbar"><div><span class="state">COURSES</span><h2>Your openings.</h2></div><a id="browse-all" class="button secondary" href="#/browse">Browse all</a></div><div class="course-grid">${COURSES.map((course, index) => courseCard(course, progressByCourse[course.id], index)).join('')}</div></section><section id="review-queue-section" class="home-section section-rule"><span class="state">${queue.total ? `REVIEW QUEUE &middot; ${String(queue.total).padStart(2, '0')} DUE` : 'NEXT ACTION'}</span><div class="dashboard-grid"><div class="surface dashboard-focus"><span class="state">${due ? 'NEXT REVIEW' : 'CONTINUE'}</span><h2>${due ? 'Keep the position close.' : 'Start with one line.'}</h2><p>${escapeHtml(next.course.name)} &middot; ${levelNames[next.level]} &middot; ${escapeHtml(next.variation.title)}. ${due ? 'Produce the move from memory, then return to the line.' : 'Learn the shape, then produce the moves from memory.'}</p><div class="meter" role="img" aria-label="${due ? `${next.duePositionIds.length} positions due in this line` : 'Recommended line'}">${next.variation.positions.map((position) => `<i class="${next.duePositionIds.includes(position.id) ? 'due' : ''}"></i>`).join('')}</div><div class="actions"><button id="continue-practice" class="button primary">Continue practice</button></div></div>${masteryMarkup}</div></section></section>${settingsDialogMarkup(loadMoveDuration(), true)}</main>`;
     app.querySelector('#lines')?.addEventListener('click', () => void navigate({ name: 'lines' }));
     app.querySelector('#sources')?.addEventListener('click', () => void navigate({ name: 'sources' }));
