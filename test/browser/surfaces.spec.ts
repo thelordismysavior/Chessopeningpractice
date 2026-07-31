@@ -189,7 +189,7 @@ test('a failed Review all save blocks the next group until retry succeeds', asyn
   await expect(page.locator('.line-handoff')).toContainText(COURSES[1].name);
 });
 
-test('the browse index filters, and the walker steps without touching progress', async ({ page }) => {
+test('the browse index filters, and Line Preview steps without touching progress', async ({ page }) => {
   await stubEngine(page);
   await openDashboard(page, 1440, 1000);
   await seedProgress(page, COURSES[0].id, bankedProgress(0, true));
@@ -204,33 +204,60 @@ test('the browse index filters, and the walker steps without touching progress',
 
   await page.locator('[data-state-filter="all"]').click();
   await page.locator('.browse-row').first().click();
-  await expect(page.locator('.practice-shell')).toBeVisible();
-  await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Recall');
+  await expect(page.locator('.line-preview-page')).toBeVisible();
+  await expect(page.locator('.preview-guide')).toBeVisible();
 
-  await page.goto(`/#/browse/${COURSES[0].id}/${COURSES[0].lessons.beginner.variations[0].id}?study=1`);
-  await expect(page.locator('.walker')).toBeVisible();
-  await expect(page.locator('.walker-move.is-current')).toHaveText(/^01 /);
-  await page.locator('#walker-next').click();
-  await expect(page.locator('.walker-move.is-current')).toHaveText(/^02 /);
+  await page.goto(`/#/browse/${COURSES[0].id}/${COURSES[0].lessons.beginner.variations[0].id}`);
+  await expect(page.locator('.line-preview-page')).toBeVisible();
+  await expect(page.locator('.preview-move.is-current')).toHaveText(/^01 /);
+  await page.locator('#preview-next').click();
+  await expect(page.locator('.preview-move.is-current')).toHaveText(/^02 /);
   await page.keyboard.press('ArrowLeft');
-  await expect(page.locator('.walker-move.is-current')).toHaveText(/^01 /);
-  await expect(page.locator('#walker-prev')).toBeDisabled();
+  await expect(page.locator('.preview-move.is-current')).toHaveText(/^01 /);
+  await expect(page.locator('#preview-prev')).toBeDisabled();
   await expect(page.locator('.board-square').first()).toBeDisabled();
 
   const before = await page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]));
-  await page.locator('#walker-next').click();
-  await page.locator('#walker-back').click();
+  await page.locator('#preview-next').click();
+  await page.locator('#preview-back').click();
   await expect(page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]))).resolves.toBe(before);
 });
 
-test('an untouched line opens with a concept entry and direct practice access', async ({ page }) => {
+test('an untouched line opens the canonical Line Preview', async ({ page }) => {
   await stubEngine(page);
   await openDashboard(page, 1440, 1000);
   await page.locator('#browse-all').click();
   await page.locator(`[data-course-filter="${COURSES[0].id}"]`).click();
   await page.locator('.browse-row').last().click();
-  await expect(page.locator('.line-concept')).toBeVisible();
-  await expect(page.locator('#start-line-lesson')).toBeVisible();
+  await expect(page.locator('.line-preview-page')).toBeVisible();
+  await expect(page.locator('#preview-next')).toBeVisible();
+});
+
+test('Line Preview completes, restarts, and offers practice without changing progress', async ({ page }) => {
+  await stubEngine(page);
+  await openDashboard(page, 1440, 1000);
+  await page.locator('#browse-all').click();
+  await page.locator(`[data-course-filter="${COURSES[0].id}"]`).click();
+  await page.locator('.browse-row').first().click();
+
+  const before = await page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]));
+  await page.locator('.board').evaluate((board) => {
+    (globalThis as typeof globalThis & { __previewBoard: Element }).__previewBoard = board;
+  });
+  const variation = COURSES[0].lessons.beginner.variations[0];
+  for (let index = 0; index < variation.positions.length; index += 1) {
+    await page.locator('#preview-next').click();
+    if (index < variation.positions.length - 1) {
+      await expect(page.locator('.preview-move.is-current')).toHaveText(new RegExp(`^${String(index + 2).padStart(2, '0')} `));
+    }
+  }
+  await expect(page.locator('.preview-complete')).toBeVisible();
+  expect(await page.evaluate(() => (globalThis as typeof globalThis & { __previewBoard: Element }).__previewBoard === document.querySelector('.board'))).toBe(true);
+  await page.locator('#preview-restart').click();
+  await expect(page.locator('.preview-move.is-current')).toHaveText(/^01 /);
+  expect(await page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]))).toBe(before);
+  await page.locator('#preview-practice').click();
+  await expect(page.locator('.practice-shell')).toBeVisible();
 });
 
 test('banked line rows enter one-line Recall directly', async ({ page }) => {
@@ -255,16 +282,16 @@ test('the bar reads from the learner side in a white and a black course', async 
   await page.locator('#browse-all').click();
   await page.locator(`[data-course-filter="${white.id}"]`).click();
   await page.locator('.browse-row').first().click();
-  await page.locator('#study-line').click();
+  await expect(page.locator('.line-preview-page')).toBeVisible();
   await expect(page.locator('.side-tag')).toHaveText('W / WHITE');
   await expect(page.locator('.eval-value')).toHaveText('+1.2');
 
-  await page.locator('#walker-back').click();
+  await page.locator('#preview-back').click();
   await expect(page.locator('.browse-page')).toBeVisible();
   await page.locator(`[data-course-filter="${black.id}"]`).click();
   await expect(page.locator('.browse-row').first()).toContainText(black.name);
   await page.locator('.browse-row').first().click();
-  await page.locator('#study-line').click();
+  await expect(page.locator('.line-preview-page')).toBeVisible();
   await expect(page.locator('.side-tag')).toHaveText('B / BLACK');
   await expect(page.locator('.eval-value')).toHaveText('-1.2');
 });
@@ -311,23 +338,23 @@ test('an older wrong-move evaluation cannot replace the latest cost', async ({ p
   await expect(page.locator('.move-cost')).toContainText(latestSan);
 });
 
-test('a walker evaluation cannot update practice after navigation', async ({ page }) => {
+test('a Line Preview evaluation cannot update practice after navigation', async ({ page }) => {
   await trackKeydownListeners(page);
   await stubControlledEngine(page);
   await openDashboard(page, 1440, 1000);
   await page.locator('#browse-all').click();
   await page.locator('.browse-row').first().click();
-  await page.locator('#study-line').click();
+  await expect(page.locator('.line-preview-page')).toBeVisible();
   await expect.poll(() => engineRequestCount(page)).toBe(1);
   expect(await keydownListenerCount(page)).toBe(1);
 
-  await page.locator('#walker-back').click();
+  await page.locator('#preview-back').click();
   expect(await keydownListenerCount(page)).toBe(0);
   await page.locator('.browse-row').first().click();
-  await page.locator('#study-line').click();
+  await expect(page.locator('.line-preview-page')).toBeVisible();
   expect(await keydownListenerCount(page)).toBe(1);
 
-  await page.locator('#walker-practice').click();
+  await page.locator('#preview-practice').click();
   await expect(page.locator('.practice-shell')).toBeVisible();
   expect(await keydownListenerCount(page)).toBe(0);
   await resolveEngineRequest(page, 0, 900);
@@ -339,11 +366,11 @@ test('every screen works with the engine asset blocked', async ({ page }) => {
   await openDashboard(page, 1440, 1000);
   await page.locator('#browse-all').click();
   await page.locator('.browse-row').first().click();
-  await page.locator('#study-line').click();
+  await expect(page.locator('.line-preview-page')).toBeVisible();
   await expect(page.locator('.eval-note')).toHaveText('Engine unavailable');
   await expect(page.locator('.eval-bar')).toHaveCount(0);
 
-  await page.locator('#walker-back').click();
+  await page.locator('#preview-back').click();
   await page.locator('#back-dashboard').click();
   const [firstLine] = lineMoves();
   await startFirstCoursePractice(page);
@@ -358,7 +385,7 @@ test('the Eval Bar stays attached horizontally above the board', async ({ page }
   await openDashboard(page, 1440, 1000);
   await page.locator('#browse-all').click();
   await page.locator('.browse-row').first().click();
-  await page.locator('#study-line').click();
+  await expect(page.locator('.line-preview-page')).toBeVisible();
   await expect(page.locator('.eval-value')).toHaveText('+1.2');
   const wide = await page.locator('.eval-bar').boundingBox();
   expect(wide!.width).toBeGreaterThan(wide!.height);
@@ -409,7 +436,7 @@ test('Account and Settings are addressable and share device preference ownership
   expect(await page.evaluate(() => localStorage.getItem('chess-practice.move-duration'))).toBe('350');
 });
 
-test('Course, Lines, search, direct level access, and reference Study stay honest', async ({ page }) => {
+test('Course, Lines, search, direct level access, and reference Line Preview stay honest', async ({ page }) => {
   await stubEngine(page);
   await openDashboard(page, 1440, 1000);
 
@@ -429,12 +456,16 @@ test('Course, Lines, search, direct level access, and reference Study stay hones
   await page.locator('#course-line-sort').selectOption('category');
   await expect(page.locator('.line-role').first()).toBeVisible();
   await page.locator('.course-line-row').first().click();
-  await expect(page.locator('.line-concept')).toBeVisible();
+  await expect(page.locator('.practice-shell')).toBeVisible();
+  await page.goto(`/#/course/${COURSES[1].id}`);
+  await page.locator('.course-line-row:has(.role-reference)').first().click();
+  await expect(page.locator('.line-preview-page')).toBeVisible();
+  await expect(page.locator('#preview-practice')).toHaveCount(0);
 
   await page.goto('/#/lines');
   await expect(page.locator('.lines-page')).toBeVisible();
   await page.locator('.line-selection-row').first().click();
-  await expect(page.locator('.line-concept')).toBeVisible();
+  await expect(page.locator('.line-preview-page')).toBeVisible();
   await page.goto('/#/browse');
   await page.locator('#browse-search').fill('Meet 3...c5');
   await expect(page.locator('.browse-row')).toHaveCount(4);
@@ -444,9 +475,9 @@ test('Course, Lines, search, direct level access, and reference Study stay hones
   await page.locator('#browse-search').fill('Meet 3...c5');
   const before = await page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]));
   await page.locator('.browse-row').filter({ hasText: 'Reference' }).click();
-  await expect(page.locator('.walker')).toBeVisible();
-  await expect(page.locator('.walker')).toContainText('Study');
-  await expect(page.locator('#walker-practice')).toHaveCount(0);
-  await page.locator('#walker-next').click();
+  await expect(page.locator('.line-preview-page')).toBeVisible();
+  await expect(page.locator('.line-preview-page')).toContainText('Line Preview');
+  await expect(page.locator('#preview-practice')).toHaveCount(0);
+  await page.locator('#preview-next').click();
   await expect(page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]))).resolves.toBe(before);
 });

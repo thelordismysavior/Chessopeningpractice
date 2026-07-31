@@ -7,7 +7,7 @@ import type { Navigate, Screen } from './navigation';
 function lineRow(line: RepertoireLine): string {
   const { variation } = line;
   const status = lineStatusLabel(line);
-  const action = line.state === 'reference' ? 'Study' : line.state === 'untouched' ? 'Preview' : 'Practice';
+  const action = line.state === 'reference' ? 'Preview' : 'Practice';
   return `<button class="course-line-row" data-line-id="${escapeHtml(variation.id)}"><span class="course-line-main"><strong>${escapeHtml(variation.title)}</strong><small>${escapeHtml(variation.summary)}</small></span><span class="line-role role-${variation.kind}">${roleNames[variation.kind]}</span><span class="line-status is-${line.state}">${status}</span><span class="course-line-action">${action} &rarr;</span></button>`;
 }
 
@@ -55,8 +55,8 @@ export async function renderCourse(navigate: Navigate, email: string | null, scr
     app.querySelectorAll<HTMLButtonElement>('[data-line-id]').forEach((button) => button.addEventListener('click', () => {
       const line = lines.find((candidate) => candidate.variation.id === button.dataset.lineId);
       if (!line) return;
-      if (line.state === 'reference' || line.state === 'untouched') {
-        void navigate({ name: 'browse', courseId: course.id, lineId: line.variation.id, study: line.state === 'reference' });
+      if (line.state === 'reference') {
+        void navigate({ name: 'browse', courseId: course.id, lineId: line.variation.id });
         return;
       }
       void navigate({ name: 'practice', course, level: line.level, progress, variationId: line.variation.id });

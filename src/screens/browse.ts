@@ -1,11 +1,13 @@
 import { Chess } from 'chess.js';
 import { COURSES, LEVELS, type Course, type LevelKey, type Variation } from '../courses';
-import { renderBoard, renderEvalBar, updateEvalBar } from '../board-view';
+import { renderBoard, renderEvalBar, updateBoard, updateEvalBar, type BoardAnimation, type BoardState } from '../board-view';
 import { engine } from '../engine/engine-client';
 import type { EvalScore } from '../engine/eval-scale';
 import { lineState, type LineState } from '../mastery';
+import { effectiveMoveDuration, loadMoveDuration, moveBeats } from '../move-settings';
+import { planLinePreviewAdvance } from '../line-preview';
 import { loadProgress, type CourseProgress } from '../progress';
-import { isReferenceVariation, isTrainableVariation, roleNames } from '../repertoire';
+import { isTrainableVariation, roleNames } from '../repertoire';
 import { app, escapeHtml, levelNames, resetPageScroll, sideNames, topbarMarkup } from './shell';
 import type { BrowseScreen, Navigate } from './navigation';
 
@@ -55,17 +57,17 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
 
   const rows = buildRows(progressByCourse);
   const filters: Filters = { course: screen.courseId ?? 'all', state: 'all', query: '' };
-  let walkerGeneration = 0;
-  let removeWalkerKeyListener: (() => void) | null = null;
+  let previewGeneration = 0;
+  let removePreviewKeyListener: (() => void) | null = null;
 
-  const disposeWalker = () => {
-    walkerGeneration += 1;
-    removeWalkerKeyListener?.();
-    removeWalkerKeyListener = null;
+  const disposePreview = () => {
+    previewGeneration += 1;
+    removePreviewKeyListener?.();
+    removePreviewKeyListener = null;
   };
 
   const drawIndex = () => {
-    disposeWalker();
+    disposePreview();
     const visible = rows.filter((row) => matches(row, filters));
     const courseChips = [{ id: 'all' as const, label: 'All courses' }, ...COURSES.map((course) => ({ id: course.id, label: course.name }))]
       .map((chip) => `<button class="filter-chip ${filters.course === chip.id ? 'is-active' : ''}" data-course-filter="${chip.id}" aria-pressed="${filters.course === chip.id}">${escapeHtml(chip.label)}</button>`).join('');
@@ -98,112 +100,203 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
     });
     app.querySelectorAll<HTMLButtonElement>('[data-line]').forEach((button, index) => button.addEventListener('click', () => {
       const row = visible[index];
-      if (row) {
-        if (row.state === 'untouched' && isTrainableVariation(row.variation)) openConcept(row);
-        else if (row.state === 'reference' || !progressByCourse) openWalker(row);
-        else {
-          void navigate({ name: 'practice', course: row.course, level: row.level, progress: progressByCourse[row.course.id], variationId: row.variation.id });
-          return;
-        }
-        void navigate({ name: 'browse', courseId: row.course.id, lineId: row.variation.id, study: row.state !== 'untouched' });
-      }
+      if (!row) return;
+      const returnCourseId = filters.course === 'all' ? undefined : filters.course;
+      openPreview(row, returnCourseId ?? null);
+      void navigate({ name: 'browse', courseId: row.course.id, lineId: row.variation.id });
     }));
   };
 
-  const openConcept = (row: Row) => {
-    disposeWalker();
-    const idea = row.course.lessons[row.level].lessonIdea;
-    const preview = row.variation.positions.map((position, index) => `<li>${String(index + 1).padStart(2, '0')} ${escapeHtml(position.expectedSan)}</li>`).join('');
-    app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'concept-back', label: 'Browse' } })}<section class="line-concept"><div><p class="eyebrow">${escapeHtml(row.course.name)} &middot; ${levelNames[row.level]} &middot; ${roleNames[row.variation.kind]}</p><h1>${escapeHtml(row.variation.title)}</h1><p class="lede">${escapeHtml(row.variation.summary)}</p><article class="lesson-idea"><div><p class="eyebrow">Lesson idea</p><h2>Anchor: ${escapeHtml(idea.anchorSan)}</h2><p>${escapeHtml(idea.plan)}</p></div><dl><div><dt>Opponent trigger</dt><dd>${escapeHtml(idea.opponentTrigger)}</dd></div><div><dt>Resulting plan</dt><dd>${escapeHtml(idea.resultingPlan)}</dd></div></dl></article><div class="line-concept-actions"><button id="start-line-lesson">Start lesson</button><button id="study-line" class="quiet-button">Study preview</button></div></div><div class="line-preview"><span class="state">MOVE PREVIEW</span><ol>${preview}</ol><p>One authored move at each position. The lesson will teach this line before recall.</p></div></section></main>`;
-    app.querySelector('#concept-back')?.addEventListener('click', () => { drawIndex(); void navigate({ name: 'browse', courseId: screen.courseId }); });
-    app.querySelector('#start-line-lesson')?.addEventListener('click', () => {
-      if (!progressByCourse) return;
-      void navigate({ name: 'practice', course: row.course, level: row.level, progress: progressByCourse[row.course.id], variationId: row.variation.id });
-    });
-    app.querySelector('#study-line')?.addEventListener('click', () => { openWalker(row); void navigate({ name: 'browse', courseId: row.course.id, lineId: row.variation.id, study: true }); });
-  };
-
-  const openWalker = (row: Row) => {
-    disposeWalker();
-    const generation = walkerGeneration;
+  const openPreview = (row: Row, returnCourseId: Course['id'] | null = row.course.id) => {
+    disposePreview();
+    const generation = previewGeneration;
     engine.clearMemo();
-    let index = 0;
-    let evalScore: EvalScore | null = null;
     const positions = row.variation.positions;
-    const drawWalker = () => {
-      if (generation !== walkerGeneration) return;
-      const position = positions[index];
-      const chess = new Chess(position.fen);
-      const guide = { from: position.expectedMove.slice(0, 2), to: position.expectedMove.slice(2, 4) };
-      const moves = positions.map((entry, entryIndex) => `<li class="walker-move ${entryIndex === index ? 'is-current' : ''}">${String(entryIndex + 1).padStart(2, '0')} ${escapeHtml(entry.expectedSan)}</li>`).join('');
-      const boardState = { chess, selected: null, side: row.course.side, guide, route: null, animation: null, dragging: false, settling: false, interactive: false, selectableColor: row.course.side === 'white' ? 'w' as const : 'b' as const };
-      const canPractice = isTrainableVariation(row.variation);
-      const mode = isReferenceVariation(row.variation) ? 'Study' : 'Preview';
-      app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'walker-back', label: 'Browse' } })}<section class="walker"><div class="walker-copy"><p class="eyebrow">${mode} &middot; ${escapeHtml(row.course.name)} &middot; ${levelNames[row.level]} &middot; move ${index + 1} of ${positions.length}</p><span class="side-tag">${sideNames[row.course.side]}</span><p class="line-title">${escapeHtml(row.variation.title)}</p><p class="lede">${escapeHtml(row.variation.summary)}</p><div class="explanation"><span class="explanation-mark">Why</span><p>${escapeHtml(position.explanation)}</p></div><ol class="walker-moves">${moves}</ol><div class="walker-actions"><button id="walker-prev" class="quiet-button"${index === 0 ? ' disabled' : ''}>&lt;- Previous</button><button id="walker-next" class="quiet-button"${index === positions.length - 1 ? ' disabled' : ''}>Next -&gt;</button>${canPractice ? '<button id="walker-practice">Practice this line</button>' : ''}</div><p class="walker-note">${isReferenceVariation(row.variation) ? 'Study only. Nothing here changes your progress.' : 'Preview only. Nothing here changes your progress.'}</p></div><div class="board-panel">${renderEvalBar(evalScore, engine.status)}<div class="board-frame">${renderBoard(boardState)}</div><div class="board-caption"><span>${escapeHtml(position.expectedSan)} is the move</span><span>Move ${index + 1} of ${positions.length}</span></div></div></section></main>`;
+    const idea = row.course.lessons[row.level].lessonIdea;
+    const selectableColor = row.course.side === 'white' ? 'w' : 'b';
+    let index = 0;
+    let busy = false;
+    let leaving = false;
+    let displayFen: string | null = null;
+    let animation: BoardAnimation | null = null;
+    let boardEl: HTMLDivElement | null = null;
+    let evalEl: HTMLElement | null = null;
+    let evalScore: EvalScore | null = null;
+    let evalFen: string | null = null;
+    let evaluationToken = 0;
+    const moveDuration = loadMoveDuration();
 
-      document.querySelector('#walker-back')!.addEventListener('click', () => {
-        drawIndex();
-        void navigate({ name: 'browse' });
+    const currentFen = () => displayFen ?? positions[Math.min(index, positions.length - 1)].fen;
+    const isCompleted = () => index >= positions.length;
+    const stillCurrent = (token: number, fen: string) => !leaving && generation === previewGeneration && token === evaluationToken && currentFen() === fen;
+
+    const drawPreview = () => {
+      if (generation !== previewGeneration || leaving) return;
+      const completed = isCompleted();
+      const position = positions[Math.min(index, positions.length - 1)];
+      const fen = currentFen();
+      const chess = new Chess(animation?.plan.fromFen ?? fen);
+      const guide = !busy && !completed ? { from: position.expectedMove.slice(0, 2), to: position.expectedMove.slice(2, 4) } : null;
+      const moveList = positions.map((entry, entryIndex) => `<li class="preview-move ${entryIndex === index ? 'is-current' : ''}"${entryIndex === index ? ' aria-current="step"' : ''}>${String(entryIndex + 1).padStart(2, '0')} ${escapeHtml(entry.expectedSan)}</li>`).join('');
+      const boardState: BoardState = {
+        chess,
+        selected: null,
+        side: row.course.side,
+        guide,
+        route: null,
+        animation,
+        dragging: false,
+        settling: busy,
+        interactive: false,
+        selectableColor,
+      };
+      const status = busy ? 'Playing move' : completed ? 'Preview complete' : `${position.expectedSan} is the move`;
+      const controls = completed
+        ? `<button id="preview-prev" class="quiet-button"${index === 0 ? ' disabled' : ''}>Previous</button><button id="preview-restart">Restart Preview</button>`
+        : `<button id="preview-prev" class="quiet-button"${index === 0 || busy ? ' disabled' : ''}>Previous</button><button id="preview-next"${busy ? ' disabled' : ''}>Next</button>`;
+      const practice = isTrainableVariation(row.variation)
+        ? '<button id="preview-practice" class="quiet-button">Practice This Line</button>'
+        : '';
+      const completeCopy = completed
+        ? '<div class="preview-complete" role="status" aria-live="polite"><strong>Line Preview complete.</strong><span>You can restart the walkthrough or begin practice.</span></div>'
+        : `<div class="preview-guide"><span class="explanation-mark">Current authored move</span><strong>${escapeHtml(position.expectedSan)}</strong><p>${escapeHtml(position.explanation)}</p></div>`;
+      const nextMain = document.createRange().createContextualFragment(`<main class="app-shell line-preview-page"><div class="line-preview-shell">${topbarMarkup({ email, back: { id: 'preview-back', label: 'Browse' } })}<section class="line-preview-layout"><div class="line-preview-copy"><p class="eyebrow">Line Preview &middot; ${escapeHtml(row.course.name)} &middot; ${levelNames[row.level]}${completed ? '' : ` &middot; move ${index + 1} of ${positions.length}`}</p><span class="side-tag">${sideNames[row.course.side]}</span><h1>${escapeHtml(row.variation.title)}</h1><p class="lede">${escapeHtml(row.variation.summary)}</p><article class="lesson-idea"><div><p class="eyebrow">Lesson idea</p><h2>Anchor: ${escapeHtml(idea.anchorSan)}</h2><p>${escapeHtml(idea.plan)}</p></div><dl><div><dt>Opponent trigger</dt><dd>${escapeHtml(idea.opponentTrigger)}</dd></div><div><dt>Resulting plan</dt><dd>${escapeHtml(idea.resultingPlan)}</dd></div></dl></article>${completeCopy}<ol class="preview-moves" aria-label="Authored move guide">${moveList}</ol><div class="preview-actions">${controls}${practice}</div><p class="preview-note">Preview only. Nothing here changes your progress.</p></div><div class="board-panel"><div class="eval-host"></div><div class="board-frame"></div><div class="board-caption" aria-live="polite"><span>${escapeHtml(status)}</span><span>${completed ? 'Complete' : `Move ${index + 1} of ${positions.length}`}</span></div></div></section></div></main>`).firstElementChild as HTMLElement;
+      const panel = nextMain.querySelector<HTMLElement>('.board-panel');
+      const evalHost = nextMain.querySelector<HTMLElement>('.eval-host');
+      if (panel && evalHost) {
+        if (!evalEl) evalEl = document.createRange().createContextualFragment(renderEvalBar(evalScore, engine.status)).firstElementChild as HTMLElement;
+        evalHost.append(evalEl);
+        updateEvalBar(panel, evalScore, engine.status);
+        evalEl = panel.querySelector<HTMLElement>('.eval-bar, .eval-note');
+      }
+      const frame = nextMain.querySelector<HTMLDivElement>('.board-frame');
+      if (frame) {
+        if (!boardEl) boardEl = document.createRange().createContextualFragment(renderBoard(boardState)).firstElementChild as HTMLDivElement;
+        frame.append(boardEl);
+        updateBoard(boardEl, boardState);
+      }
+      app.append(nextMain);
+      Array.from(app.children).forEach((child) => { if (child !== nextMain) child.remove(); });
+
+      nextMain.querySelector<HTMLButtonElement>('#preview-back')?.addEventListener('click', () => {
+        leaving = true;
+        disposePreview();
+        void navigate({ name: 'browse', ...(returnCourseId ? { courseId: returnCourseId } : {}) });
       });
-      document.querySelector('#walker-prev')?.addEventListener('click', () => step(-1));
-      document.querySelector('#walker-next')?.addEventListener('click', () => step(1));
-      document.querySelector('#walker-practice')?.addEventListener('click', () => {
+      nextMain.querySelector<HTMLButtonElement>('#preview-prev')?.addEventListener('click', () => {
+        if (busy || index <= 0) return;
+        index -= 1;
+        displayFen = null;
+        evalFen = null;
+        evalScore = null;
+        evaluationToken += 1;
+        drawPreview();
+      });
+      nextMain.querySelector<HTMLButtonElement>('#preview-next')?.addEventListener('click', () => void advance());
+      nextMain.querySelector<HTMLButtonElement>('#preview-restart')?.addEventListener('click', () => {
+        if (busy) return;
+        index = 0;
+        displayFen = null;
+        evalFen = null;
+        evalScore = null;
+        evaluationToken += 1;
+        drawPreview();
+      });
+      nextMain.querySelector<HTMLButtonElement>('#preview-practice')?.addEventListener('click', () => {
         if (!progressByCourse) return;
-        disposeWalker();
+        leaving = true;
+        disposePreview();
         void navigate({ name: 'practice', course: row.course, level: row.level, progress: progressByCourse[row.course.id], variationId: row.variation.id });
       });
 
-      const fen = position.fen;
-      const panel = app.querySelector('.board-panel');
-      const paint = (score: EvalScore | null) => {
-        if (generation !== walkerGeneration || positions[index]?.fen !== fen) return;
-        if (panel) updateEvalBar(panel, score, engine.status);
-      };
-      void engine.evaluate(fen, row.course.side === 'white' ? 'w' : 'b', window.matchMedia('(prefers-reduced-motion: reduce)').matches ? undefined : paint).then((score) => {
-        if (generation !== walkerGeneration || positions[index]?.fen !== fen) return;
-        if (score === null) {
-          if (engine.status !== 'unavailable') return;
-          evalScore = null;
-        } else {
+      if (!busy && evalFen !== fen) {
+        evalFen = fen;
+        evalScore = null;
+        const token = ++evaluationToken;
+        const paint = (score: EvalScore | null) => {
+          if (!stillCurrent(token, fen)) return;
+          if (panel) updateEvalBar(panel, score, engine.status);
+        };
+        void engine.evaluate(fen, selectableColor, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? undefined : paint).then((score) => {
+          if (!stillCurrent(token, fen)) return;
+          if (score === null && engine.status !== 'unavailable') return;
           evalScore = score;
-        }
-        paint(score);
-      });
+          paint(score);
+        });
+      }
     };
 
-    const step = (delta: number) => {
-      const next = index + delta;
-      if (next < 0 || next >= positions.length) return;
-      index = next;
-      drawWalker();
+    const nextFrame = () => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+    const wait = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
+
+    const playPhase = async (plan: NonNullable<ReturnType<typeof planLinePreviewAdvance>>['authored'], duration: number) => {
+      animation = { plan, arrived: false, duration };
+      drawPreview();
+      if (duration === 0) {
+        animation = null;
+        displayFen = plan.afterFen;
+        drawPreview();
+        return;
+      }
+      await nextFrame();
+      if (leaving || generation !== previewGeneration) return;
+      animation.arrived = true;
+      app.querySelectorAll<HTMLElement>('.animated-piece').forEach((piece) => piece.classList.add('is-arrived'));
+      await wait(duration);
+      if (leaving || generation !== previewGeneration) return;
+      animation = null;
+      displayFen = plan.afterFen;
+      drawPreview();
+    };
+
+    const advance = async () => {
+      if (busy || isCompleted()) return;
+      const plan = planLinePreviewAdvance(positions, index);
+      if (!plan) return;
+      busy = true;
+      displayFen = null;
+      evalFen = null;
+      evalScore = null;
+      evaluationToken += 1;
+      drawPreview();
+      const duration = effectiveMoveDuration(moveDuration, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      const beats = moveBeats(moveDuration, false);
+      await playPhase(plan.authored, duration);
+      if (leaving || generation !== previewGeneration) return;
+      if (plan.reply) {
+        await wait(beats.beforeReply);
+        if (leaving || generation !== previewGeneration) return;
+        await playPhase(plan.reply, duration);
+        if (leaving || generation !== previewGeneration) return;
+        await wait(beats.afterReply);
+      }
+      if (leaving || generation !== previewGeneration) return;
+      displayFen = plan.reply?.afterFen ?? (plan.nextIndex === null ? plan.authored.afterFen : positions[plan.nextIndex].fen);
+      index = plan.nextIndex ?? positions.length;
+      animation = null;
+      busy = false;
+      drawPreview();
     };
 
     const onKey = (event: KeyboardEvent) => {
-      if (!app.querySelector('.walker')) {
-        disposeWalker();
-        return;
+      if (!app.querySelector('.line-preview-page') || event.defaultPrevented) return;
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        app.querySelector<HTMLButtonElement>('#preview-prev')?.click();
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        app.querySelector<HTMLButtonElement>('#preview-next')?.click();
       }
-      if (event.key === 'ArrowLeft') step(-1);
-      if (event.key === 'ArrowRight') step(1);
     };
-
     window.addEventListener('keydown', onKey);
-    removeWalkerKeyListener = () => window.removeEventListener('keydown', onKey);
-    drawWalker();
+    removePreviewKeyListener = () => window.removeEventListener('keydown', onKey);
+    drawPreview();
   };
 
   if (screen.lineId) {
-    const row = rows.find((candidate) => (
-      candidate.variation.id === screen.lineId
-      && (!screen.courseId || candidate.course.id === screen.courseId)
-    ));
+    const row = rows.find((candidate) => candidate.variation.id === screen.lineId && (!screen.courseId || candidate.course.id === screen.courseId));
     if (row) {
-      if (row.state === 'untouched' && isTrainableVariation(row.variation) && !screen.study) openConcept(row);
-      else if (row.state && row.state !== 'reference' && progressByCourse && !screen.study) {
-        void navigate({ name: 'practice', course: row.course, level: row.level, progress: progressByCourse[row.course.id], variationId: row.variation.id });
-        return;
-      }
-      else openWalker(row);
+      openPreview(row, screen.courseId ?? row.course.id);
       return;
     }
   }
