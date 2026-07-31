@@ -21,5 +21,7 @@ test('LINE/64 practice keeps the board in the focused reading rail', async ({ pa
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expectNoOverflow(page);
-  await expect(page.locator('.mode-switch')).toHaveCSS('width', '354px');
+  await expect(page.locator('.mode-switch')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Learn', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Drill', exact: true })).toHaveCount(0);
 });

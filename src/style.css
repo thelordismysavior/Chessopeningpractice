@@ -842,10 +842,7 @@ body { background: var(--bg); color: var(--fg); }
 }
 .lesson-copy {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px 20px;
-  align-items: end;
+  display: block;
   order: initial;
   max-width: none;
 }
@@ -853,15 +850,6 @@ body { background: var(--bg); color: var(--fg); }
 .lesson-copy .line-title { margin: 0; font-size: 21px; }
 .lesson-copy .lede,
 .lesson-copy .lesson-summary { margin: 0; color: var(--muted); }
-.lesson-copy .mode-switch {
-  grid-column: 2;
-  grid-row: 1 / span 4;
-  width: 190px;
-  margin: 0;
-}
-.mode-switch { border-color: var(--border); }
-.mode-switch button { min-height: 44px; }
-.mode-switch button[aria-selected="true"] { background: var(--fg); color: var(--bg); }
 .board-panel { order: initial; width: 100%; justify-self: stretch; margin-top: 22px; }
 .practice-shell .eval-bar {
   display: block;
@@ -933,8 +921,6 @@ body { background: var(--bg); color: var(--fg); }
   .queue-page,
   .browse-page,
   .result-content { margin-top: 48px; }
-  .lesson-copy { grid-template-columns: 1fr; }
-  .lesson-copy .mode-switch { grid-column: 1; grid-row: auto; width: 100%; margin-top: 14px; }
   .board-panel { margin-top: 22px; }
   .practice-details .practice-actions { grid-template-columns: 1fr; }
   .practice-details .practice-actions > .button,
