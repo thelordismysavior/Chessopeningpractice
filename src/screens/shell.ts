@@ -1,6 +1,6 @@
 import { loadMoveDuration, saveMoveDuration } from '../move-settings';
 import type { Course, LevelKey } from '../courses';
-import { hashForRoute, HOME_HASH, type HashRoute } from '../router';
+import { hashForRoute, HOME_HASH, parseHash, type HashRoute } from '../router';
 
 export const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -29,12 +29,25 @@ export function brandMarkup(): string {
 export const backIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>';
 export const settingsIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
 
+function isCurrentPrimaryDestination(id: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const route = parseHash(window.location.hash);
+  if (id === 'courses-nav') return route.name === 'dashboard' || route.name === 'course';
+  if (id === 'lines') return route.name === 'lines';
+  if (id === 'browse') return route.name === 'browse';
+  if (id === 'sources') return route.name === 'sources';
+  if (id === 'review-queue' || id === 'queue-nav') return route.name === 'review-queue';
+  if (id === 'account') return route.name === 'account';
+  if (id === 'settings' || id === 'settings-link') return route.name === 'settings';
+  return false;
+}
+
 function topbarLink(link: { id: string; label: string }): string {
-  if (link.id === 'courses-nav') return `<a id="courses-nav" href="${HOME_HASH}">${escapeHtml(link.label)}</a>`;
+  if (link.id === 'courses-nav') return `<a id="courses-nav" class="primary-nav-link" href="${HOME_HASH}"${isCurrentPrimaryDestination(link.id) ? ' aria-current="page"' : ''}>${escapeHtml(link.label)}</a>`;
   const routes: Partial<Record<string, HashRoute>> = { account: { name: 'account' }, 'settings-link': { name: 'settings' }, browse: { name: 'browse' }, lines: { name: 'lines' }, sources: { name: 'sources' }, 'review-queue': { name: 'review-queue' }, 'queue-nav': { name: 'review-queue' } };
   const route = routes[link.id];
   return route
-    ? `<a id="${link.id}" href="${hashForRoute(route)}" class="quiet-button">${escapeHtml(link.label)}</a>`
+    ? `<a id="${link.id}" class="primary-nav-link" href="${hashForRoute(route)}"${isCurrentPrimaryDestination(link.id) ? ' aria-current="page"' : ''}>${escapeHtml(link.label)}</a>`
     : `<button id="${link.id}" class="quiet-button">${escapeHtml(link.label)}</button>`;
 }
 

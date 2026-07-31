@@ -42,9 +42,10 @@ h3 { margin: 0; font-size: 21px; }
 .topbar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-height: 68px; gap: 20px; border-bottom: 1px solid var(--border); }
 .topbar-start, .topbar-end, .topbar-nav { display: flex; align-items: center; min-width: 0; }
 .topbar-end { justify-content: flex-end; gap: 12px; }
-.topbar-nav { gap: 18px; }
+.topbar-nav { flex-wrap: nowrap; gap: 18px; max-width: 100%; overflow-x: auto; scrollbar-width: none; white-space: nowrap; }
+.topbar-nav::-webkit-scrollbar { display: none; }
 .topbar-nav a { color: var(--muted); font: 11px var(--font-mono); letter-spacing: .04em; text-decoration: none; text-transform: uppercase; }
-.topbar-nav a:hover { color: var(--fg); }
+.topbar-nav a:hover, .topbar-nav a:focus-visible, .topbar-nav a[aria-current="page"] { color: var(--fg); }
 .topbar:not(.has-back) { grid-template-columns: auto 1fr; }
 .topbar:not(.has-back) .topbar-start { display: none; }
 .topbar:not(.has-back) .wordmark { justify-self: start; }
@@ -89,6 +90,9 @@ button:disabled, input:disabled { cursor: not-allowed; opacity: .55; }
 .dashboard-focus, .dashboard-summary { min-height: 220px; }
 .dashboard-summary { display: grid; align-content: space-between; }
 .dashboard-summary strong { font: 34px var(--font-mono); }
+.mastery-heading { display: grid; gap: 8px; }
+.mastery-heading strong { display: block; line-height: 1; }
+.mastery-figure .progress-row { margin-top: 24px; }
 .dashboard-focus p, .note { color: var(--muted); }
 .meter { display: flex; gap: 4px; margin-top: 20px; }
 .meter i { width: 24px; height: 4px; background: var(--border); }
@@ -106,6 +110,8 @@ button:disabled, input:disabled { cursor: not-allowed; opacity: .55; }
 .course-line-row:hover, .line-selection-row:hover, .browse-row:hover { border-color: var(--fg); }
 .course-line-main strong, .course-line-main small, .line-selection-row strong, .line-selection-row small { display: block; }
 .course-line-main small, .line-selection-row small, .line-status, .line-role, .line-selection-status, .course-line-action, .browse-meta, .queue-next { color: var(--muted); font: 11px var(--font-mono); }
+.sort-field { display: flex; align-items: center; gap: 8px; }
+.sort-label { color: var(--muted); font: 11px var(--font-mono); text-transform: uppercase; white-space: nowrap; }
 .sort-control, .browse-search, select, input { min-height: 46px; padding: 0 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--fg); }
 .filter-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
 .filter-chip, .browse-chip { padding: 0 14px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: transparent; color: var(--muted); }
@@ -199,12 +205,15 @@ dialog::backdrop { background: color-mix(in oklch, var(--bg) 76%, transparent); 
   .topbar:not(.has-back) .wordmark,
   .topbar:not(.has-back) .topbar-end { grid-column: 1; }
   .topbar:not(.has-back) .topbar-end { justify-content: flex-start; }
+  .topbar:not(.has-back) .topbar-nav { flex: 1; }
   .topbar.has-back .wordmark { justify-self: start; }
   .topbar.has-back .topbar-nav { display: none; }
   .topbar-nav { gap: 10px; }
   .topbar-nav a { font-size: 10px; }
   .course-grid, .dashboard-grid, .summary-stats, .account-grid { grid-template-columns: 1fr; }
   .toolbar { align-items: stretch; flex-direction: column; }
+  .sort-field { width: 100%; }
+  .sort-control { min-width: 0; width: 100%; }
   .toolbar .button, .actions .button { width: 100%; }
   .course-card-detail { align-items: flex-start; flex-direction: column; }
   .course-level-heading { flex-direction: column; }
