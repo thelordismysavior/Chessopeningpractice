@@ -97,7 +97,7 @@ export function renderBoard(state: BoardState): string {
   })).join('');
   const animatedPieces = animatedPiecesMarkup(state);
   const hint = state.hintSquare ? `<span class="hint-square" style="${markerPosition(state.hintSquare, side)}" aria-hidden="true"></span>` : '';
-  return `<div class="board ${dragging ? 'is-dragging' : ''}" role="group" aria-label="Chess board" aria-busy="${settling}">${squares}${hint}${renderRoute(guide, side, 'guide-overlay', false)}<div class="piece-layer" aria-hidden="true">${animatedPieces}</div>${renderRoute(route, side, 'feedback-overlay')}</div>`;
+  return `<div class="board ${dragging ? 'is-dragging' : ''}" role="group" aria-label="Chess board" aria-busy="${settling}">${squares}${hint}${renderRoute(guide, side, 'guide-overlay', true)}<div class="piece-layer" aria-hidden="true">${animatedPieces}</div>${renderRoute(route, side, 'feedback-overlay')}</div>`;
 }
 
 export function updateBoard(board: Element, state: BoardState): void {
@@ -131,7 +131,7 @@ export function updateBoard(board: Element, state: BoardState): void {
       else current.remove();
     } else if (next.firstElementChild) board.append(next);
   };
-  replaceOverlay('.guide-overlay', renderRoute(state.guide, state.side, 'guide-overlay', false));
+  replaceOverlay('.guide-overlay', renderRoute(state.guide, state.side, 'guide-overlay', true));
   replaceOverlay('.feedback-overlay', renderRoute(state.route, state.side, 'feedback-overlay'));
   replaceOverlay('.hint-square', state.hintSquare ? `<span class="hint-square" style="${markerPosition(state.hintSquare, state.side)}" aria-hidden="true"></span>` : '');
   const layer = board.querySelector('.piece-layer');

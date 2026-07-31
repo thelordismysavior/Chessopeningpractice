@@ -275,6 +275,8 @@ Elapsed time is wall-clock from session start to completion. There is no idle de
 ## Practice Screen
 
 - The header eyebrow includes the current phase alongside the existing line and move counters.
+- Teach and recall are session-controlled phases: the practice screen renders no Learn or Drill
+  mode controls, and the session advances between them automatically.
 - A "Show me" button appears in the existing actions row during the recall pass only.
 - The mistake budget renders as a two-slot indicator rather than a number in prose, so the learner
   knows before the final move whether the pass will bank.

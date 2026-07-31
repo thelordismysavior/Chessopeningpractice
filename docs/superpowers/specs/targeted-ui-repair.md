@@ -29,7 +29,7 @@ Supporting UI defects include stale scroll position between screens, wrapping to
 ## Out of Scope
 
 - A new router, state-management layer, component framework, or design system.
-- A full visual redesign or content rewrite.
+- A new visual system beyond the established LINE/64 surface or a content rewrite.
 - A Proceed step between variations.
 - Changes to course content, lesson order, URLs, navigation labels, authentication, Firestore rules, or progress schema.
 - New runtime dependencies or a DOM testing framework.
@@ -70,7 +70,8 @@ Scroll resets to the top only when changing between top-level screens such as au
 
 ## UI Treatment
 
-This is a preserve-style repair with the existing warm neutral palette, terracotta accent, typography, card treatment, and board.
+This is a preserve-style repair within the established LINE/64 visual system, retaining the warm
+neutral palette, terracotta accent, typography, card treatment, and board.
 
 - Design variance remains moderate at 5.
 - Motion intensity remains restrained at 3.
