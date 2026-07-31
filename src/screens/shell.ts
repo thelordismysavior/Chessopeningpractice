@@ -38,13 +38,14 @@ export function topbarMarkup(options: TopbarOptions): string {
   const back = options.back
     ? `<button id="${options.back.id}" class="back-button" aria-label="${escapeHtml(options.back.label)}">&larr;<span>${escapeHtml(options.back.label)}</span></button>`
     : '';
-  const links = (options.links ?? []).map(topbarLink).join('');
-  const navigation = links ? `<nav class="topbar-nav" aria-label="Primary navigation">${links}</nav>` : '';
-  const settings = options.wordmark
+  const links = options.links ?? [];
+  const navigationMarkup = links.map(topbarLink).join('');
+  const navigation = navigationMarkup ? `<nav class="topbar-nav" aria-label="Primary navigation">${navigationMarkup}</nav>` : '';
+  const settings = options.wordmark && !links.some((link) => link.id === 'settings')
     ? '<button id="settings" class="icon-button" type="button" aria-label="Settings">&#9881;</button>'
     : '';
   const brand = `<a class="wordmark" href="${HOME_HASH}">${brandMarkup()}</a>`;
-  return `<header class="topbar${options.back ? ' has-back' : ''}"><div class="topbar-start">${back}</div>${brand}<div class="topbar-end">${navigation}${settings}<span class="account-email utility-only">${escapeHtml(options.email) || 'owner'}</span><button id="sign-out" class="quiet-button utility-only" type="button">Sign out</button></div></header>`;
+  return `<header class="topbar${options.back ? ' has-back' : ''}"><div class="topbar-start">${back}</div>${brand}<div class="topbar-end">${navigation}${settings}<span class="account-email utility-only">${escapeHtml(options.email) || 'owner'}</span><button id="sign-out" class="quiet-button" type="button">Sign out</button></div></header>`;
 }
 
 export function settingsPreferenceMarkup(duration: number): string {
