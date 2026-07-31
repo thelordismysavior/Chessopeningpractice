@@ -125,6 +125,7 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
     let evalFen: string | null = null;
     let evaluationToken = 0;
     const moveDuration = loadMoveDuration();
+    let previewFocusId: string | null = null;
 
     const currentFen = () => displayFen ?? positions[Math.min(index, positions.length - 1)].fen;
     const isCompleted = () => index >= positions.length;
@@ -132,6 +133,10 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
 
     const drawPreview = () => {
       if (generation !== previewGeneration || leaving) return;
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLElement && activeElement.closest('.line-preview-page') && activeElement.id) {
+        previewFocusId = activeElement.id;
+      }
       const completed = isCompleted();
       const position = positions[Math.min(index, positions.length - 1)];
       const fen = currentFen();
@@ -208,6 +213,12 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
         disposePreview();
         void navigate({ name: 'practice', course: row.course, level: row.level, progress: progressByCourse[row.course.id], variationId: row.variation.id });
       });
+
+      if (!busy && previewFocusId) {
+        const focusId = completed && previewFocusId === 'preview-next' ? 'preview-restart' : previewFocusId;
+        nextMain.querySelector<HTMLElement>(`#${focusId}`)?.focus({ preventScroll: true });
+        previewFocusId = null;
+      }
 
       if (!busy && evalFen !== fen) {
         evalFen = fen;
