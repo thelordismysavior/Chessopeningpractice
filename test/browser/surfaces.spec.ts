@@ -243,8 +243,17 @@ test('Line Preview completes, restarts, and offers practice without changing pro
   await page.locator('.browse-row').first().click();
 
   const before = await page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]));
-  await page.locator('.board').evaluate((board) => {
-    (globalThis as typeof globalThis & { __previewBoard: Element }).__previewBoard = board;
+  await page.locator('.line-preview-shell').evaluate((shell) => {
+    const state = globalThis as typeof globalThis & {
+      __previewShell: Element;
+      __previewCopy: Element;
+      __previewBoard: Element;
+      __previewEval: Element;
+    };
+    state.__previewShell = shell;
+    state.__previewCopy = shell.querySelector('.line-preview-copy')!;
+    state.__previewBoard = shell.querySelector('.board')!;
+    state.__previewEval = shell.querySelector('.eval-bar')!;
   });
   const variation = COURSES[0].lessons.beginner.variations[0];
   for (let index = 0; index < variation.positions.length; index += 1) {
@@ -254,7 +263,18 @@ test('Line Preview completes, restarts, and offers practice without changing pro
     }
   }
   await expect(page.locator('.preview-complete')).toBeVisible();
-  expect(await page.evaluate(() => (globalThis as typeof globalThis & { __previewBoard: Element }).__previewBoard === document.querySelector('.board'))).toBe(true);
+  expect(await page.evaluate(() => {
+    const state = globalThis as typeof globalThis & {
+      __previewShell: Element;
+      __previewCopy: Element;
+      __previewBoard: Element;
+      __previewEval: Element;
+    };
+    return state.__previewShell === document.querySelector('.line-preview-shell')
+      && state.__previewCopy === document.querySelector('.line-preview-copy')
+      && state.__previewBoard === document.querySelector('.board')
+      && state.__previewEval === document.querySelector('.eval-bar');
+  })).toBe(true);
   await page.locator('#preview-restart').click();
   await expect(page.locator('.preview-move.is-current')).toHaveText(/^01 /);
   expect(await page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]))).toBe(before);

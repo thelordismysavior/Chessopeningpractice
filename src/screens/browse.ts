@@ -127,6 +127,15 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
     const moveDuration = loadMoveDuration();
     let previewFocusId: string | null = null;
 
+    app.innerHTML = `<main class="app-shell line-preview-page"><div class="line-preview-shell">${topbarMarkup({ email, back: { id: 'preview-back', label: 'Browse' } })}<section class="line-preview-layout"><div class="line-preview-copy"></div><div class="board-panel"><div class="eval-host"></div><div class="board-frame"></div><div class="board-caption" aria-live="polite"><span data-preview-status></span><span data-preview-progress></span></div></div></section></div></main>`;
+    const previewMain = app.querySelector<HTMLElement>('.line-preview-page')!;
+    const previewCopy = previewMain.querySelector<HTMLElement>('.line-preview-copy')!;
+    const panel = previewMain.querySelector<HTMLElement>('.board-panel')!;
+    const evalHost = panel.querySelector<HTMLElement>('.eval-host')!;
+    const frame = panel.querySelector<HTMLDivElement>('.board-frame')!;
+    const captionStatus = panel.querySelector<HTMLElement>('[data-preview-status]')!;
+    const captionProgress = panel.querySelector<HTMLElement>('[data-preview-progress]')!;
+
     const currentFen = () => displayFen ?? positions[Math.min(index, positions.length - 1)].fen;
     const isCompleted = () => index >= positions.length;
     const stillCurrent = (token: number, fen: string) => !leaving && generation === previewGeneration && token === evaluationToken && currentFen() === fen;
@@ -165,58 +174,21 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
       const completeCopy = completed
         ? '<div class="preview-complete" role="status" aria-live="polite"><strong>Line Preview complete.</strong><span>You can restart the walkthrough or begin practice.</span></div>'
         : `<div class="preview-guide"><span class="explanation-mark">Current authored move</span><strong>${escapeHtml(position.expectedSan)}</strong><p>${escapeHtml(position.explanation)}</p></div>`;
-      const nextMain = document.createRange().createContextualFragment(`<main class="app-shell line-preview-page"><div class="line-preview-shell">${topbarMarkup({ email, back: { id: 'preview-back', label: 'Browse' } })}<section class="line-preview-layout"><div class="line-preview-copy"><p class="eyebrow">Line Preview &middot; ${escapeHtml(row.course.name)} &middot; ${levelNames[row.level]}${completed ? '' : ` &middot; move ${index + 1} of ${positions.length}`}</p><span class="side-tag">${sideNames[row.course.side]}</span><h1>${escapeHtml(row.variation.title)}</h1><p class="lede">${escapeHtml(row.variation.summary)}</p><article class="lesson-idea"><div><p class="eyebrow">Lesson idea</p><h2>Anchor: ${escapeHtml(idea.anchorSan)}</h2><p>${escapeHtml(idea.plan)}</p></div><dl><div><dt>Opponent trigger</dt><dd>${escapeHtml(idea.opponentTrigger)}</dd></div><div><dt>Resulting plan</dt><dd>${escapeHtml(idea.resultingPlan)}</dd></div></dl></article>${completeCopy}<ol class="preview-moves" aria-label="Authored move guide">${moveList}</ol><div class="preview-actions" aria-busy="${busy}">${controls}${practice}</div><p class="preview-note">Preview only. Nothing here changes your progress.</p></div><div class="board-panel"><div class="eval-host"></div><div class="board-frame"></div><div class="board-caption" aria-live="polite"><span>${escapeHtml(status)}</span><span>${completed ? 'Complete' : `Move ${index + 1} of ${positions.length}`}</span></div></div></section></div></main>`).firstElementChild as HTMLElement;
-      const panel = nextMain.querySelector<HTMLElement>('.board-panel');
-      const evalHost = nextMain.querySelector<HTMLElement>('.eval-host');
-      if (panel && evalHost) {
-        if (!evalEl) evalEl = document.createRange().createContextualFragment(renderEvalBar(evalScore, engine.status)).firstElementChild as HTMLElement;
-        evalHost.append(evalEl);
-        updateEvalBar(panel, evalScore, engine.status);
-        evalEl = panel.querySelector<HTMLElement>('.eval-bar, .eval-note');
-      }
-      const frame = nextMain.querySelector<HTMLDivElement>('.board-frame');
-      if (frame) {
-        if (!boardEl) boardEl = document.createRange().createContextualFragment(renderBoard(boardState)).firstElementChild as HTMLDivElement;
-        frame.append(boardEl);
-        updateBoard(boardEl, boardState);
-      }
-      app.append(nextMain);
-      Array.from(app.children).forEach((child) => { if (child !== nextMain) child.remove(); });
+      previewCopy.innerHTML = `<p class="eyebrow">Line Preview &middot; ${escapeHtml(row.course.name)} &middot; ${levelNames[row.level]}${completed ? '' : ` &middot; move ${index + 1} of ${positions.length}`}</p><span class="side-tag">${sideNames[row.course.side]}</span><h1>${escapeHtml(row.variation.title)}</h1><p class="lede">${escapeHtml(row.variation.summary)}</p><article class="lesson-idea"><div><p class="eyebrow">Lesson idea</p><h2>Anchor: ${escapeHtml(idea.anchorSan)}</h2><p>${escapeHtml(idea.plan)}</p></div><dl><div><dt>Opponent trigger</dt><dd>${escapeHtml(idea.opponentTrigger)}</dd></div><div><dt>Resulting plan</dt><dd>${escapeHtml(idea.resultingPlan)}</dd></div></dl></article>${completeCopy}<ol class="preview-moves" aria-label="Authored move guide">${moveList}</ol><div class="preview-actions" aria-busy="${busy}">${controls}${practice}</div><p class="preview-note">Preview only. Nothing here changes your progress.</p>`;
+      captionStatus.textContent = status;
+      captionProgress.textContent = completed ? 'Complete' : `Move ${index + 1} of ${positions.length}`;
 
-      nextMain.querySelector<HTMLButtonElement>('#preview-back')?.addEventListener('click', () => {
-        leaving = true;
-        disposePreview();
-        void navigate({ name: 'browse', ...(returnCourseId ? { courseId: returnCourseId } : {}) });
-      });
-      nextMain.querySelector<HTMLButtonElement>('#preview-prev')?.addEventListener('click', () => {
-        if (busy || index <= 0) return;
-        index -= 1;
-        displayFen = null;
-        evalFen = null;
-        evalScore = null;
-        evaluationToken += 1;
-        drawPreview();
-      });
-      nextMain.querySelector<HTMLButtonElement>('#preview-next')?.addEventListener('click', () => void advance());
-      nextMain.querySelector<HTMLButtonElement>('#preview-restart')?.addEventListener('click', () => {
-        if (busy) return;
-        index = 0;
-        displayFen = null;
-        evalFen = null;
-        evalScore = null;
-        evaluationToken += 1;
-        drawPreview();
-      });
-      nextMain.querySelector<HTMLButtonElement>('#preview-practice')?.addEventListener('click', () => {
-        if (!progressByCourse) return;
-        leaving = true;
-        disposePreview();
-        void navigate({ name: 'practice', course: row.course, level: row.level, progress: progressByCourse[row.course.id], variationId: row.variation.id });
-      });
+      if (!evalEl) evalEl = document.createRange().createContextualFragment(renderEvalBar(evalScore, engine.status)).firstElementChild as HTMLElement;
+      if (!evalEl.parentElement) evalHost.append(evalEl);
+      updateEvalBar(panel, evalScore, engine.status);
+      evalEl = panel.querySelector<HTMLElement>('.eval-bar, .eval-note');
+      if (!boardEl) boardEl = document.createRange().createContextualFragment(renderBoard(boardState)).firstElementChild as HTMLDivElement;
+      if (!boardEl.parentElement) frame.append(boardEl);
+      updateBoard(boardEl, boardState);
 
       if (!busy && previewFocusId) {
         const focusId = completed && previewFocusId === 'preview-next' ? 'preview-restart' : previewFocusId;
-        nextMain.querySelector<HTMLElement>(`#${focusId}`)?.focus({ preventScroll: true });
+        previewMain.querySelector<HTMLElement>(`#${focusId}`)?.focus({ preventScroll: true });
         previewFocusId = null;
       }
 
@@ -226,7 +198,8 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
         const token = ++evaluationToken;
         const paint = (score: EvalScore | null) => {
           if (!stillCurrent(token, fen)) return;
-          if (panel) updateEvalBar(panel, score, engine.status);
+          updateEvalBar(panel, score, engine.status);
+          evalEl = panel.querySelector<HTMLElement>('.eval-bar, .eval-note');
         };
         void engine.evaluate(fen, selectableColor, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? undefined : paint).then((score) => {
           if (!stillCurrent(token, fen)) return;
@@ -252,7 +225,7 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
       await nextFrame();
       if (leaving || generation !== previewGeneration) return;
       animation.arrived = true;
-      app.querySelectorAll<HTMLElement>('.animated-piece').forEach((piece) => piece.classList.add('is-arrived'));
+      boardEl?.querySelectorAll<HTMLElement>('.animated-piece').forEach((piece) => piece.classList.add('is-arrived'));
       await wait(duration);
       if (leaving || generation !== previewGeneration) return;
       animation = null;
@@ -289,14 +262,48 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
       drawPreview();
     };
 
+    previewMain.querySelector<HTMLButtonElement>('#preview-back')?.addEventListener('click', () => {
+      leaving = true;
+      disposePreview();
+      void navigate({ name: 'browse', ...(returnCourseId ? { courseId: returnCourseId } : {}) });
+    });
+    previewCopy.addEventListener('click', (event) => {
+      const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('button') : null;
+      if (!target) return;
+      if (target.id === 'preview-prev') {
+        if (busy || index <= 0) return;
+        index -= 1;
+        displayFen = null;
+        evalFen = null;
+        evalScore = null;
+        evaluationToken += 1;
+        drawPreview();
+      } else if (target.id === 'preview-next') {
+        void advance();
+      } else if (target.id === 'preview-restart') {
+        if (busy) return;
+        index = 0;
+        displayFen = null;
+        evalFen = null;
+        evalScore = null;
+        evaluationToken += 1;
+        drawPreview();
+      } else if (target.id === 'preview-practice') {
+        if (!progressByCourse) return;
+        leaving = true;
+        disposePreview();
+        void navigate({ name: 'practice', course: row.course, level: row.level, progress: progressByCourse[row.course.id], variationId: row.variation.id });
+      }
+    });
+
     const onKey = (event: KeyboardEvent) => {
-      if (!app.querySelector('.line-preview-page') || event.defaultPrevented) return;
+      if (!previewMain.isConnected || event.defaultPrevented) return;
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
-        app.querySelector<HTMLButtonElement>('#preview-prev')?.click();
+        previewCopy.querySelector<HTMLButtonElement>('#preview-prev')?.click();
       } else if (event.key === 'ArrowRight') {
         event.preventDefault();
-        app.querySelector<HTMLButtonElement>('#preview-next')?.click();
+        previewCopy.querySelector<HTMLButtonElement>('#preview-next')?.click();
       }
     };
     window.addEventListener('keydown', onKey);
