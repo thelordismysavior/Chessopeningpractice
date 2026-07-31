@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { COURSES, LEVELS } from '../../src/courses';
-import { expectNoOverflow, lineMoves, openDashboard, playMove, seedProgress, wrongLegalMove } from './app-stubs';
+import { expectNoOverflow, lineMoves, openDashboard, playMove, seedProgress, startFirstCoursePractice, wrongLegalMove } from './app-stubs';
 
 const VIEWPORTS = [
   { width: 1440, height: 1000 },
@@ -116,17 +116,15 @@ function bankedProgress(courseIndex: number, dueInFirstLine: boolean) {
 
 for (const viewport of VIEWPORTS) {
   test.describe(`${viewport.width}x${viewport.height}`, () => {
-    test('mastery figure agrees with the meters, and a due line is banked not mastered', async ({ page }) => {
+    test('course and overall progress agree when a banked line is due', async ({ page }) => {
       await stubEngine(page);
       await openDashboard(page, viewport.width, viewport.height);
       await seedProgress(page, COURSES[0].id, bankedProgress(0, true));
       await page.reload();
 
       const card = page.locator('.course-card').first();
-      const row = card.locator('button[data-level="beginner"]');
-      await expect(row.locator('.meter-segment.is-mastered')).toHaveCount(1);
-      await expect(row.locator('.meter-segment.is-banked')).toHaveCount(1);
-      await expect(row.locator('.meter-segment.is-untouched')).toHaveCount(3);
+      await expect(card.locator('[role="progressbar"]')).toHaveAttribute('aria-valuenow', '13');
+      await expect(card).toContainText('13% banked');
       await expect(page.locator('.mastery-figure strong')).toHaveText(`${Math.round(1 / 72 * 100)}%`);
       await expect(page.locator('#review-queue')).toContainText('Review 1 position');
     });
@@ -197,7 +195,7 @@ test('the browse index filters, and the walker steps without touching progress',
   await seedProgress(page, COURSES[0].id, bankedProgress(0, true));
   await page.reload();
 
-  await page.locator('#browse').click();
+  await page.locator('#browse-all').click();
   await expect(page.locator('.browse-row')).toHaveCount(72);
   await page.locator(`[data-course-filter="${COURSES[0].id}"]`).click();
   await expect(page.locator('.browse-row')).toHaveCount(15);
@@ -228,7 +226,7 @@ test('the browse index filters, and the walker steps without touching progress',
 test('an untouched line opens with a concept entry and direct practice access', async ({ page }) => {
   await stubEngine(page);
   await openDashboard(page, 1440, 1000);
-  await page.locator('#browse').click();
+  await page.locator('#browse-all').click();
   await page.locator(`[data-course-filter="${COURSES[0].id}"]`).click();
   await page.locator('.browse-row').last().click();
   await expect(page.locator('.line-concept')).toBeVisible();
@@ -241,7 +239,7 @@ test('banked line rows enter one-line Recall directly', async ({ page }) => {
   await seedProgress(page, COURSES[0].id, bankedProgress(0, false));
   await page.reload();
 
-  await page.locator('#lines').click();
+  await page.goto('/#/lines');
   await page.locator('.lines-section').filter({ hasText: 'Banked and mastered' }).locator('.line-selection-row').first().click();
   await expect(page.locator('.practice-shell')).toBeVisible();
   await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Recall');
@@ -254,7 +252,7 @@ test('the bar reads from the learner side in a white and a black course', async 
   const white = COURSES.find((course) => course.side === 'white')!;
   const black = COURSES.find((course) => course.side === 'black')!;
 
-  await page.locator('#browse').click();
+  await page.locator('#browse-all').click();
   await page.locator(`[data-course-filter="${white.id}"]`).click();
   await page.locator('.browse-row').first().click();
   await page.locator('#study-line').click();
@@ -275,7 +273,7 @@ test('a wrong move shows its cost without blocking input', async ({ page }) => {
   await stubEngine(page);
   await openDashboard(page, 1440, 1000);
   const [firstLine] = lineMoves();
-  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await startFirstCoursePractice(page);
   for (const move of firstLine) await playMove(page, move);
 
   await playMove(page, wrongLegalMove(firstLine[0]));
@@ -289,7 +287,7 @@ test('an older wrong-move evaluation cannot replace the latest cost', async ({ p
   await stubControlledEngine(page);
   await openDashboard(page, 1440, 1000);
   const [firstLine] = lineMoves();
-  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await startFirstCoursePractice(page);
   for (const move of firstLine) await playMove(page, move);
 
   await page.evaluate(() => {
@@ -317,7 +315,7 @@ test('a walker evaluation cannot update practice after navigation', async ({ pag
   await trackKeydownListeners(page);
   await stubControlledEngine(page);
   await openDashboard(page, 1440, 1000);
-  await page.locator('#browse').click();
+  await page.locator('#browse-all').click();
   await page.locator('.browse-row').first().click();
   await page.locator('#study-line').click();
   await expect.poll(() => engineRequestCount(page)).toBe(1);
@@ -339,7 +337,7 @@ test('a walker evaluation cannot update practice after navigation', async ({ pag
 test('every screen works with the engine asset blocked', async ({ page }) => {
   await blockEngine(page);
   await openDashboard(page, 1440, 1000);
-  await page.locator('#browse').click();
+  await page.locator('#browse-all').click();
   await page.locator('.browse-row').first().click();
   await page.locator('#study-line').click();
   await expect(page.locator('.eval-note')).toHaveText('Engine unavailable');
@@ -348,22 +346,22 @@ test('every screen works with the engine asset blocked', async ({ page }) => {
   await page.locator('#walker-back').click();
   await page.locator('#back-dashboard').click();
   const [firstLine] = lineMoves();
-  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await startFirstCoursePractice(page);
   for (const move of firstLine) await playMove(page, move);
   await playMove(page, wrongLegalMove(firstLine[0]));
   await expect(page.locator('.feedback-incorrect')).toContainText('Expected:');
   await expect(page.locator('.move-cost')).toHaveCount(0);
 });
 
-test('the bar is vertical on a wide viewport and horizontal on a narrow one', async ({ page }) => {
+test('the Eval Bar stays attached horizontally above the board', async ({ page }) => {
   await stubEngine(page);
   await openDashboard(page, 1440, 1000);
-  await page.locator('#browse').click();
+  await page.locator('#browse-all').click();
   await page.locator('.browse-row').first().click();
   await page.locator('#study-line').click();
   await expect(page.locator('.eval-value')).toHaveText('+1.2');
   const wide = await page.locator('.eval-bar').boundingBox();
-  expect(wide!.height).toBeGreaterThan(wide!.width);
+  expect(wide!.width).toBeGreaterThan(wide!.height);
 
   await page.setViewportSize({ width: 390, height: 844 });
   const narrow = await page.locator('.eval-bar').boundingBox();
@@ -376,7 +374,7 @@ test('a phone viewport never scrolls sideways, from an empty dashboard to a fini
   await expect(page.locator('.course-grid')).toBeVisible();
   await expectNoOverflow(page);
 
-  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await startFirstCoursePractice(page);
   await expect(page.locator('.board')).toBeVisible();
   await expect(page.locator('.guide-overlay .route-arrow')).toHaveCSS('height', '6px');
   await expectNoOverflow(page);

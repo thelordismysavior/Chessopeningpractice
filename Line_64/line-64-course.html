@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LINE/64 · Course</title>
+  <link rel="stylesheet" href="line-64.css">
+</head>
+<body>
+  <main class="shell" data-od-id="line-64-course">
+    <header class="appbar">
+      <a class="icon-button" href="line-64-home.html" aria-label="Back">←</a>
+      <a class="brand" href="line-64-home.html"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>LINE/64</span></a>
+      <nav class="page-nav" aria-label="Primary"><a href="line-64-home.html#courses" aria-current="page">Courses</a><a href="line-64-queue.html">Queue</a><a href="line-64-account.html">Account</a></nav>
+    </header>
+
+    <section class="reading-rail">
+      <span class="label" id="course-label">COURSE · JOBAVA LONDON</span>
+      <h1 id="course-title">Jobava London</h1>
+      <p class="lede" id="course-copy">Named lines in this course. Choose Learn to see the guide or Drill to recall from memory.</p>
+      <section class="lesson-entry" data-od-id="lesson-entry">
+        <div class="lesson-entry-head">
+          <div><span class="state">LESSON PROMISE</span><strong class="lesson-opening" id="lesson-opening">Jobava London</strong></div>
+          <span class="lesson-estimate" id="lesson-estimate">10 MIN</span>
+        </div>
+        <div class="lesson-entry-grid">
+          <div>
+            <span class="state">SIDE</span>
+            <p class="lesson-side" id="lesson-side">White repertoire</p>
+          </div>
+          <div>
+            <span class="state">THREE PRACTICAL PLANS</span>
+            <ol class="lesson-plans" id="lesson-plans"></ol>
+          </div>
+        </div>
+        <div class="lesson-idea" data-od-id="lesson-idea">
+          <span class="state">LESSON IDEA</span>
+          <div class="lesson-idea-grid">
+            <div><span class="state">ANCHOR POSITION</span><strong id="lesson-anchor">1. d4 Nf6 2. Nc3 d5</strong></div>
+            <div><span class="state">PLAN</span><p id="lesson-idea-plan">Develop Nc3 before committing the centre.</p></div>
+            <div><span class="state">OPPONENT TRIGGER</span><p id="lesson-idea-trigger">Black chooses ...d5.</p></div>
+            <div><span class="state">RESULTING PLAN</span><p id="lesson-idea-result">Use Bg5 to keep the initiative.</p></div>
+          </div>
+        </div>
+        <div class="lesson-decisions"><span class="state">FIRST COMMON OPPONENT DECISIONS</span><div class="decision-list" id="lesson-decisions"></div></div>
+        <div class="lesson-actions">
+          <a class="button primary" id="lesson-start" data-od-id="lesson-start" href="line-64-practice.html?course=jobava-london">Start lesson</a>
+          <a class="button secondary" data-od-id="browse-lines" href="#course-lines">Browse lines</a>
+          <a class="button ghost" data-od-id="practice-due-reviews" href="line-64-queue.html">Practice due reviews</a>
+        </div>
+      </section>
+      <p class="course-summary" id="course-summary">3 lines to finish this course · 1 banked</p>
+
+      <div class="level-guide" data-od-id="level-guide" aria-label="Course level bands">
+        <article class="level-band"><span class="state">BEGINNER</span><strong>500-900 Elo</strong><p>Common replies played in this band.</p></article>
+        <article class="level-band"><span class="state">INTERMEDIATE</span><strong>1000-1500 Elo</strong><p>Stable replies and plans in this band.</p></article>
+        <article class="level-band"><span class="state">ADVANCED</span><strong>1600-2000 Elo</strong><p>Stronger common branches in this band.</p></article>
+      </div>
+
+      <div class="toolbar"><div><h2>Course lines</h2><span class="state" id="course-count">3 lines</span></div><label class="state" for="sort">Sort by <select class="sort-control" id="sort"><option value="recommended">Recommended</option><option value="level">Level</option><option value="category">Category</option><option value="status">Status</option><option value="name">Name</option></select></label></div>
+      <div class="line-list" id="course-lines" data-od-id="course-lines"></div>
+      <p class="note" id="course-note">Each line has a move preview before you start learning it.</p>
+    </section>
+
+    <dialog class="line-preview" id="line-preview" aria-labelledby="preview-title">
+      <div class="preview-head">
+        <div><span class="state">MOVE PREVIEW</span><h2 id="preview-title">The quiet fianchetto.</h2><p class="preview-meta" id="preview-meta">Main line · Beginner · 500-900 Elo</p></div>
+        <button class="preview-close" id="preview-close" type="button" aria-label="Close move preview">×</button>
+      </div>
+      <div class="preview-body">
+        <div class="preview-moves" id="preview-moves" aria-live="polite"></div>
+        <div class="preview-actions"><a class="button primary" id="preview-start" href="line-64-practice.html">Learn this line</a></div>
+      </div>
+    </dialog>
+  </main>
+
+  <script>
+    const courses = {
+      'jobava-london': { title: 'Jobava London', copy: 'Queen-side pressure and flexible development.', side: 'White', anchor: '1. d4 Nf6 2. Nc3 d5', estimate: '10 min', plans: ['Develop Nc3 before committing the centre.', 'Use Bg5 to make the first decision uncomfortable.', 'Break with e4 when Black loses a tempo.'], lessonIdea: { plan: 'Develop Nc3 before committing the centre.', trigger: 'Black chooses ...d5.', result: 'Use Bg5 to keep the initiative.' }, decisions: ['...d5', '...Bf5', '...c5'], lines: [
+        { id: 'jobava-quiet-fianchetto', name: 'The quiet fianchetto.', notation: '1. d4 Nf6 2. Nc3 d5 3. Bg5', level: 'Beginner', elo: '500-900 Elo', category: 'Main line', role: 'core', status: 'Review due', moves: [['1', 'd4 Nf6', 'Claim the centre.'], ['2', 'Nc3 d5', 'Develop with pressure on the centre.'], ['3', 'Bg5', 'Pin the knight and keep the initiative.']] },
+        { id: 'jobava-central-break', name: 'The early central break.', notation: '1. d4 Nf6 2. Nc3 d5 3. e4', level: 'Intermediate', elo: '1000-1500 Elo', category: 'Punish', role: 'punish', status: 'Untouched', moves: [['1', 'd4 Nf6', 'Set the position.'], ['2', 'Nc3 d5', 'Invite the central decision.'], ['3', 'e4', 'Take space before Black settles.']] },
+        { id: 'jobava-pressure-castle', name: 'Pressure before castling.', notation: '1. d4 Nf6 2. Nc3 d5 3. Bg5 Bf5', level: 'Advanced', elo: '1600-2000 Elo', category: 'Trap', role: 'alternative', status: 'Banked', moves: [['1', 'd4 Nf6', 'Begin the Jobava structure.'], ['2', 'Nc3 d5', 'Keep the knight active.'], ['3', 'Bg5 Bf5', 'Use the pin before castling.']] }
+      ] },
+      'london-opening': { title: 'London Opening', copy: 'A stable d4 structure with clear plans.', side: 'White', anchor: '1. d4 d5 2. Nf3 Nf6 3. Bf4', estimate: '12 min', plans: ['Build the bishop outside the pawn chain.', 'Keep the centre stable before expanding.', 'Meet ...c5 with a clear c-pawn plan.'], lessonIdea: { plan: 'Build the bishop outside the pawn chain.', trigger: 'Black chooses ...c5.', result: 'Keep the centre closed and prepare e4.' }, decisions: ['...d5', '...Nf6', '...c5'], lines: [
+        { id: 'london-solid-setup', name: 'The solid setup.', notation: '1. d4 d5 2. Nf3 Nf6 3. Bf4', level: 'Beginner', elo: '500-900 Elo', category: 'Main line', role: 'core', status: 'Banked', moves: [['1', 'd4 d5', 'Build the d4 structure.'], ['2', 'Nf3 Nf6', 'Develop without committing the centre.'], ['3', 'Bf4', 'Complete the London setup.']] },
+        { id: 'london-c-pawn-break', name: 'The c-pawn break.', notation: '1. d4 d5 2. Nf3 Nf6 3. c3', level: 'Intermediate', elo: '1000-1500 Elo', category: 'Punish', role: 'punish', status: 'Review due', moves: [['1', 'd4 d5', 'Hold the centre.'], ['2', 'Nf3 Nf6', 'Prepare the next structure.'], ['3', 'c3', 'Support the centre and plan e4.']] },
+        { id: 'london-early-c5', name: 'The early ...c5 break.', notation: '1. d4 Nf6 2. Nf3 e6 3. Bf4 c5', level: 'Advanced', elo: '1600-2000 Elo', category: 'Trap', role: 'reference', status: 'Untouched', moves: [['1', 'd4 Nf6', 'Start the system.'], ['2', 'Nf3 e6', 'Keep the bishop outside the chain.'], ['3', 'Bf4 c5', 'Meet the early break accurately.']] }
+      ] },
+      'caro-khan': { title: 'Caro khan', copy: 'A resilient answer to 1.e4 with a defined centre.', side: 'Black', anchor: '1. e4 c6 2. d4 d5', estimate: '11 min', plans: ['Challenge the centre with ...d5.', 'Develop the light bishop before ...e6.', 'Use the break when White overextends.'], lessonIdea: { plan: 'Challenge the centre with ...d5.', trigger: 'White advances e5.', result: 'Strike the pawn chain from the side.' }, decisions: ['2. d4', '3. e5', '3. Nc3'], lines: [
+        { id: 'caro-quiet-recapture', name: 'The quiet recapture.', notation: '1. e4 c6 2. d4 d5 3. exd5', level: 'Beginner', elo: '500-900 Elo', category: 'Main line', role: 'core', status: 'Untouched', moves: [['1', 'e4 c6', 'Prepare the central challenge.'], ['2', 'd4 d5', 'Strike at White’s centre.'], ['3', 'exd5', 'Choose the clean recapture path.']] },
+        { id: 'caro-advance-structure', name: 'The advance structure.', notation: '1. e4 c6 2. d4 d5 3. e5', level: 'Intermediate', elo: '1000-1500 Elo', category: 'Main line', role: 'alternative', status: 'Review due', moves: [['1', 'e4 c6', 'Keep the centre under control.'], ['2', 'd4 d5', 'Challenge the pawn chain.'], ['3', 'e5', 'Prepare the break from the side.']] },
+        { id: 'caro-pressure-centre', name: 'Pressure on the centre.', notation: '1. e4 c6 2. d4 d5 3. Nc3 dxe4', level: 'Advanced', elo: '1600-2000 Elo', category: 'Punish', role: 'punish', status: 'Banked', moves: [['1', 'e4 c6', 'Use the solid first move.'], ['2', 'd4 d5', 'Force the central exchange.'], ['3', 'Nc3 dxe4', 'Recover the pawn with tempo.']] }
+      ] },
+      sicilian: { title: 'Sicilian', copy: 'Open-file positions and early development.', side: 'Black', anchor: '1. e4 c5 2. Nf3 d6', estimate: '14 min', plans: ['Trade central tension for open files.', 'Develop before chasing the bishop.', 'Break in the centre when White commits.'], lessonIdea: { plan: 'Trade central tension for open files.', trigger: 'White develops Nf3 and prepares d4.', result: 'Open the c-file before White castles.' }, decisions: ['...d6', '...Nc6', '...e6'], lines: [
+        { id: 'sicilian-open-file', name: 'The open file.', notation: '1. e4 c5 2. Nf3 d6 3. d4 cxd4', level: 'Beginner', elo: '500-900 Elo', category: 'Main line', role: 'core', status: 'Review due', moves: [['1', 'e4 c5', 'Choose the open game.'], ['2', 'Nf3 d6', 'Develop toward the centre.'], ['3', 'd4 cxd4', 'Open the c-file.']] },
+        { id: 'sicilian-knight-castle', name: 'The knight before castling.', notation: '1. e4 c5 2. Nf3 Nc6 3. Bb5', level: 'Intermediate', elo: '1000-1500 Elo', category: 'Trap', role: 'reference', status: 'Untouched', moves: [['1', 'e4 c5', 'Create an imbalanced position.'], ['2', 'Nf3 Nc6', 'Develop the knight.'], ['3', 'Bb5', 'Pin before Black castles.']] },
+        { id: 'sicilian-central-break', name: 'The central break.', notation: '1. e4 c5 2. Nf3 e6 3. d4 cxd4', level: 'Advanced', elo: '1600-2000 Elo', category: 'Punish', role: 'punish', status: 'Banked', moves: [['1', 'e4 c5', 'Start the Sicilian.'], ['2', 'Nf3 e6', 'Prepare the central break.'], ['3', 'd4 cxd4', 'Open lines while development leads.']] }
+      ] }
+    };
+
+    const key = new URLSearchParams(location.search).get('course') || 'jobava-london';
+    const activeKey = courses[key] ? key : 'jobava-london';
+    const course = courses[activeKey];
+    const title = document.querySelector('#course-title');
+    const copy = document.querySelector('#course-copy');
+    const label = document.querySelector('#course-label');
+    const lessonOpening = document.querySelector('#lesson-opening');
+    const lessonSide = document.querySelector('#lesson-side');
+    const lessonAnchor = document.querySelector('#lesson-anchor');
+    const lessonEstimate = document.querySelector('#lesson-estimate');
+    const lessonPlans = document.querySelector('#lesson-plans');
+    const lessonIdeaPlan = document.querySelector('#lesson-idea-plan');
+    const lessonIdeaTrigger = document.querySelector('#lesson-idea-trigger');
+    const lessonIdeaResult = document.querySelector('#lesson-idea-result');
+    const lessonDecisions = document.querySelector('#lesson-decisions');
+    const lessonStart = document.querySelector('#lesson-start');
+    const summary = document.querySelector('#course-summary');
+    const count = document.querySelector('#course-count');
+    const list = document.querySelector('#course-lines');
+    const sort = document.querySelector('#sort');
+    const preview = document.querySelector('#line-preview');
+    const previewTitle = document.querySelector('#preview-title');
+    const previewMeta = document.querySelector('#preview-meta');
+    const previewMoves = document.querySelector('#preview-moves');
+    const previewStart = document.querySelector('#preview-start');
+    title.textContent = course.title;
+    copy.textContent = course.copy;
+    label.textContent = `COURSE · ${course.title.toUpperCase()}`;
+    lessonOpening.textContent = course.title;
+    lessonSide.textContent = `${course.side} repertoire`;
+    lessonAnchor.textContent = course.anchor;
+    lessonEstimate.textContent = course.estimate.toUpperCase();
+    lessonPlans.innerHTML = course.plans.map(plan => `<li>${plan}</li>`).join('');
+    lessonIdeaPlan.textContent = course.lessonIdea.plan;
+    lessonIdeaTrigger.textContent = course.lessonIdea.trigger;
+    lessonIdeaResult.textContent = course.lessonIdea.result;
+    lessonDecisions.innerHTML = course.decisions.map(decision => `<span class="decision-chip">${decision}</span>`).join('');
+    lessonStart.href = `line-64-practice.html?course=${activeKey}`;
+    const rank = { Beginner: 1, Intermediate: 2, Advanced: 3 };
+
+    function render() {
+      const lines = [...course.lines];
+      if (sort.value === 'level') lines.sort((a, b) => rank[a.level] - rank[b.level]);
+      if (sort.value === 'category') lines.sort((a, b) => a.category.localeCompare(b.category));
+      if (sort.value === 'status') lines.sort((a, b) => a.status.localeCompare(b.status));
+      if (sort.value === 'name') lines.sort((a, b) => a.name.localeCompare(b.name));
+      const banked = course.lines.filter(line => line.status === 'Banked').length;
+      count.textContent = `${course.lines.length} lines`;
+      summary.textContent = `${course.lines.length} lines to finish this course · ${banked} banked`;
+      list.innerHTML = lines.map(line => `<div class="line-row" data-od-id="course-line-${line.id}"><a class="line-row-link" href="line-64-practice.html?line=${line.id}"><h3>${line.name}</h3><p>${line.notation}</p><div class="line-submeta"><strong>${line.role}</strong><span>${line.category}</span><span>${line.elo}</span></div></a><div class="line-meta"><strong>${line.level}</strong><span>${line.status}</span></div><button class="preview-open" type="button" data-line-id="${line.id}" aria-label="Preview moves for ${line.name}"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="m9 6 10 6-10 6V6Z"></path></svg></button></div>`).join('');
+    }
+
+    function openPreview(line) {
+      previewTitle.textContent = line.name;
+      previewMeta.textContent = `${line.role} · ${line.category} · ${line.level} · ${line.elo}`;
+      previewMoves.innerHTML = line.moves.map(move => `<div class="preview-move"><strong>${move[0]}</strong><div><span>${move[1]}</span><p>${move[2]}</p></div></div>`).join('');
+      previewStart.href = `line-64-practice.html?line=${line.id}`;
+      preview.showModal();
+    }
+
+    list.addEventListener('click', event => {
+      const button = event.target.closest('.preview-open');
+      if (!button) return;
+      event.preventDefault();
+      const line = course.lines.find(item => item.id === button.dataset.lineId);
+      if (line) openPreview(line);
+    });
+    document.querySelector('#preview-close').addEventListener('click', () => preview.close());
+    preview.addEventListener('click', event => { if (event.target === preview) preview.close(); });
+    sort.addEventListener('change', render);
+    render();
+  </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { installAppStubs, playMove } from './app-stubs';
+import { installAppStubs, playMove, startFirstCoursePractice } from './app-stubs';
 import { COURSES } from '../../src/courses';
 
 const MOVE_DURATION = 2000;
@@ -17,7 +17,7 @@ test.describe('Tempo Cut', () => {
     await page.addInitScript((duration) => localStorage.setItem('chess-practice.move-duration', String(duration)), MOVE_DURATION);
     await page.goto('/');
     await expect(page.locator('.dashboard-intro')).toBeVisible();
-    await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+    await startFirstCoursePractice(page);
     await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Learn the line');
 
     const move = COURSES[0].lessons.beginner.variations[0].positions[0].expectedMove;
@@ -34,7 +34,7 @@ test.describe('Tempo Cut', () => {
     await installAppStubs(page);
     await page.addInitScript((duration) => localStorage.setItem('chess-practice.move-duration', String(duration)), MOVE_DURATION);
     await page.goto('/');
-    await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+    await startFirstCoursePractice(page);
     const position = COURSES[0].lessons.beginner.variations[0].positions[0];
     const move = position.expectedMove;
     await page.locator(`[data-square="${move.slice(0, 2)}"]`).click();
@@ -56,7 +56,7 @@ test.describe('Tempo Cut', () => {
     await installAppStubs(fullPage);
     await fullPage.addInitScript((duration) => localStorage.setItem('chess-practice.move-duration', String(duration)), MOVE_DURATION);
     await fullPage.goto('/');
-    await fullPage.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+    await startFirstCoursePractice(fullPage);
     await fullPage.locator(`[data-square="${move.slice(0, 2)}"]`).click();
     await fullPage.locator(`[data-square="${move.slice(2, 4)}"]`).click();
     await expect(fullPage.locator('.board')).toHaveAttribute('aria-busy', 'false', { timeout: 7000 });
@@ -71,7 +71,7 @@ test.describe('Tempo Cut', () => {
     await installAppStubs(page);
     await page.addInitScript((duration) => localStorage.setItem('chess-practice.move-duration', String(duration)), MOVE_DURATION);
     await page.goto('/');
-    await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+    await startFirstCoursePractice(page);
     const move = COURSES[0].lessons.beginner.variations[0].positions[0].expectedMove;
     await page.locator(`[data-square="${move.slice(0, 2)}"]`).click();
     await page.locator(`[data-square="${move.slice(2, 4)}"]`).click();
@@ -84,7 +84,7 @@ test.describe('Tempo Cut', () => {
   test('a Tempo Cut is available during recall', async ({ page }) => {
     await installAppStubs(page);
     await page.goto('/');
-    await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+    await startFirstCoursePractice(page);
     const line = COURSES[0].lessons.beginner.variations[0].positions;
     for (const position of line) await playMove(page, position.expectedMove);
     await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Recall');
@@ -103,7 +103,8 @@ test.describe('Tempo Cut', () => {
     await installAppStubs(page);
     await page.goto('/');
     const course = COURSES.find((entry) => entry.id === 'classical-sicilian')!;
-    await page.locator('[data-course="classical-sicilian"][data-level="beginner"]').click();
+    await page.locator('[data-course-card="classical-sicilian"]').click();
+    await page.locator('[data-start-level="beginner"]').click();
     const line = course.lessons.beginner.variations[0].positions;
     await playMove(page, line[0].expectedMove);
     await playMove(page, line[1].expectedMove);

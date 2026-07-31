@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LINE/64 Applied UI</title>
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    .app-contract { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+    .app-contract article { min-height: 150px; padding: 24px; border-top: 1px solid var(--fg); }
+    .app-contract h2 { margin: 0 0 8px; font: 600 23px var(--font-display); }
+    .app-contract p { margin: 0; color: var(--muted); }
+    .app-frame { display: block; }
+    @media (max-width: 800px) {
+      .app-contract { grid-template-columns: 1fr; }
+      .app-frame { min-height: 720px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell" data-od-id="applied-ui-preview">
+    <nav class="preview-nav"><a href="index.html">← Preview index</a><span>APPLIED UI</span></nav>
+    <header class="intro"><span class="label">Working product surface</span><h1>Recall the line. Nothing else.</h1><p>Switch modes, toggle the guide, select a square, and open practice settings.</p></header>
+    <section class="app-contract" aria-label="Applied UI contract">
+      <article><h2>Board first</h2><p>The 64-square control is the largest object and moves above copy on phones.</p></article>
+      <article><h2>One decision</h2><p>Learn explains. Drill asks. Both retain one primary move action.</p></article>
+      <article><h2>Honest state</h2><p>Settled score, guide state, and feedback stay attached to the position.</p></article>
+    </section>
+    <iframe class="app-frame" src="../ui_kits/app/index.html" title="Interactive LINE 64 practice kit"></iframe>
+  </main>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LINE/64 Practice Kit</title>
+  <link rel="stylesheet" href="../../colors_and_type.css">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Embedded review baseline keeps the kit inspectable if local CSS is unavailable. */
+    html { background: var(--bg); color: var(--fg); font-family: var(--font-body); }
+    body { min-width: 320px; min-height: 100dvh; margin: 0; }
+    button { min-height: 44px; font: inherit; }
+    .practice-layout { display: grid; }
+    .board { display: grid; grid-template-columns: repeat(8, 1fr); aspect-ratio: 1; }
+    .square { aspect-ratio: 1; }
+    @media (max-width: 800px) {
+      .practice-layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+  <script type="text/babel" src="components/Board.jsx"></script>
+  <script type="text/babel" src="components/ModeSwitch.jsx"></script>
+  <script type="text/babel" src="components/Feedback.jsx"></script>
+  <script type="text/babel">
+    const pieces = {
+      a8: "♜", b8: "♞", c8: "♝", d8: "♛", e8: "♚", f8: "♝", h8: "♜",
+      a7: "♟", b7: "♟", c7: "♟", d7: "♟", f7: "♟", g7: "♟", h7: "♟",
+      e5: "♟", c6: "♞", c3: "♘", f3: "♘", e4: "♙",
+      a2: "♙", b2: "♙", c2: "♙", d2: "♙", f2: "♙", g2: "♙", h2: "♙",
+      a1: "♖", b1: "♘", c1: "♗", d1: "♕", e1: "♔", f1: "♗", h1: "♖"
+    };
+    const squares = [];
+    for (let rank = 8; rank >= 1; rank -= 1) {
+      for (const file of "abcdefgh") {
+        const square = `${file}${rank}`;
+        squares.push({ square, piece: pieces[square] || "" });
+      }
+    }
+
+    function App() {
+      const [mode, setMode] = React.useState("learn");
+      const [guideOn, setGuideOn] = React.useState(true);
+      const [selected, setSelected] = React.useState("");
+      const [settingsOpen, setSettingsOpen] = React.useState(false);
+      const [moveAnimation, setMoveAnimation] = React.useState(200);
+      const learning = mode === "learn";
+
+      function changeMode(nextMode) {
+        setMode(nextMode);
+        setGuideOn(nextMode === "learn");
+        setSelected("");
+      }
+
+      return (
+        <main className="app-shell" data-od-id="practice-shell">
+          <header className="appbar" data-od-id="practice-appbar">
+            <button className="icon-button" type="button" aria-label="Back">←</button>
+            <a className="brand" href="../../preview/index.html" aria-label="Open LINE 64 design system previews">
+              <span className="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+              <span>LINE/64</span>
+            </a>
+            <button className="icon-button" type="button" aria-label="Settings" onClick={() => setSettingsOpen(true)}>•••</button>
+          </header>
+
+          <section className="practice-layout" data-od-id="practice-layout">
+            <div className="copy-rail">
+              <p className="state-label">{learning ? "TEACH" : "RECALL"} / MOVE 04 OF 09</p>
+              <h1 data-od-id="instruction-title">{learning ? "Challenge the centre." : "Black to move."}</h1>
+              <p className="instruction">{learning ? "Move the knight to f6. The guide remains until the line is recalled." : "Produce the next move from memory."}</p>
+              <ModeSwitch mode={mode} onChange={changeMode} />
+              <Feedback selected={selected} />
+            </div>
+
+            <div className="board-rail" data-od-id="board-rail">
+              <div className="eval-strip" role="img" aria-label="Settled score, slight advantage to White"><span></span></div>
+              <div className="board-frame">
+                <Board
+                  squares={squares}
+                  selected={selected}
+                  guideSquares={guideOn ? ["g8", "f6"] : []}
+                  onSelect={setSelected}
+                />
+              </div>
+              <div className="board-caption"><span>SETTLED +0.24</span><span>{guideOn ? "GUIDE ON" : "GUIDE OFF"}</span></div>
+              <div className="actions" data-od-id="practice-actions">
+                <button className="button primary" type="button" onClick={() => setSelected("f6")}>{learning ? "Play Nf6" : "Confirm move"}</button>
+                {learning && <button className="button secondary" type="button" onClick={() => setGuideOn(!guideOn)}>{guideOn ? "Hide guide" : "Show guide"}</button>}
+              </div>
+            </div>
+          </section>
+
+          {settingsOpen && (
+            <div className="dialog-layer" role="presentation" onClick={() => setSettingsOpen(false)}>
+              <section className="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(event) => event.stopPropagation()}>
+                <h2 id="settings-title">Practice settings</h2>
+                <label htmlFor="move-animation">Move Animation <output>{moveAnimation}ms</output></label>
+                <input id="move-animation" type="range" min="0" max="2000" step="50" value={moveAnimation} onChange={(event) => setMoveAnimation(event.target.value)} />
+                <p>Reduced motion overrides this value without changing the move beat.</p>
+                <button className="button primary" type="button" onClick={() => setSettingsOpen(false)}>Done</button>
+              </section>
+            </div>
+          )}
+        </main>
+      );
+    }
+
+    Object.assign(window, { App });
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    console.assert(squares.length === 64, "Board must contain 64 interactive squares");
+  </script>
+</body>
+</html>

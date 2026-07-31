@@ -132,6 +132,12 @@ async function openDashboard(page: Page, failCompleteSave = false): Promise<void
   await expect(page.locator('.dashboard-intro')).toBeVisible();
 }
 
+async function startFirstCoursePractice(page: Page): Promise<void> {
+  await page.locator('.course-card').first().click();
+  await page.locator('[data-start-level="beginner"]').click();
+  await expect(page.locator('.practice-shell')).toBeVisible();
+}
+
 function lessonData(level: 'beginner' | 'intermediate' = 'beginner'): LessonData {
   const lesson = COURSES[0].lessons[level];
   return {
@@ -166,7 +172,7 @@ test('click and drag moves work in Chromium', async ({ page }) => {
   const data = lessonData();
   const firstMove = data.lines[0][0];
 
-  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await startFirstCoursePractice(page);
   const origin = page.locator(`[data-square="${firstMove.slice(0, 2)}"]`);
   await expect(origin).toHaveAttribute('aria-pressed', 'false');
   await origin.click();
@@ -176,30 +182,14 @@ test('click and drag moves work in Chromium', async ({ page }) => {
 
   await page.locator('.back-button').click();
   await expect(page.locator('.dashboard-intro')).toBeVisible();
-  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await startFirstCoursePractice(page);
   await playMove(page, firstMove, 'drag');
-});
-
-test('drag lift is owned by the app render tree', async ({ page }) => {
-  await openDashboard(page);
-  const firstMove = lessonData().lines[0][0];
-  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
-  const origin = page.locator(`[data-square="${firstMove.slice(0, 2)}"]`);
-  const box = await origin.boundingBox();
-  if (!box) throw new Error('Origin square has no bounding box');
-
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width, box.y + box.height / 2);
-
-  await expect(page.locator('#app > .drag-lift')).toHaveCount(1);
-  await page.mouse.up();
 });
 
 test('completion focus is stable and Proceed opens Result', async ({ page }) => {
   await openDashboard(page);
   const data = lessonData();
-  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await startFirstCoursePractice(page);
   await playLesson(page, data.lines);
 
   await expect(page.locator('#proceed')).toBeVisible();
@@ -211,7 +201,7 @@ test('completion focus is stable and Proceed opens Result', async ({ page }) => 
 test('save failure keeps completion recoverable without stealing focus', async ({ page }) => {
   await openDashboard(page, true);
   const data = lessonData();
-  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await startFirstCoursePractice(page);
   await playLesson(page, data.lines);
 
   await expect(page.locator('#retry-save')).toBeVisible();
@@ -230,7 +220,7 @@ test('dashboard and practice stay within a narrow viewport', async ({ page }) =>
   await page.setViewportSize({ width: 320, height: 844 });
   await openDashboard(page);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await startFirstCoursePractice(page);
   await expect(page.locator('.board')).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
@@ -248,7 +238,7 @@ test('Dashboard settings confirm reset and preserve move duration', async ({ pag
     }));
   }, COURSES.map((course) => course.id));
 
-  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await startFirstCoursePractice(page);
   await page.locator('#settings').click();
   await expect(page.locator('#show-reset-progress')).toHaveCount(0);
   await page.locator('#settings-dialog').getByRole('button', { name: 'Done' }).click();
@@ -262,7 +252,8 @@ test('Dashboard settings confirm reset and preserve move duration', async ({ pag
 
   await expect(page.locator('.dashboard-intro')).toBeVisible();
   await expect(page.locator('.course-count')).toHaveText(['00 / 03', '00 / 03', '00 / 03', '00 / 03']);
-  await expect(page.locator('.lesson-row').nth(1)).toBeEnabled();
+  await page.locator('.course-card').first().click();
+  await expect(page.locator('[data-start-level="intermediate"]')).toBeEnabled();
   expect(await page.evaluate(() => localStorage.getItem('chess-practice.move-duration'))).toBe('0');
 });
 

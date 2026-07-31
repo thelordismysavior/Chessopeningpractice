@@ -30,7 +30,7 @@ export async function renderReviewQueue(navigate: Navigate, email: string | null
     app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'back-dashboard', label: 'Dashboard' } })}<section class="queue-page"><p class="eyebrow">Review queue</p><h1>What needs another look.</h1>${body}</section></main>`;
 
     document.querySelector('#back-dashboard')!.addEventListener('click', () => void navigate({ name: 'dashboard' }));
-    document.querySelector('#sign-out')!.addEventListener('click', () => void signOutUser());
+    document.querySelector('#sign-out')?.addEventListener('click', () => void signOutUser());
 
     const startGroup = (index: number, run = false) => {
       const group = queue.dueGroups[index];

@@ -5,6 +5,24 @@ move by move until each one is committed to memory, then returns to them on a re
 
 ## Language
 
+### Product identity
+
+**LINE/64**:
+The canonical product experience and identity for the chess-opening practice app.
+_Avoid_: Line_64 (the design-package name), redesign
+
+### Repertoire structure
+
+**Course**:
+A curated opening program that groups named lines into level bands. A learner enters a Course
+before choosing a level or line.
+_Avoid_: Course card, opening, repertoire
+
+**Banked Line**:
+A line saved automatically after the learner completes a clean recall pass. It can enter scheduled
+review but is not necessarily mastered.
+_Avoid_: Saved line, completed line, mastered line
+
 ### Board tempo
 
 **Move Animation**:
@@ -46,7 +64,14 @@ _Avoid_: Final score, best score
 
 ### Drill
 
+**Practice Mode**:
+The learner's assistance choice within a Drill Phase: `Learn` reveals the move guide and records an
+assisted outcome, while `Drill` withholds the guide and permits clean recall. Changing Practice Mode
+does not change phase progression.
+_Avoid_: Drill Phase, mode override
+
 **Drill Phase**:
-Which of the three modes a learner is currently in for a line: `teach`, where the move guide is
+Which of the three stages a learner is currently in for a line: `teach`, where the move guide is
 shown and mistakes are not scored; `recall`, where the guide is withheld and the line must be
 produced from memory; or `review`, a later return to a line that has already been banked.
+_Avoid_: Practice Mode, mode

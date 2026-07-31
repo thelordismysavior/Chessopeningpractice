@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LINE/64 · Practice</title>
+  <link rel="stylesheet" href="line-64.css">
+</head>
+<body>
+  <main class="shell" data-od-id="line-64-practice">
+    <header class="appbar">
+      <a class="icon-button" href="line-64-lines.html" aria-label="Back">←</a>
+      <a class="brand" href="line-64-home.html"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>LINE/64</span></a>
+      <a class="icon-button" href="line-64-settings.html" aria-label="Settings">···</a>
+    </header>
+    <section class="practice" data-od-id="practice-screen">
+      <div class="practice-head">
+        <div>
+          <span class="state" id="phase">TEACH · MOVE 04 OF 09</span>
+          <h1 id="prompt">Challenge the centre.</h1>
+          <p class="instruction" id="instruction">Move the knight to f6. The guide remains until the line is recalled.</p>
+        </div>
+        <div class="mode-switch" role="tablist" aria-label="Practice mode">
+          <button id="learn" role="tab" aria-selected="true">Learn</button>
+          <button id="drill" role="tab" aria-selected="false">Drill</button>
+        </div>
+      </div>
+      <div class="eval-strip" role="img" aria-label="Settled score, slight advantage to White"><span></span></div>
+      <div class="board-frame"><div class="board" role="group" aria-label="Chess board" aria-busy="false" id="board"></div></div>
+      <div class="caption"><span>SETTLED +0.24</span><span id="guide-state">GUIDE ON</span></div>
+      <div class="feedback" aria-live="polite" id="feedback" data-od-id="feedback">
+        <span id="feedback-main">The guide marks the route. Select a square or play the move.</span>
+        <span class="authored-reason" id="why-move" data-od-id="authored-miss-reason" hidden></span>
+        <span class="engine-note" id="engine-note" data-od-id="engine-note" hidden></span>
+      </div>
+      <div class="practice-actions">
+        <button class="button primary" id="primary" type="button">Play Nf6</button>
+        <button class="button secondary" id="hint" type="button">Hide guide</button>
+      </div>
+    </section>
+  </main>
+  <script>
+    const pieces = {a8:'♜',b8:'♞',c8:'♝',d8:'♛',e8:'♚',f8:'♝',h8:'♜',a7:'♟',b7:'♟',c7:'♟',d7:'♟',f7:'♟',g7:'♟',h7:'♟',e5:'♟',c6:'♞',c3:'♘',f3:'♘',e4:'♙',a2:'♙',b2:'♙',c2:'♙',d2:'♙',f2:'♙',g2:'♙',h2:'♙',a1:'♖',b1:'♘',c1:'♗',d1:'♕',e1:'♔',f1:'♗',h1:'♖'};
+    const board = document.querySelector('#board');
+    const files = 'abcdefgh';
+    const feedbackMain = document.querySelector('#feedback-main');
+    const whyMove = document.querySelector('#why-move');
+    const engineNote = document.querySelector('#engine-note');
+    let selected = '', learning = true, guide = true;
+    for (let rank = 8; rank >= 1; rank--) for (const file of files) {
+      const square = file + rank;
+      const button = document.createElement('button');
+      button.className = 'square' + (['g8', 'f6'].includes(square) ? ' route' : '');
+      button.dataset.square = square;
+      button.setAttribute('aria-label', `${square} ${pieces[square] || 'empty'}`);
+      button.innerHTML = `<span class="piece">${pieces[square] || ''}</span>`;
+      button.addEventListener('click', () => select(square));
+      board.append(button);
+    }
+    function select(square) {
+      selected = square;
+      document.querySelectorAll('.square').forEach(s => s.classList.toggle('selected', s.dataset.square === square));
+      const miss = square !== 'f6';
+      feedbackMain.textContent = miss ? 'The position remains. Nf6 was expected.' : 'The position remains. Nf6 was played. Continue to settle the move.';
+      whyMove.hidden = !miss;
+      whyMove.textContent = miss ? 'Why this move: It keeps the knight active and protects the central break.' : '';
+      engineNote.hidden = !miss;
+      engineNote.textContent = miss ? 'Engine note: settled +0.24.' : '';
+    }
+    function syncGuide() {
+      document.querySelectorAll('.square').forEach(s => s.classList.toggle('route', guide && ['g8', 'f6'].includes(s.dataset.square)));
+      document.querySelector('#guide-state').textContent = guide ? 'GUIDE ON' : 'GUIDE OFF';
+      document.querySelector('#hint').textContent = guide ? 'Hide guide' : 'Show guide';
+    }
+    function setMode(next) {
+      learning = next === 'learn';
+      document.querySelector('#learn').setAttribute('aria-selected', learning);
+      document.querySelector('#drill').setAttribute('aria-selected', !learning);
+      document.querySelector('#phase').textContent = `${learning ? 'TEACH' : 'RECALL'} · MOVE 04 OF 09`;
+      document.querySelector('#prompt').textContent = learning ? 'Challenge the centre.' : 'Black to move.';
+      document.querySelector('#instruction').textContent = learning ? 'Move the knight to f6. The guide remains until the line is recalled.' : 'Produce the next move from memory.';
+      document.querySelector('#primary').textContent = learning ? 'Play Nf6' : 'Confirm move';
+      document.querySelector('#hint').hidden = !learning;
+      guide = learning;
+      whyMove.hidden = true;
+      engineNote.hidden = true;
+      syncGuide();
+    }
+    document.querySelector('#learn').onclick = () => setMode('learn');
+    document.querySelector('#drill').onclick = () => setMode('drill');
+    document.querySelector('#hint').onclick = () => { guide = !guide; syncGuide(); };
+    document.querySelector('#primary').onclick = () => { select('f6'); setTimeout(() => location.href = 'line-64-result.html?miss=1', 120); };
+    console.assert(document.querySelectorAll('.square').length === 64, 'Board must contain 64 squares');
+  </script>
+</body>
+</html>

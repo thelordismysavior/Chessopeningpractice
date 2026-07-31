@@ -3,7 +3,9 @@ import { expectNoOverflow, openDashboard } from './app-stubs';
 
 test('LINE/64 practice keeps the board in the focused reading rail', async ({ page }) => {
   await openDashboard(page, 1440, 900);
-  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await page.locator('.course-card').first().click();
+  await page.locator('[data-start-level="beginner"]').click();
+  await expect(page.locator('.eval-bar')).toBeVisible();
 
   const geometry = await page.evaluate(() => {
     const layout = document.querySelector<HTMLElement>('.practice-layout')!.getBoundingClientRect();
@@ -21,7 +23,18 @@ test('LINE/64 practice keeps the board in the focused reading rail', async ({ pa
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expectNoOverflow(page);
-  await expect(page.locator('.mode-switch')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Learn', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Drill', exact: true })).toHaveCount(0);
+  await expect(page.locator('.mode-switch')).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Learn', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: 'Drill', exact: true })).toHaveAttribute('aria-selected', 'false');
+  await page.getByRole('tab', { name: 'Drill', exact: true }).click();
+  await expect(page.locator('.guide-overlay .route-arrow')).toHaveCount(0);
+});
+
+test('Home course cards are single links and shared navigation stays sparse', async ({ page }) => {
+  await openDashboard(page, 1440, 900);
+
+  await expect(page.locator('.course-card')).toHaveCount(4);
+  await expect(page.locator('.course-card').first()).toHaveAttribute('href', /#\/course\/jobava-london$/);
+  await expect(page.locator('.course-card button')).toHaveCount(0);
+  await expect(page.locator('.topbar .account-email, .topbar #sign-out')).toHaveCount(0);
 });

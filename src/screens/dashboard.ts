@@ -1,10 +1,9 @@
-import { COURSES, LEVELS, coursesById, type Course, type LevelKey, type Variation } from '../courses';
-import { courseMastery, lineState } from '../mastery';
+import { COURSES, LEVELS, type Course, type LevelKey, type Variation } from '../courses';
+import { courseMastery } from '../mastery';
 import { loadProgress, resetAllProgress, type CourseProgress } from '../progress';
 import { recommendedLines, trainableVariations } from '../repertoire';
 import { reviewQueue } from '../review-queue';
-import { signOutUser } from '../firebase';
-import { app, bindSettings, escapeHtml, levelNames, loadMoveDuration, resetPageScroll, settingsDialogMarkup, sideNames, topbarMarkup } from './shell';
+import { app, bindSettings, escapeHtml, levelNames, loadMoveDuration, resetPageScroll, settingsDialogMarkup, topbarMarkup } from './shell';
 import type { Navigate } from './navigation';
 
 type Recommendation = {
@@ -15,24 +14,12 @@ type Recommendation = {
   duePositionIds: string[];
 };
 
-function lineMeter(course: Course, level: LevelKey, progress: CourseProgress): string {
-  const states = trainableVariations(course, level).map((variation) => lineState(variation, progress));
-  const counts = {
-    mastered: states.filter((state) => state === 'mastered').length,
-    banked: states.filter((state) => state === 'banked').length,
-    untouched: states.filter((state) => state === 'untouched').length,
-  };
-  const label = `${counts.mastered} mastered, ${counts.banked} banked, ${counts.untouched} untouched of ${states.length} lines`;
-  const segments = states.map((state) => `<span class="meter-segment line-meter-segment is-${state}"></span>`).join('');
-  return `<span class="line-meter" role="img" aria-label="${label}">${segments}</span>`;
-}
-
-function levelButton(course: Course, level: LevelKey, progress: CourseProgress): string {
-  const index = LEVELS.indexOf(level);
-  const complete = progress.completedLevels.includes(level);
-  const detail = complete ? 'Completed' : `${course.lessons[level].positions.length} positions - Start lesson`;
-  return `<button class="lesson-row" data-course="${course.id}" data-level="${level}"><span class="lesson-index">${String(index + 1).padStart(2, '0')}</span><span><strong>${levelNames[level]}</strong><small>${detail}${index > progress.unlockedLevel && !complete ? ' - Recommended later' : ''}</small></span>${lineMeter(course, level, progress)}<span class="lesson-arrow" aria-hidden="true">${complete ? '&#10003;' : '-&gt;'}</span></button>`;
-}
+const courseIcons: Record<Course['id'], string> = {
+  'jobava-london': '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 35 18 14l6 10 6-10 10 21"></path><path d="M11 35h26M18 14h12"></path><circle cx="24" cy="24" r="3"></circle></svg>',
+  'london-system': '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 36V16l14-6 14 6v20"></path><path d="M14 20h20M14 28h20M20 16v20M28 16v20M8 36h32"></path></svg>',
+  'classical-caro-kann': '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M24 8 38 14v9c0 9-6 14-14 17-8-3-14-8-14-17v-9L24 8Z"></path><path d="M17 24h14M24 17v14"></path></svg>',
+  'classical-sicilian': '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M24 36V12M24 20l-10 8M24 20l10 8M14 28v8M34 28v8M10 36h8M30 36h8"></path><circle cx="24" cy="12" r="3"></circle></svg>',
+};
 
 function recommendation(progressByCourse: Record<Course['id'], CourseProgress>): Recommendation {
   const next = recommendedLines(progressByCourse)[0];
@@ -52,9 +39,7 @@ function courseCard(course: Course, progress: CourseProgress, index: number): st
   const completed = progress.completedLevels.length;
   const percent = progressPercent(course, progress);
   const mastery = courseMastery(course, progress);
-  const nextLevel = LEVELS[Math.min(progress.unlockedLevel, LEVELS.length - 1)];
-  const nextCopy = completed === LEVELS.length ? 'All three lessons complete' : `Next up: <strong>${levelNames[nextLevel]}</strong>`;
-  return `<article class="course-card" data-course-card="${course.id}"><div class="course-card-top"><span class="course-card-icon" data-tone="${course.side}" aria-hidden="true">${course.side === 'white' ? 'W' : 'B'}</span><span class="course-card-meta"><strong>${String(index + 1).padStart(2, '0')}</strong><span>${trainableVariations(course, 'beginner').length} trainable / level</span><span class="course-count">${String(completed).padStart(2, '0')} / 03</span></span></div><h2><a class="course-card-link" href="#/course/${course.id}">${escapeHtml(course.name)}</a></h2><p>${escapeHtml(course.promise)}</p><div class="progress-row"><div class="progress-label"><span>Progress</span><strong>${percent}% banked</strong></div><div class="progress-track" role="progressbar" aria-label="${escapeHtml(course.name)} progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><div class="progress-fill" style="width:${percent}%"></div></div></div><div class="course-card-detail"><span>${nextCopy}</span><span>${Math.round(mastery.ratio * 100)}% mastered</span></div><div class="lesson-list">${LEVELS.map((level) => levelButton(course, level, progress)).join('')}</div></article>`;
+  return `<a class="course-card" data-course-card="${course.id}" href="#/course/${course.id}"><div><div class="course-card-top"><span class="course-card-icon" data-tone="${course.side}" aria-hidden="true">${courseIcons[course.id]}</span><span class="course-card-meta"><strong>${String(index + 1).padStart(2, '0')}</strong><span>${trainableVariations(course).length} lines</span></span></div><h3>${escapeHtml(course.name)}</h3><p>${escapeHtml(course.promise)}</p></div><div class="progress-row"><div class="progress-label"><span>Progress</span><strong>${percent}% banked</strong></div><div class="progress-track" role="progressbar" aria-label="${escapeHtml(course.name)} progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><div class="progress-fill" style="width:${percent}%"></div></div></div><span class="course-card-detail"><span class="course-count">${String(completed).padStart(2, '0')} / 03</span><span>${Math.round(mastery.ratio * 100)}% mastered</span></span></a>`;
 }
 
 export async function renderDashboard(navigate: Navigate, email: string | null): Promise<void> {
@@ -89,13 +74,6 @@ export async function renderDashboard(navigate: Navigate, email: string | null):
       () => resetAllProgress(COURSES.map((course) => course.id)),
       () => renderDashboard(navigate, email),
     );
-    app.querySelector('#sign-out')?.addEventListener('click', () => void signOutUser());
-    app.querySelectorAll<HTMLButtonElement>('[data-course][data-level]').forEach((button) => button.addEventListener('click', () => {
-      const course = coursesById[button.dataset.course as Course['id']];
-      const level = button.dataset.level as LevelKey;
-      const variation = course.lessons[level].variations.find((candidate) => candidate.kind === 'core');
-      if (variation) void navigate({ name: 'practice', course, level, progress: progressByCourse[course.id], variationId: variation.id });
-    }));
   } catch (error) {
     app.innerHTML = `<main class="error-page" role="alert"><p class="eyebrow">LINE/64 unavailable</p><h1>Your repertoire is still here.</h1><p class="lede">${escapeHtml(error instanceof Error ? error.message : 'Check your connection and try again.')}</p><button id="retry-dashboard">Try again</button></main>`;
     app.querySelector('#retry-dashboard')?.addEventListener('click', () => void renderDashboard(navigate, email));

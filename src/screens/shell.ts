@@ -26,6 +26,9 @@ export function brandMarkup(): string {
   return '<span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="brand-name">LINE/64</span>';
 }
 
+export const backIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>';
+export const settingsIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+
 function topbarLink(link: { id: string; label: string }): string {
   const routes: Partial<Record<string, HashRoute>> = { account: { name: 'account' }, 'settings-link': { name: 'settings' }, browse: { name: 'browse' }, lines: { name: 'lines' }, sources: { name: 'sources' }, 'review-queue': { name: 'review-queue' }, 'queue-nav': { name: 'review-queue' } };
   const route = routes[link.id];
@@ -36,16 +39,18 @@ function topbarLink(link: { id: string; label: string }): string {
 
 export function topbarMarkup(options: TopbarOptions): string {
   const back = options.back
-    ? `<button id="${options.back.id}" class="back-button" aria-label="${escapeHtml(options.back.label)}">&larr;<span>${escapeHtml(options.back.label)}</span></button>`
+    ? `<button id="${options.back.id}" class="back-button icon-button" aria-label="${escapeHtml(options.back.label)}">${backIcon}</button>`
     : '';
-  const links = options.links ?? [];
+  const links = options.wordmark
+    ? (options.links ?? []).filter((link) => link.id === 'queue-nav' || link.id === 'account')
+    : options.links ?? [];
   const navigationMarkup = links.map(topbarLink).join('');
   const navigation = navigationMarkup ? `<nav class="topbar-nav" aria-label="Primary navigation">${navigationMarkup}</nav>` : '';
   const settings = options.wordmark && !links.some((link) => link.id === 'settings')
-    ? '<button id="settings" class="icon-button" type="button" aria-label="Settings">&#9881;</button>'
+    ? `<button id="settings" class="icon-button" type="button" aria-label="Settings">${settingsIcon}</button>`
     : '';
   const brand = `<a class="wordmark" href="${HOME_HASH}">${brandMarkup()}</a>`;
-  return `<header class="topbar${options.back ? ' has-back' : ''}"><div class="topbar-start">${back}</div>${brand}<div class="topbar-end">${navigation}${settings}<span class="account-email utility-only">${escapeHtml(options.email) || 'owner'}</span><button id="sign-out" class="quiet-button" type="button">Sign out</button></div></header>`;
+  return `<header class="topbar${options.back ? ' has-back' : ''}"><div class="topbar-start">${back}</div>${brand}<div class="topbar-end">${navigation}${settings}</div></header>`;
 }
 
 export function settingsPreferenceMarkup(duration: number): string {

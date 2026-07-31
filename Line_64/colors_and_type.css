@@ -1,0 +1,85 @@
+:root {
+  /* sRGB fallbacks computed from the source OKLch values */
+  --bg: #080b10;
+  --surface: #12161c;
+  --fg: #e5e5dc;
+  --muted: #89949d;
+  --border: #282f36;
+  --hint: #68e099;
+
+  --bg: oklch(15% 0.012 255);
+  --surface: oklch(20% 0.014 255);
+  --fg: oklch(92% 0.012 110);
+  --muted: oklch(66% 0.018 245);
+  --border: oklch(30% 0.016 250);
+  --hint: oklch(82% 0.15 155);
+  --hint-soft: color-mix(in oklch, var(--hint) 15%, transparent);
+  --fg-soft: color-mix(in oklch, var(--fg) 7%, transparent);
+
+  --font-display: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-body: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  --fs-h1: clamp(44px, 7vw, 82px);
+  --fs-h2: clamp(32px, 4vw, 50px);
+  --fs-h3: 21px;
+  --fs-lead: 18px;
+  --fs-body: 16px;
+  --fs-meta: 12px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-5: 20px;
+  --space-8: 32px;
+  --space-14: 56px;
+  --space-24: 96px;
+
+  --radius-control: 12px;
+  --radius-card: 20px;
+  --radius-pill: 999px;
+  --container: 1180px;
+  --gutter: 32px;
+}
+
+html {
+  background: var(--bg);
+  color: var(--fg);
+  font: var(--fs-body)/1.55 var(--font-body);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  text-wrap: balance;
+}
+
+code,
+kbd,
+samp,
+.state,
+.number {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 3px solid var(--fg);
+  outline-offset: 3px;
+}
+
+@media (max-width: 620px) {
+  :root { --gutter: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

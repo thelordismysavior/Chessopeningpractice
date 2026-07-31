@@ -79,7 +79,7 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
     app.innerHTML = `<main class="app-shell">${topbarMarkup({ email, back: { id: 'back-dashboard', label: 'Dashboard' }, links: [{ id: 'lines', label: 'Lines' }] })}<section class="browse-page"><p class="eyebrow">Browse &amp; study</p><h1>Read any line, any time.</h1><p class="lede">Every bundled line is searchable. Study is progress-neutral; trainable lines can be opened directly at any level.</p>${note}<label class="browse-search">Search repertoire<input id="browse-search" type="search" value="${escapeHtml(filters.query)}" placeholder="Opening, line, or role" autocomplete="off"></label><div class="filter-chips">${courseChips}</div><div class="filter-chips">${stateChipButtons}</div>${list}</section></main>`;
 
     document.querySelector('#back-dashboard')!.addEventListener('click', () => void navigate({ name: 'dashboard' }));
-    document.querySelector('#sign-out')!.addEventListener('click', () => void signOutUser());
+    document.querySelector('#sign-out')?.addEventListener('click', () => void signOutUser());
     app.querySelectorAll<HTMLButtonElement>('[data-course-filter]').forEach((button) => button.addEventListener('click', () => {
       filters.course = button.dataset.courseFilter as Filters['course'];
       drawIndex();
@@ -145,7 +145,7 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
         drawIndex();
         void navigate({ name: 'browse' });
       });
-      document.querySelector('#sign-out')!.addEventListener('click', () => {
+      document.querySelector('#sign-out')?.addEventListener('click', () => {
         disposeWalker();
         void signOutUser();
       });

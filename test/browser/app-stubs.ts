@@ -206,6 +206,12 @@ export async function openDashboard(page: Page, width: number, height: number): 
   await expect(page.locator('.dashboard-intro')).toBeVisible();
 }
 
+export async function startFirstCoursePractice(page: Page, level: 'beginner' | 'intermediate' | 'advanced' = 'beginner'): Promise<void> {
+  await page.locator('.course-card').first().click();
+  await page.locator(`[data-start-level="${level}"]`).click();
+  await expect(page.locator('.practice-shell')).toBeVisible();
+}
+
 export async function playMove(page: Page, move: string): Promise<void> {
   const from = page.locator(`[data-square="${move.slice(0, 2)}"]`);
   const to = page.locator(`[data-square="${move.slice(2, 4)}"]`);
@@ -227,7 +233,10 @@ export async function playLineTwice(page: Page, moves: string[]): Promise<void> 
 export async function playLessonClean(page: Page, level: 'beginner' | 'intermediate' = 'beginner'): Promise<void> {
   const [moves] = lineMoves(level);
   if (moves) {
-    await playLineTwice(page, moves);
+    for (const move of moves.slice(0, -1)) await playMove(page, move);
+    await page.getByRole('tab', { name: 'Drill', exact: true }).click();
+    await playMove(page, moves.at(-1)!);
+    for (const move of moves) await playMove(page, move);
     const lesson = COURSES[0].lessons[level];
     const core = lesson.variations.find((variation) => variation.kind === 'core');
     const branch = core ? firstBranchPoint(lesson, core) : null;

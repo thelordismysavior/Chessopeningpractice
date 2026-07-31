@@ -1,7 +1,7 @@
 import { Chess } from 'chess.js';
 import { isDragPastThreshold, resolveBoardDrop, resolveTempoCut } from '../board-input';
 import { coursesById, type Course, type LevelKey } from '../courses';
-import { shouldShowMoveGuide } from '../guide-policy';
+import { shouldShowMoveGuide, type PracticeMode } from '../guide-policy';
 import { effectiveMoveDuration, loadMoveDuration, moveBeats } from '../move-settings';
 import { pieceAppearance, pieceCode } from '../piece-appearance';
 import { LessonRunner, type RunnerFeedback, type RunnerSnapshot } from '../lesson-runner';
@@ -9,12 +9,11 @@ import { courseMastery } from '../mastery';
 import { diffProgress, loadProgress, saveProgress, type CourseProgress } from '../progress';
 import { duePositionIds } from '../review-schedule';
 import { saveResultSummary, type ResultSummary } from '../result';
-import { signOutUser } from '../firebase';
 import { planFenTransition, planMoveTransition, settleDisplayFen, type MoveTransition } from '../transition-plans';
 import { renderBoard, renderEvalBar, updateBoard, updateEvalBar, type BoardAnimation, type BoardState, type SquareRoute } from '../board-view';
 import { engine } from '../engine/engine-client';
 import { centipawnLoss, costPhrase, type EvalScore } from '../engine/eval-scale';
-import { app, bindSettings, brandMarkup, escapeHtml, levelNames, resetPageScroll, settingsDialogMarkup, sideNames } from './shell';
+import { app, backIcon, bindSettings, brandMarkup, escapeHtml, levelNames, resetPageScroll, settingsDialogMarkup, settingsIcon } from './shell';
 import type { Navigate, PracticeScreen } from './navigation';
 
 const DRAG_THRESHOLD_PX = 6;
@@ -65,6 +64,8 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   let evalFen: string | null = null;
   let moveCost: string | null = null;
   let costGeneration = 0;
+  let practiceMode: PracticeMode = session.reviewMode || session.snapshot.phase !== 'teach' ? 'drill' : 'learn';
+  let assistedPositionKey: string | null = null;
   const selectableColor = course.side === 'white' ? 'w' : 'b';
 
   const persist = () => {
@@ -108,7 +109,13 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   };
 
   const draw = () => {
-    const snapshot: RunnerSnapshot = session.snapshot;
+    let snapshot: RunnerSnapshot = session.snapshot;
+    const positionKey = snapshot.position ? `${snapshot.phase}:${snapshot.position.id}` : null;
+    if (practiceMode === 'learn' && positionKey && snapshot.status !== 'complete' && assistedPositionKey !== positionKey) {
+      session.requestHint();
+      assistedPositionKey = positionKey;
+      snapshot = session.snapshot;
+    }
     const lessonComplete = snapshot.lessonComplete && !sequenceActive;
     const levelComplete = lessonComplete && session.progressFor(level).completedLevels.includes(level);
     const completionMessage = saveError
@@ -127,7 +134,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
         : snapshot.status === 'retrying'
           ? 'Retry this position'
           : `${course.side === 'white' ? 'White' : 'Black'} to move`;
-    const showGuide = !sequenceActive && snapshot.status !== 'complete' && shouldShowMoveGuide(snapshot.phase, snapshot.status, snapshot.hintLevel);
+    const showGuide = !sequenceActive && shouldShowMoveGuide(snapshot.phase, snapshot.status, snapshot.hintLevel, practiceMode);
     const expectedRoute = showGuide ? { from: position.expectedMove.slice(0, 2), to: position.expectedMove.slice(2, 4) } : null;
     const moveCount = snapshot.positionCount || lesson.positions.length;
     const moveOrdinal = Math.min(snapshot.positionIndex + 1, moveCount);
@@ -192,7 +199,8 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     const settledFen = sequenceActive || animation ? null : chess.fen();
     if (settledFen && settledFen !== evalFen) evalScore = null;
     const boardState: BoardState = { chess, selected, side: course.side, guide: expectedRoute, hintSquare: snapshot.hintLevel === 2 ? position.expectedMove.slice(2, 4) : null, route: routeFlash, animation, dragging, settling: sequenceActive, interactive: !busy || sequenceActive, selectableColor };
-    const nextMain = document.createRange().createContextualFragment(`<main class="practice-shell shell"><header class="topbar has-back practice-appbar"><div class="topbar-start"><button id="back-dashboard" class="back-button" aria-label="Dashboard">&larr;<span>Dashboard</span></button></div><a class="wordmark" href="#/home">${brandMarkup()}</a><div class="topbar-end"><button id="settings" class="icon-button" type="button" aria-label="Settings">&middot;&middot;&middot;</button><button id="practice-sign-out" class="quiet-button" type="button">Sign out</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}</section><section class="board-panel"><div class="eval-host"></div><div class="board-frame"></div><div class="board-caption" aria-live="polite"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section><section class="practice-details"><div class="explanation"><span class="explanation-mark">Why this move</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section></div>${settingsDialogMarkup(moveDuration)}</main>`).firstElementChild!;
+    const modeMarkup = `<div class="mode-switch" role="tablist" aria-label="Practice Mode"><button type="button" role="tab" data-practice-mode="learn" aria-selected="${practiceMode === 'learn'}">Learn</button><button type="button" role="tab" data-practice-mode="drill" aria-selected="${practiceMode === 'drill'}">Drill</button></div>`;
+    const nextMain = document.createRange().createContextualFragment(`<main class="practice-shell shell"><header class="topbar has-back practice-appbar"><div class="topbar-start"><button id="back-dashboard" class="back-button icon-button" aria-label="Dashboard">${backIcon}</button></div><a class="wordmark" href="#/home">${brandMarkup()}</a><div class="topbar-end"><button id="settings" class="icon-button" type="button" aria-label="Settings">${settingsIcon}</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}</section>${modeMarkup}<section class="board-panel"><div class="eval-host"></div><div class="board-frame"></div><div class="board-caption" aria-live="polite"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section><section class="practice-details"><div class="explanation"><span class="explanation-mark">Why this move</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section></div>${settingsDialogMarkup(moveDuration)}</main>`).firstElementChild!;
     app.append(nextMain);
     const panel = nextMain.querySelector<HTMLElement>('.board-panel');
     const evalHost = nextMain.querySelector<HTMLElement>('.eval-host');
@@ -242,7 +250,11 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     }
 
     document.querySelector('#back-dashboard')!.addEventListener('click', () => void leavePractice());
-    document.querySelector('#practice-sign-out')!.addEventListener('click', () => void leavePractice(true));
+    app.querySelectorAll<HTMLButtonElement>('[data-practice-mode]').forEach((button) => button.addEventListener('click', () => {
+      practiceMode = button.dataset.practiceMode === 'drill' ? 'drill' : 'learn';
+      if (practiceMode === 'drill') assistedPositionKey = null;
+      draw();
+    }));
     document.querySelector('#exit-practice')?.addEventListener('click', () => void leavePractice());
     document.querySelector('#back-after-complete')?.addEventListener('click', () => void leavePractice());
     document.querySelector('#back-to-queue')?.addEventListener('click', () => void (async () => {
@@ -601,14 +613,13 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     }
   };
 
-  const leavePractice = async (signOut = false) => {
+  const leavePractice = async () => {
     leaving = true;
     if (handoffTimer !== null) window.clearTimeout(handoffTimer);
     try {
       await pendingSave;
       if (!saveError) {
-        if (signOut) await signOutUser();
-        else await navigate({ name: 'dashboard' });
+        await navigate({ name: 'dashboard' });
       }
     } catch {
       leaving = false;

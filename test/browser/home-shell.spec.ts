@@ -18,7 +18,7 @@ test('hash navigation supports parameters, browser Back, refresh, and safe fallb
   await page.goto('/');
   await expect(page.locator('.dashboard-intro')).toBeVisible();
 
-  await page.locator('#browse').click();
+  await page.locator('#browse-all').click();
   await expect(page).toHaveURL(/#\/browse$/);
   await expect(page.locator('.browse-page')).toBeVisible();
 

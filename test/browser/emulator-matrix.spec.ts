@@ -22,6 +22,12 @@ async function openDashboard(page: Page, width: number): Promise<void> {
   await expect(page.locator('.dashboard-intro')).toBeVisible();
 }
 
+async function startFirstCoursePractice(page: Page): Promise<void> {
+  await page.locator('.course-card').first().click();
+  await page.locator('[data-start-level="beginner"]').click();
+  await expect(page.locator('.practice-shell')).toBeVisible();
+}
+
 async function playMove(page: Page, move: string, drag = false): Promise<void> {
   const from = page.locator(`[data-square="${move.slice(0, 2)}"]`);
   const to = page.locator(`[data-square="${move.slice(2, 4)}"]`);
@@ -55,27 +61,30 @@ async function proceed(page: Page): Promise<void> {
   await expect(page.locator('.dashboard-intro')).toBeVisible();
 }
 
-test('emulator-backed Chromium journey keeps levels directly accessible', async ({ page }) => {
+test('emulator-backed Chromium journey keeps levels accessible inside a Course', async ({ page }) => {
   test.setTimeout(300_000);
   await openDashboard(page, 1440);
   await expectNoOverflow(page);
   await expect(page.locator('.course-grid')).toBeVisible();
 
   const firstCourse = page.locator('.course-card').first();
-  await expect(firstCourse.locator('.lesson-row').nth(1)).toBeEnabled();
-  await expect(firstCourse.locator('.lesson-row').nth(2)).toBeEnabled();
-  await firstCourse.locator('button[data-level="beginner"]').click();
+  await firstCourse.click();
+  await expect(page.locator('[data-start-level="intermediate"]')).toBeEnabled();
+  await expect(page.locator('[data-start-level="advanced"]')).toBeEnabled();
+  await page.locator('[data-start-level="beginner"]').click();
   await expect(page.locator('.board')).toBeVisible();
   await expectNoOverflow(page);
   await expect(page.locator('.guide-overlay .route-arrow')).toHaveCSS('height', '6px');
   await completeLine(page, 'beginner');
   await proceed(page);
 
-  await firstCourse.locator('button[data-level="intermediate"]').click();
+  await page.locator('.course-card').first().click();
+  await page.locator('[data-start-level="intermediate"]').click();
   await completeLine(page, 'intermediate', true);
   await proceed(page);
 
-  await firstCourse.locator('button[data-level="advanced"]').click();
+  await page.locator('.course-card').first().click();
+  await page.locator('[data-start-level="advanced"]').click();
   await completeLine(page, 'advanced');
   await proceed(page);
   await expect(page.locator('.course-count').first()).toHaveText('00 / 03');
@@ -85,7 +94,7 @@ test('emulator-backed Chromium journey keeps levels directly accessible', async 
 test('emulator-backed save failure remains recoverable after the final move', async ({ page }) => {
   test.setTimeout(120_000);
   await openDashboard(page, 390);
-  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await startFirstCoursePractice(page);
   const moves = COURSES[0].lessons.beginner.variations[0].positions.map((position) => position.expectedMove);
   const sequence = [...moves, ...moves];
   for (const move of sequence.slice(0, -1)) await playMove(page, move);
@@ -111,7 +120,7 @@ test('emulator-backed save failure remains recoverable after the final move', as
 
 test('Dashboard reset clears saved progress and preserves move duration', async ({ page }) => {
   await openDashboard(page, 390);
-  await page.locator('.course-card').first().locator('button[data-level="beginner"]').click();
+  await startFirstCoursePractice(page);
   await completeLine(page, 'beginner');
   await page.locator('#back-dashboard').click();
   await expect(page.locator('.course-count').first()).toHaveText('00 / 03');
@@ -124,7 +133,8 @@ test('Dashboard reset clears saved progress and preserves move duration', async 
 
   await expect(page.locator('.dashboard-intro')).toBeVisible();
   await expect(page.locator('.course-count').first()).toHaveText('00 / 03');
-  await expect(page.locator('.course-card').first().locator('.lesson-row').nth(1)).toBeEnabled();
+  await page.locator('.course-card').first().click();
+  await expect(page.locator('[data-start-level="intermediate"]')).toBeEnabled();
   expect(await page.evaluate(() => localStorage.getItem('chess-practice.move-duration'))).toBe('350');
 });
 

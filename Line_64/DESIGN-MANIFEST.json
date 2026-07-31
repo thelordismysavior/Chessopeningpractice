@@ -1,0 +1,431 @@
+{
+  "schema": "open-design.design-manifest.v1",
+  "title": "5d01d014-1768-48b9-914c-04bebcde0945",
+  "entryFile": "preview/index.html",
+  "sourceFiles": {
+    "all": [
+      "assets/line-64-source-preview.png",
+      "assets/README.md",
+      "brand-spec.md",
+      "colors_and_type.css",
+      "context/provenance.md",
+      "context/source-context.md",
+      "DESIGN.md",
+      "drawing-2026-07-29T13-11-38-828Z.png",
+      "image-1.png",
+      "image.png",
+      "line-64-account.html",
+      "line-64-browse.html",
+      "line-64-course-preview.png",
+      "line-64-course.html",
+      "line-64-design-system-2.html",
+      "line-64-design-system.html",
+      "line-64-home-preview.png",
+      "line-64-home.html",
+      "line-64-lines.html",
+      "line-64-practice-preview.png",
+      "line-64-practice.html",
+      "line-64-preview.png",
+      "line-64-prototype-plan.md",
+      "line-64-queue-preview.png",
+      "line-64-queue.html",
+      "line-64-result.html",
+      "line-64-settings.html",
+      "line-64-sources.html",
+      "line-64.css",
+      "plugin-source/source-project-context-ms63jdlz/open-design.json",
+      "plugin-source/source-project-context-ms63jdlz/references/provenance.json",
+      "plugin-source/source-project-context-ms63jdlz/references/source-1-source-context.md",
+      "plugin-source/source-project-context-ms63jdlz/references/source-2-README.md",
+      "plugin-source/source-project-context-ms63jdlz/references/source-3-SKILL.md",
+      "plugin-source/source-project-context-ms63jdlz/references/source-4-README.md",
+      "plugin-source/source-project-context-ms63jdlz/SKILL.md",
+      "plugin-source/source-project-context-ms63jgz3/open-design.json",
+      "plugin-source/source-project-context-ms63jgz3/references/provenance.json",
+      "plugin-source/source-project-context-ms63jgz3/references/source-1-source-context.md",
+      "plugin-source/source-project-context-ms63jgz3/references/source-2-README.md",
+      "plugin-source/source-project-context-ms63jgz3/references/source-3-SKILL.md",
+      "plugin-source/source-project-context-ms63jgz3/references/source-4-README.md",
+      "plugin-source/source-project-context-ms63jgz3/SKILL.md",
+      "plugin-source/source-project-context-ms63jhxi/open-design.json",
+      "plugin-source/source-project-context-ms63jhxi/references/provenance.json",
+      "plugin-source/source-project-context-ms63jhxi/references/source-1-source-context.md",
+      "plugin-source/source-project-context-ms63jhxi/references/source-2-README.md",
+      "plugin-source/source-project-context-ms63jhxi/references/source-3-SKILL.md",
+      "plugin-source/source-project-context-ms63jhxi/references/source-4-README.md",
+      "plugin-source/source-project-context-ms63jhxi/SKILL.md",
+      "plugin-source/source-project-context-ms65lzs5/open-design.json",
+      "plugin-source/source-project-context-ms65lzs5/references/provenance.json",
+      "plugin-source/source-project-context-ms65lzs5/references/source-1-source-context.md",
+      "plugin-source/source-project-context-ms65lzs5/references/source-2-README.md",
+      "plugin-source/source-project-context-ms65lzs5/references/source-3-SKILL.md",
+      "plugin-source/source-project-context-ms65lzs5/references/source-4-README.md",
+      "plugin-source/source-project-context-ms65lzs5/SKILL.md",
+      "preview/applied-ui.html",
+      "preview/brand-assets.html",
+      "preview/colors-primary.html",
+      "preview/components-buttons.html",
+      "preview/components.html",
+      "preview/index.html",
+      "preview/manifest.json",
+      "preview/radius-shadows.html",
+      "preview/shared.css",
+      "preview/spacing-tokens.html",
+      "preview/typography-specimens.html",
+      "README.md",
+      "SKILL.md",
+      "ui_kits/app/components/Board.jsx",
+      "ui_kits/app/components/Feedback.jsx",
+      "ui_kits/app/components/ModeSwitch.jsx",
+      "ui_kits/app/index.html",
+      "ui_kits/app/README.md",
+      "ui_kits/app/styles.css"
+    ],
+    "html": [
+      "line-64-account.html",
+      "line-64-browse.html",
+      "line-64-course.html",
+      "line-64-design-system-2.html",
+      "line-64-design-system.html",
+      "line-64-home.html",
+      "line-64-lines.html",
+      "line-64-practice.html",
+      "line-64-queue.html",
+      "line-64-result.html",
+      "line-64-settings.html",
+      "line-64-sources.html",
+      "preview/applied-ui.html",
+      "preview/brand-assets.html",
+      "preview/colors-primary.html",
+      "preview/components-buttons.html",
+      "preview/components.html",
+      "preview/index.html",
+      "preview/radius-shadows.html",
+      "preview/spacing-tokens.html",
+      "preview/typography-specimens.html",
+      "ui_kits/app/index.html"
+    ],
+    "css": [
+      "colors_and_type.css",
+      "line-64.css",
+      "preview/shared.css",
+      "ui_kits/app/styles.css"
+    ],
+    "scriptsAndComponents": [
+      "ui_kits/app/components/Board.jsx",
+      "ui_kits/app/components/Feedback.jsx",
+      "ui_kits/app/components/ModeSwitch.jsx"
+    ],
+    "assets": [
+      "assets/line-64-source-preview.png",
+      "assets/README.md",
+      "brand-spec.md",
+      "context/provenance.md",
+      "context/source-context.md",
+      "DESIGN.md",
+      "drawing-2026-07-29T13-11-38-828Z.png",
+      "image-1.png",
+      "image.png",
+      "line-64-course-preview.png",
+      "line-64-home-preview.png",
+      "line-64-practice-preview.png",
+      "line-64-preview.png",
+      "line-64-prototype-plan.md",
+      "line-64-queue-preview.png",
+      "plugin-source/source-project-context-ms63jdlz/open-design.json",
+      "plugin-source/source-project-context-ms63jdlz/references/provenance.json",
+      "plugin-source/source-project-context-ms63jdlz/references/source-1-source-context.md",
+      "plugin-source/source-project-context-ms63jdlz/references/source-2-README.md",
+      "plugin-source/source-project-context-ms63jdlz/references/source-3-SKILL.md",
+      "plugin-source/source-project-context-ms63jdlz/references/source-4-README.md",
+      "plugin-source/source-project-context-ms63jdlz/SKILL.md",
+      "plugin-source/source-project-context-ms63jgz3/open-design.json",
+      "plugin-source/source-project-context-ms63jgz3/references/provenance.json",
+      "plugin-source/source-project-context-ms63jgz3/references/source-1-source-context.md",
+      "plugin-source/source-project-context-ms63jgz3/references/source-2-README.md",
+      "plugin-source/source-project-context-ms63jgz3/references/source-3-SKILL.md",
+      "plugin-source/source-project-context-ms63jgz3/references/source-4-README.md",
+      "plugin-source/source-project-context-ms63jgz3/SKILL.md",
+      "plugin-source/source-project-context-ms63jhxi/open-design.json",
+      "plugin-source/source-project-context-ms63jhxi/references/provenance.json",
+      "plugin-source/source-project-context-ms63jhxi/references/source-1-source-context.md",
+      "plugin-source/source-project-context-ms63jhxi/references/source-2-README.md",
+      "plugin-source/source-project-context-ms63jhxi/references/source-3-SKILL.md",
+      "plugin-source/source-project-context-ms63jhxi/references/source-4-README.md",
+      "plugin-source/source-project-context-ms63jhxi/SKILL.md",
+      "plugin-source/source-project-context-ms65lzs5/open-design.json",
+      "plugin-source/source-project-context-ms65lzs5/references/provenance.json",
+      "plugin-source/source-project-context-ms65lzs5/references/source-1-source-context.md",
+      "plugin-source/source-project-context-ms65lzs5/references/source-2-README.md",
+      "plugin-source/source-project-context-ms65lzs5/references/source-3-SKILL.md",
+      "plugin-source/source-project-context-ms65lzs5/references/source-4-README.md",
+      "plugin-source/source-project-context-ms65lzs5/SKILL.md",
+      "preview/manifest.json",
+      "README.md",
+      "SKILL.md",
+      "ui_kits/app/README.md"
+    ]
+  },
+  "screens": [
+    {
+      "file": "line-64-account.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "line-64-browse.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "line-64-course.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "line-64-design-system-2.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "line-64-design-system.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "line-64-home.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "line-64-lines.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "line-64-practice.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "line-64-queue.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "line-64-result.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "line-64-settings.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "line-64-sources.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "preview/applied-ui.html",
+      "role": "product-screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "preview/brand-assets.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "preview/colors-primary.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "preview/components-buttons.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "preview/components.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "preview/index.html",
+      "role": "launcher-overview",
+      "implementationNote": "Use this as the navigation/overview entry only; implement each linked screen file as its own route/surface."
+    },
+    {
+      "file": "preview/radius-shadows.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "preview/spacing-tokens.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "preview/typography-specimens.html",
+      "role": "screen",
+      "implementationNote": "Preserve visual hierarchy, responsive behavior, and interactive states from this screen."
+    },
+    {
+      "file": "ui_kits/app/index.html",
+      "role": "launcher-overview",
+      "implementationNote": "Use this as the navigation/overview entry only; implement each linked screen file as its own route/surface."
+    }
+  ],
+  "screenFilePolicy": {
+    "mode": "screen-file-first",
+    "entryFileRole": "launcher-overview",
+    "rules": [
+      "Each distinct user-facing screen or surface must be delivered and implemented as its own file/route.",
+      "If a landing page is present or requested, keep it in landing.html and do not merge it into the product app screen.",
+      "When multiple HTML screens exist, index.html is a launcher/overview only; it must not be treated as the combined final UI.",
+      "Keep product app screens, landing pages, platform screens, and OS widget surfaces separate in production code."
+    ]
+  },
+  "appModules": [
+    "Identify domain-specific in-app modules from the exported UI; do not reduce them to generic cards.",
+    "For each major module, implement purpose, default/loading/empty/error/success states, and responsive behavior.",
+    "Keep app modules separate from OS home-screen widgets in the production component model."
+  ],
+  "osWidgets": [
+    "If the export includes home-screen, lock-screen, Live Activity, tablet glance, or Android widget surfaces, implement them as platform quick-access surfaces outside the app UI.",
+    "If none are present, do not invent OS widgets unless the product requirements request them."
+  ],
+  "landingPage": {
+    "detection": "Inspect files and screen names for a marketing/landing page surface. If present, keep it separate from product app screens.",
+    "requiredSections": [
+      "hero",
+      "value props",
+      "product proof/screenshots",
+      "feature proof",
+      "CTA"
+    ]
+  },
+  "tokens": {
+    "source": [
+      "colors_and_type.css",
+      "line-64.css",
+      "preview/shared.css",
+      "ui_kits/app/styles.css"
+    ],
+    "required": [
+      "background",
+      "surface",
+      "foreground",
+      "muted text",
+      "border",
+      "accent",
+      "radius",
+      "shadow",
+      "spacing",
+      "type scale",
+      "motion"
+    ],
+    "note": "Extract/freeze tokens before framework implementation so coding tools do not substitute default theme colors or typography."
+  },
+  "interactions": {
+    "source": [
+      "ui_kits/app/components/Board.jsx",
+      "ui_kits/app/components/Feedback.jsx",
+      "ui_kits/app/components/ModeSwitch.jsx"
+    ],
+    "requiredStates": [
+      "default",
+      "hover",
+      "focus",
+      "active",
+      "disabled",
+      "loading",
+      "empty",
+      "error",
+      "success"
+    ],
+    "requiredBehaviors": [
+      "forms/validation where present",
+      "tabs/filters where present",
+      "dialogs/sheets/drawers where present",
+      "copy/generate/share actions where present",
+      "player or quick controls where present"
+    ],
+    "note": "If the prototype is static, derive missing behavior from visible controls and document it before coding."
+  },
+  "responsiveViewports": [
+    {
+      "name": "mobile-compact",
+      "width": 360,
+      "height": 800,
+      "category": "mobile",
+      "mustAvoidHorizontalScroll": true
+    },
+    {
+      "name": "mobile-standard",
+      "width": 390,
+      "height": 844,
+      "category": "mobile",
+      "mustAvoidHorizontalScroll": true
+    },
+    {
+      "name": "mobile-large",
+      "width": 430,
+      "height": 932,
+      "category": "mobile",
+      "mustAvoidHorizontalScroll": true
+    },
+    {
+      "name": "foldable-small-tablet",
+      "width": 600,
+      "height": 960,
+      "category": "foldable-tablet",
+      "mustAvoidHorizontalScroll": true
+    },
+    {
+      "name": "tablet-portrait",
+      "width": 820,
+      "height": 1180,
+      "category": "tablet",
+      "mustAvoidHorizontalScroll": true
+    },
+    {
+      "name": "tablet-landscape",
+      "width": 1024,
+      "height": 768,
+      "category": "tablet",
+      "mustAvoidHorizontalScroll": true
+    },
+    {
+      "name": "laptop",
+      "width": 1366,
+      "height": 768,
+      "category": "desktop",
+      "mustAvoidHorizontalScroll": true
+    },
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "category": "desktop",
+      "mustAvoidHorizontalScroll": true
+    },
+    {
+      "name": "wide",
+      "width": 1920,
+      "height": 1080,
+      "category": "wide",
+      "mustAvoidHorizontalScroll": true
+    }
+  ],
+  "implementationChecklist": [
+    "Open entryFile first and map screens, modules, tokens, and interactions.",
+    "Extract tokens before writing framework components.",
+    "Implement app-specific modules with real states instead of generic card grids.",
+    "Preserve or rebuild JS interactions for meaningful UX actions.",
+    "Validate screenshots at desktop/tablet/mobile viewports with no horizontal overflow.",
+    "Keep landing pages, in-app modules, and OS widgets as separate implementation surfaces."
+  ]
+}
