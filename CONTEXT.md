@@ -23,6 +23,12 @@ A line saved automatically after the learner completes a clean recall pass. It c
 review but is not necessarily mastered.
 _Avoid_: Saved line, completed line, mastered line
 
+**Line Preview**:
+A progress-neutral, board-led walkthrough of a line's authored positions. The learner advances it
+manually through visible piece movement while the authored move guide and explanation remain
+visible; it offers practice only when the line is trainable.
+_Avoid_: Move Preview, Study Preview, move list
+
 ### Board tempo
 
 **Move Animation**:
