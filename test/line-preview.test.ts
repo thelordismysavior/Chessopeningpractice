@@ -11,7 +11,17 @@ describe('line preview advance planning', () => {
     expect(advance?.authored.afterFen).toBeTruthy();
     expect(advance?.reply?.afterFen).toBe(variation.positions[1].fen);
     expect(advance?.nextIndex).toBe(1);
+    expect(advance?.settledFen).toBe(variation.positions[1].fen);
     expect(advance?.completed).toBe(false);
+  });
+
+  test('settles on the next authored position when no reply connects the positions', () => {
+    const disconnected = [variation.positions[0], { ...variation.positions[1], fen: variation.positions[0].fen }];
+    const advance = planLinePreviewAdvance(disconnected, 0);
+
+    expect(advance?.reply).toBeNull();
+    expect(advance?.settledFen).toBe(disconnected[1].fen);
+    expect(advance?.nextIndex).toBe(1);
   });
 
   test('keeps the final authored move enabled and marks the completed state', () => {
@@ -21,6 +31,7 @@ describe('line preview advance planning', () => {
     expect(advance?.authored).toBeTruthy();
     expect(advance?.reply).toBeNull();
     expect(advance?.nextIndex).toBeNull();
+    expect(advance?.settledFen).toBe(advance?.authored.afterFen);
     expect(advance?.completed).toBe(true);
   });
 });

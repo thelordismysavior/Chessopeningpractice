@@ -1,10 +1,11 @@
 import type { PracticePosition } from './courses';
-import { planFenTransition, planMoveTransition, type MoveTransition } from './transition-plans';
+import { planFenTransition, planMoveTransition, settleDisplayFen, type MoveTransition } from './transition-plans';
 
 export type LinePreviewAdvance = {
   authored: MoveTransition;
   reply: MoveTransition | null;
   nextIndex: number | null;
+  settledFen: string;
   completed: boolean;
 };
 
@@ -22,10 +23,12 @@ export function planLinePreviewAdvance(positions: PracticePosition[], index: num
 
   const next = positions[index + 1];
   const reply = next ? planFenTransition(authored.afterFen, next.fen) : null;
+  const settledFen = settleDisplayFen(authored.afterFen, reply?.afterFen ?? null, next?.fen ?? null);
   return {
     authored,
     reply,
     nextIndex: next ? index + 1 : null,
+    settledFen,
     completed: !next,
   };
 }

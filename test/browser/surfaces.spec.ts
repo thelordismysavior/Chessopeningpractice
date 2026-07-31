@@ -260,6 +260,50 @@ test('Line Preview completes, restarts, and offers practice without changing pro
   await expect(page.locator('.practice-shell')).toBeVisible();
 });
 
+test('Line Preview locks navigation through authored movement and its connecting reply', async ({ page }) => {
+  await stubEngine(page);
+  await openDashboard(page, 1440, 1000);
+  await page.evaluate(() => localStorage.setItem('chess-practice.move-duration', '350'));
+  await page.locator('#browse-all').click();
+  await page.locator(`[data-course-filter="${COURSES[0].id}"]`).click();
+  await page.locator('.browse-row').first().click();
+
+  const before = await page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]));
+  await page.locator('#preview-next').click();
+  await expect(page.locator('.preview-actions')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.locator('.board')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.locator('#preview-next')).toBeDisabled();
+  await expect(page.locator('#preview-prev')).toBeDisabled();
+
+  await expect(page.locator('.preview-move.is-current')).toHaveText(/^02 /);
+  await expect(page.locator('.board')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByRole('button', { name: 'd4, white pawn', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'd5, black pawn', exact: true })).toBeVisible();
+
+  await page.locator('#preview-prev').click();
+  await expect(page.locator('.preview-move.is-current')).toHaveText(/^01 /);
+  await expect(page.getByRole('button', { name: 'd4, empty', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'd5, empty', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]))).toBe(before);
+});
+
+test('Line Preview reduced motion keeps the final position without sliding', async ({ page }) => {
+  await stubEngine(page);
+  await openDashboard(page, 1440, 1000);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate(() => localStorage.setItem('chess-practice.move-duration', '350'));
+  await page.locator('#browse-all').click();
+  await page.locator(`[data-course-filter="${COURSES[0].id}"]`).click();
+  await page.locator('.browse-row').first().click();
+  await page.locator('#preview-next').click();
+
+  await expect(page.locator('.board')).toHaveAttribute('aria-busy', 'true');
+  await expect(page.locator('.preview-move.is-current')).toHaveText(/^02 /);
+  await expect(page.locator('.board')).toHaveAttribute('aria-busy', 'false');
+  await expect(page.getByRole('button', { name: 'd4, white pawn', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'd5, black pawn', exact: true })).toBeVisible();
+});
+
 test('banked line rows enter one-line Recall directly', async ({ page }) => {
   await stubEngine(page);
   await openDashboard(page, 1440, 1000);
