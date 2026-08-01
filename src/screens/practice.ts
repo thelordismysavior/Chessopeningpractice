@@ -9,7 +9,7 @@ import { courseMastery } from '../mastery';
 import { diffProgress, loadProgress, saveProgress, type CourseProgress } from '../progress';
 import { duePositionIds } from '../review-schedule';
 import { saveResultSummary, type ResultSummary } from '../result';
-import { planFenTransition, planMoveTransition, settleDisplayFen, type MoveTransition } from '../transition-plans';
+import { planFenAnimation, planMoveAnimation, settleDisplayFen, type MoveAnimation } from '../move-animation';
 import { renderBoard, renderEvalBar, updateBoard, updateEvalBar, type BoardAnimation, type BoardState, type SquareRoute } from '../board-view';
 import { engine } from '../engine/engine-client';
 import { centipawnLoss, costPhrase, type EvalScore } from '../engine/eval-scale';
@@ -460,7 +460,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   });
   const nextFrame = () => new Promise<void>((resolve) => { window.requestAnimationFrame(() => resolve()); });
 
-  const playPhase = async (plan: MoveTransition, duration: number) => {
+  const playPhase = async (plan: MoveAnimation, duration: number) => {
     animation = { plan, arrived: false, duration };
     draw();
     if (duration === 0) {
@@ -480,7 +480,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     draw();
   };
 
-  const playSequence = async (learnerPlan: MoveTransition, replyPlan: MoveTransition | null, skipLearnerMotion = false) => {
+  const playSequence = async (learnerPlan: MoveAnimation, replyPlan: MoveAnimation | null, skipLearnerMotion = false) => {
     const duration = effectiveMoveDuration(moveDuration, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     const beats = moveBeats(moveDuration, session.snapshot.phase === 'teach');
     await playPhase(learnerPlan, skipLearnerMotion ? 0 : duration);
@@ -511,8 +511,8 @@ export async function startPractice(navigate: Navigate, email: string | null, op
 
 
   const explainCost = async (generation: number, fen: string, playedMove: string, expectedMove: string, expectedSan: string) => {
-    const playedPlan = planMoveTransition(fen, playedMove);
-    const expectedPlan = planMoveTransition(fen, expectedMove);
+    const playedPlan = planMoveAnimation(fen, playedMove);
+    const expectedPlan = planMoveAnimation(fen, expectedMove);
     if (!playedPlan || !expectedPlan) return;
     const playedScore = await engine.evaluate(playedPlan.afterFen, selectableColor);
     if (leaving || generation !== costGeneration || !playedScore) return;
@@ -550,8 +550,8 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       draw();
       return;
     }
-    const learnerPlan = planMoveTransition(position.fen, move);
-    const replyPlan = learnerPlan && result.snapshot.position ? planFenTransition(learnerPlan.afterFen, result.snapshot.position.fen) : null;
+    const learnerPlan = planMoveAnimation(position.fen, move);
+    const replyPlan = learnerPlan && result.snapshot.position ? planFenAnimation(learnerPlan.afterFen, result.snapshot.position.fen) : null;
     if (!learnerPlan) {
       displayFen = result.snapshot.position?.fen ?? position.fen;
       void persist().catch(() => { saveError = true; if (!leaving) draw(); });

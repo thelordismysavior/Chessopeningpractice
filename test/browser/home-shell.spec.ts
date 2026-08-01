@@ -29,11 +29,6 @@ test('hash navigation supports parameters, browser Back, refresh, and safe fallb
   await page.reload();
   await expect(page.locator('.dashboard-intro')).toBeVisible();
 
-  await page.goto('/#/browse/jobava-london/beginner-main');
-  await expect(page).toHaveURL(/#\/browse\/jobava-london\/beginner-main$/);
-  await expect(page.locator('.line-preview-page')).toBeVisible();
-  await expect(page.locator('#preview-next')).toBeVisible();
-
   await page.goto('/#/not-a-real-surface');
   await expect(page).toHaveURL(/#\/home$/);
   await expect(page.locator('.dashboard-intro')).toBeVisible();

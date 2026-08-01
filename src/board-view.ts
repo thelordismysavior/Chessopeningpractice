@@ -2,7 +2,7 @@ import type { Chess } from 'chess.js';
 import type { Course } from './courses';
 import { pieceAppearance, pieceCode } from './piece-appearance';
 import { routeArrowGeometry } from './route-arrow';
-import type { MoveTransition } from './transition-plans';
+import type { MoveAnimation } from './move-animation';
 import { evalLabel, fillFraction, type EvalScore } from './engine/eval-scale';
 import type { EngineStatus } from './engine/engine-client';
 
@@ -15,7 +15,7 @@ export function squareName(row: number, column: number, side: Course['side']): s
 }
 
 export type SquareRoute = { from: string; to: string };
-export type BoardAnimation = { plan: MoveTransition; arrived: boolean; duration: number };
+export type BoardAnimation = { plan: MoveAnimation; arrived: boolean; duration: number };
 export type BoardState = {
   chess: Chess;
   selected: string | null;

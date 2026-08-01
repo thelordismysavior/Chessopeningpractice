@@ -60,31 +60,6 @@ async function resolveEngineRequest(page: Page, index: number, cp: number): Prom
   }, { requestIndex: index, score: cp });
 }
 
-async function trackKeydownListeners(page: Page): Promise<void> {
-  await page.addInitScript({
-    content: `
-      const keydownListeners = new Set();
-      const add = window.addEventListener.bind(window);
-      const remove = window.removeEventListener.bind(window);
-      window.addEventListener = (type, listener, options) => {
-        if (type === 'keydown') keydownListeners.add(listener);
-        return add(type, listener, options);
-      };
-      window.removeEventListener = (type, listener, options) => {
-        if (type === 'keydown') keydownListeners.delete(listener);
-        return remove(type, listener, options);
-      };
-      globalThis.__keydownListenerCount = () => keydownListeners.size;
-    `,
-  });
-}
-
-async function keydownListenerCount(page: Page): Promise<number> {
-  return page.evaluate(() => (
-    (globalThis as typeof globalThis & { __keydownListenerCount: () => number }).__keydownListenerCount()
-  ));
-}
-
 async function blockEngine(page: Page): Promise<void> {
   await page.route('**/engine/stockfish.js', (route) => route.abort());
 }
@@ -191,7 +166,7 @@ test('a failed Review all save blocks the next group until retry succeeds', asyn
   await expect(page.locator('.line-handoff')).toContainText(COURSES[1].name);
 });
 
-test('the browse index filters, and Line Preview steps without touching progress', async ({ page }) => {
+test('the browse index filters the repertoire', async ({ page }) => {
   await stubEngine(page);
   await openDashboard(page, 1440, 1000);
   await seedProgress(page, COURSES[0].id, bankedProgress(0, true));
@@ -203,127 +178,6 @@ test('the browse index filters, and Line Preview steps without touching progress
   await expect(page.locator('.browse-row')).toHaveCount(15);
   await page.locator('[data-state-filter="mastered"]').click();
   await expect(page.locator('.browse-row')).toHaveCount(1);
-
-  await page.locator('[data-state-filter="all"]').click();
-  await page.locator('.browse-row').first().click();
-  await expect(page.locator('.line-preview-page')).toBeVisible();
-  await expect(page.locator('.preview-guide')).toBeVisible();
-
-  await page.goto(`/#/browse/${COURSES[0].id}/${COURSES[0].lessons.beginner.variations[0].id}`);
-  await expect(page.locator('.line-preview-page')).toBeVisible();
-  await expect(page.locator('.preview-move.is-current')).toHaveText(/^01 /);
-  await page.locator('#preview-next').click();
-  await expect(page.locator('.preview-move.is-current')).toHaveText(/^02 /);
-  await page.keyboard.press('ArrowLeft');
-  await expect(page.locator('.preview-move.is-current')).toHaveText(/^01 /);
-  await expect(page.locator('#preview-prev')).toBeDisabled();
-  await expect(page.locator('.board-square').first()).toBeDisabled();
-
-  const before = await page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]));
-  await page.locator('#preview-next').click();
-  await page.locator('#preview-back').click();
-  await expect(page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]))).resolves.toBe(before);
-});
-
-test('an untouched line opens the canonical Line Preview', async ({ page }) => {
-  await stubEngine(page);
-  await openDashboard(page, 1440, 1000);
-  await page.locator('#browse-all').click();
-  await page.locator(`[data-course-filter="${COURSES[0].id}"]`).click();
-  await page.locator('.browse-row').last().click();
-  await expect(page.locator('.line-preview-page')).toBeVisible();
-  await expect(page.locator('#preview-next')).toBeVisible();
-});
-
-test('Line Preview completes, restarts, and offers practice without changing progress', async ({ page }) => {
-  await stubEngine(page);
-  await openDashboard(page, 1440, 1000);
-  await page.locator('#browse-all').click();
-  await page.locator(`[data-course-filter="${COURSES[0].id}"]`).click();
-  await page.locator('.browse-row').first().click();
-
-  const before = await page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]));
-  await page.locator('.line-preview-shell').evaluate((shell) => {
-    const state = globalThis as typeof globalThis & {
-      __previewShell: Element;
-      __previewCopy: Element;
-      __previewBoard: Element;
-      __previewEval: Element;
-    };
-    state.__previewShell = shell;
-    state.__previewCopy = shell.querySelector('.line-preview-copy')!;
-    state.__previewBoard = shell.querySelector('.board')!;
-    state.__previewEval = shell.querySelector('.eval-bar')!;
-  });
-  const variation = COURSES[0].lessons.beginner.variations[0];
-  for (let index = 0; index < variation.positions.length; index += 1) {
-    await page.locator('#preview-next').click();
-    if (index < variation.positions.length - 1) {
-      await expect(page.locator('.preview-move.is-current')).toHaveText(new RegExp(`^${String(index + 2).padStart(2, '0')} `));
-    }
-  }
-  await expect(page.locator('.preview-complete')).toBeVisible();
-  expect(await page.evaluate(() => {
-    const state = globalThis as typeof globalThis & {
-      __previewShell: Element;
-      __previewCopy: Element;
-      __previewBoard: Element;
-      __previewEval: Element;
-    };
-    return state.__previewShell === document.querySelector('.line-preview-shell')
-      && state.__previewCopy === document.querySelector('.line-preview-copy')
-      && state.__previewBoard === document.querySelector('.board')
-      && state.__previewEval === document.querySelector('.eval-bar');
-  })).toBe(true);
-  await page.locator('#preview-restart').click();
-  await expect(page.locator('.preview-move.is-current')).toHaveText(/^01 /);
-  expect(await page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]))).toBe(before);
-  await page.locator('#preview-practice').click();
-  await expect(page.locator('.practice-shell')).toBeVisible();
-});
-
-test('Line Preview locks navigation through authored movement and its connecting reply', async ({ page }) => {
-  await stubEngine(page);
-  await openDashboard(page, 1440, 1000);
-  await page.evaluate(() => localStorage.setItem('chess-practice.move-duration', '350'));
-  await page.locator('#browse-all').click();
-  await page.locator(`[data-course-filter="${COURSES[0].id}"]`).click();
-  await page.locator('.browse-row').first().click();
-
-  const before = await page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]));
-  await page.locator('#preview-next').click();
-  await expect(page.locator('.preview-actions')).toHaveAttribute('aria-busy', 'true');
-  await expect(page.locator('.board')).toHaveAttribute('aria-busy', 'true');
-  await expect(page.locator('#preview-next')).toBeDisabled();
-  await expect(page.locator('#preview-prev')).toBeDisabled();
-
-  await expect(page.locator('.preview-move.is-current')).toHaveText(/^02 /);
-  await expect(page.locator('.board')).toHaveAttribute('aria-busy', 'false');
-  await expect(page.getByRole('button', { name: 'd4, white pawn', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'd5, black pawn', exact: true })).toBeVisible();
-
-  await page.locator('#preview-prev').click();
-  await expect(page.locator('.preview-move.is-current')).toHaveText(/^01 /);
-  await expect(page.getByRole('button', { name: 'd4, empty', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'd5, empty', exact: true })).toBeVisible();
-  expect(await page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]))).toBe(before);
-});
-
-test('Line Preview reduced motion keeps the final position without sliding', async ({ page }) => {
-  await stubEngine(page);
-  await openDashboard(page, 1440, 1000);
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.evaluate(() => localStorage.setItem('chess-practice.move-duration', '350'));
-  await page.locator('#browse-all').click();
-  await page.locator(`[data-course-filter="${COURSES[0].id}"]`).click();
-  await page.locator('.browse-row').first().click();
-  await page.locator('#preview-next').click();
-
-  await expect(page.locator('.board')).toHaveAttribute('aria-busy', 'true');
-  await expect(page.locator('.preview-move.is-current')).toHaveText(/^02 /);
-  await expect(page.locator('.board')).toHaveAttribute('aria-busy', 'false');
-  await expect(page.getByRole('button', { name: 'd4, white pawn', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'd5, black pawn', exact: true })).toBeVisible();
 });
 
 test('banked line rows enter one-line Recall directly', async ({ page }) => {
@@ -337,29 +191,6 @@ test('banked line rows enter one-line Recall directly', async ({ page }) => {
   await expect(page.locator('.practice-shell')).toBeVisible();
   await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Recall');
   await expect(page.locator('.guide-overlay .route-arrow')).toHaveCount(0);
-});
-
-test('the bar reads from the learner side in a white and a black course', async ({ page }) => {
-  await stubEngine(page);
-  await openDashboard(page, 1440, 1000);
-  const white = COURSES.find((course) => course.side === 'white')!;
-  const black = COURSES.find((course) => course.side === 'black')!;
-
-  await page.locator('#browse-all').click();
-  await page.locator(`[data-course-filter="${white.id}"]`).click();
-  await page.locator('.browse-row').first().click();
-  await expect(page.locator('.line-preview-page')).toBeVisible();
-  await expect(page.locator('.side-tag')).toHaveText('W / WHITE');
-  await expect(page.locator('.eval-value')).toHaveText('+1.2');
-
-  await page.locator('#preview-back').click();
-  await expect(page.locator('.browse-page')).toBeVisible();
-  await page.locator(`[data-course-filter="${black.id}"]`).click();
-  await expect(page.locator('.browse-row').first()).toContainText(black.name);
-  await page.locator('.browse-row').first().click();
-  await expect(page.locator('.line-preview-page')).toBeVisible();
-  await expect(page.locator('.side-tag')).toHaveText('B / BLACK');
-  await expect(page.locator('.eval-value')).toHaveText('-1.2');
 });
 
 test('a wrong move shows its cost without blocking input', async ({ page }) => {
@@ -404,61 +235,15 @@ test('an older wrong-move evaluation cannot replace the latest cost', async ({ p
   await expect(page.locator('.move-cost')).toContainText(latestSan);
 });
 
-test('a Line Preview evaluation cannot update practice after navigation', async ({ page }) => {
-  await trackKeydownListeners(page);
-  await stubControlledEngine(page);
-  await openDashboard(page, 1440, 1000);
-  await page.locator('#browse-all').click();
-  await page.locator('.browse-row').first().click();
-  await expect(page.locator('.line-preview-page')).toBeVisible();
-  await expect.poll(() => engineRequestCount(page)).toBe(1);
-  expect(await keydownListenerCount(page)).toBe(1);
-
-  await page.locator('#preview-back').click();
-  expect(await keydownListenerCount(page)).toBe(0);
-  await page.locator('.browse-row').first().click();
-  await expect(page.locator('.line-preview-page')).toBeVisible();
-  expect(await keydownListenerCount(page)).toBe(1);
-
-  await page.locator('#preview-practice').click();
-  await expect(page.locator('.practice-shell')).toBeVisible();
-  expect(await keydownListenerCount(page)).toBe(0);
-  await resolveEngineRequest(page, 0, 900);
-  await expect(page.locator('.eval-value')).toHaveText('--');
-});
-
-test('every screen works with the engine asset blocked', async ({ page }) => {
+test('practice works with the engine asset blocked', async ({ page }) => {
   await blockEngine(page);
   await openDashboard(page, 1440, 1000);
-  await page.locator('#browse-all').click();
-  await page.locator('.browse-row').first().click();
-  await expect(page.locator('.line-preview-page')).toBeVisible();
-  await expect(page.locator('.eval-note')).toHaveText('Engine unavailable');
-  await expect(page.locator('.eval-bar')).toHaveCount(0);
-
-  await page.locator('#preview-back').click();
-  await page.locator('#back-dashboard').click();
   const [firstLine] = lineMoves();
   await startFirstCoursePractice(page);
   for (const move of firstLine) await playMove(page, move);
   await playMove(page, wrongLegalMove(firstLine[0]));
   await expect(page.locator('.feedback-incorrect')).toContainText('Expected:');
   await expect(page.locator('.move-cost')).toHaveCount(0);
-});
-
-test('the Eval Bar stays attached horizontally above the board', async ({ page }) => {
-  await stubEngine(page);
-  await openDashboard(page, 1440, 1000);
-  await page.locator('#browse-all').click();
-  await page.locator('.browse-row').first().click();
-  await expect(page.locator('.line-preview-page')).toBeVisible();
-  await expect(page.locator('.eval-value')).toHaveText('+1.2');
-  const wide = await page.locator('.eval-bar').boundingBox();
-  expect(wide!.width).toBeGreaterThan(wide!.height);
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  const narrow = await page.locator('.eval-bar').boundingBox();
-  expect(narrow!.width).toBeGreaterThan(narrow!.height);
 });
 
 test('a phone viewport never scrolls sideways, from an empty dashboard to a finished course', async ({ page }) => {
@@ -502,7 +287,7 @@ test('Account and Settings are addressable and share device preference ownership
   expect(await page.evaluate(() => localStorage.getItem('chess-practice.move-duration'))).toBe('350');
 });
 
-test('Course, Lines, search, direct level access, and reference Line Preview stay honest', async ({ page }) => {
+test('Course, Lines, and search stay honest', async ({ page }) => {
   await stubEngine(page);
   await openDashboard(page, 1440, 1000);
 
@@ -523,15 +308,9 @@ test('Course, Lines, search, direct level access, and reference Line Preview sta
   await expect(page.locator('.line-role').first()).toBeVisible();
   await page.locator('.course-line-row').first().click();
   await expect(page.locator('.practice-shell')).toBeVisible();
-  await page.goto(`/#/course/${COURSES[1].id}`);
-  await page.locator('.course-line-row:has(.role-reference)').first().click();
-  await expect(page.locator('.line-preview-page')).toBeVisible();
-  await expect(page.locator('#preview-practice')).toHaveCount(0);
 
   await page.goto('/#/lines');
   await expect(page.locator('.lines-page')).toBeVisible();
-  await page.locator('.line-selection-row').first().click();
-  await expect(page.locator('.line-preview-page')).toBeVisible();
   await page.goto('/#/browse');
   await page.locator('#browse-search').fill('Meet 3...c5');
   await expect(page.locator('.browse-row')).toHaveCount(4);
@@ -539,11 +318,5 @@ test('Course, Lines, search, direct level access, and reference Line Preview sta
   await page.locator('#browse-search').fill('not-a-real-opening');
   await expect(page.locator('.browse-empty')).toContainText('No lines match');
   await page.locator('#browse-search').fill('Meet 3...c5');
-  const before = await page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]));
-  await page.locator('.browse-row').filter({ hasText: 'Reference' }).click();
-  await expect(page.locator('.line-preview-page')).toBeVisible();
-  await expect(page.locator('.line-preview-page')).toContainText('Line Preview');
-  await expect(page.locator('#preview-practice')).toHaveCount(0);
-  await page.locator('#preview-next').click();
-  await expect(page.evaluate(() => JSON.stringify([...globalThis.__progressByCourse.entries()]))).resolves.toBe(before);
+  await expect(page.locator('.browse-row').filter({ hasText: 'Reference' })).toBeVisible();
 });

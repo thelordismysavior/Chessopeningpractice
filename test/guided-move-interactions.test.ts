@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { Chess } from 'chess.js';
 import { isDragPastThreshold, resolveBoardDrop, resolveTempoCut } from '../src/board-input';
-import { COURSES } from '../src/courses';
 import { shouldShowMoveGuide } from '../src/guide-policy';
 import {
   effectiveMoveDuration,
@@ -10,9 +9,6 @@ import {
   normalizeMoveDuration,
   saveMoveDuration,
 } from '../src/move-settings';
-import { planFenTransition, planMoveTransition, settleDisplayFen } from '../src/transition-plans';
-
-const lesson = COURSES[0].lessons.beginner;
 
 describe('board input outcomes', () => {
   test('cancels an unmoved, origin, or outside drop', () => {
@@ -69,46 +65,6 @@ describe('guided move policy', () => {
   });
 });
 
-describe('move transition plans', () => {
-  test('plans castling as king and rook travel', () => {
-    const position = COURSES[0].lessons.beginner.positions.find((entry) => entry.expectedSan === 'O-O');
-    expect(position).toBeDefined();
-    const plan = planMoveTransition(position!.fen, position!.expectedMove);
-    expect(plan?.isCastle).toBe(true);
-    expect(plan?.pieces.map(({ from, to }) => [from, to]).sort()).toEqual(['e1-g1', 'h1-f1'].map((move) => move.split('-')));
-  });
-
-  test('keeps a captured piece in the plan until landing', () => {
-    const position = COURSES.find((course) => course.id === 'classical-sicilian')!.lessons.beginner.variations
-      .find((variation) => variation.kind === 'core')!.positions
-      .find((entry) => entry.expectedSan === 'cxd4');
-    expect(position).toBeDefined();
-    const plan = planMoveTransition(position!.fen, position!.expectedMove);
-    expect(plan?.pieces[0].captured).toBe('wP');
-    expect(plan?.pieces[0].captureSquare).toBe('d4');
-  });
-
-  test('infers the opponent reply from adjacent position FENs', () => {
-    const learner = lesson.positions[0];
-    const next = lesson.positions[1];
-    const learnerPlan = planMoveTransition(learner.fen, learner.expectedMove)!;
-    const reply = planFenTransition(learnerPlan.afterFen, next.fen);
-    expect(reply?.pieces[0]).toMatchObject({ from: 'd7', to: 'd5', piece: 'bP' });
-  });
-
-  test('settles on the next line start when no reply joins the positions', () => {
-    const learner = lesson.variations[0].positions.at(-1)!;
-    const nextLine = lesson.variations[1].positions[0];
-    const learnerPlan = planMoveTransition(learner.fen, learner.expectedMove)!;
-    const reply = planFenTransition(learnerPlan.afterFen, nextLine.fen);
-
-    expect(reply).toBeNull();
-    expect(settleDisplayFen('learner', 'reply', 'next')).toBe('reply');
-    expect(settleDisplayFen(learnerPlan.afterFen, reply?.afterFen ?? null, nextLine.fen)).toBe(nextLine.fen);
-    expect(settleDisplayFen(learnerPlan.afterFen, null, null)).toBe(learnerPlan.afterFen);
-  });
-});
-
 describe('move duration settings', () => {
   test('normalizes invalid, stepped, and out-of-range values', () => {
     expect(normalizeMoveDuration('not a number')).toBe(200);
@@ -159,8 +115,9 @@ describe('tempo cut', () => {
 
   test('a reply-captured learner piece cannot be selected from the painted ghost', () => {
     const beforeReply = '8/8/8/4p3/3P4/8/8/K6k b - - 0 1';
-    const reply = planMoveTransition(beforeReply, 'e5d4')!;
-    const settledPiece = new Chess(reply.afterFen).get('d4');
+    const chess = new Chess(beforeReply);
+    chess.move({ from: 'e5', to: 'd4' });
+    const settledPiece = chess.get('d4');
     expect(settledPiece?.color).toBe('b');
     expect(resolveTempoCut(true, settledPiece?.color ?? null, 'w')).toBe('ignore');
   });

@@ -4,11 +4,11 @@ import type { BoardAnimation, BoardState } from './board-view';
 import type { EngineClient, EngineStatus } from './engine/engine-client';
 import type { EvalScore } from './engine/eval-scale';
 import { isTrainableVariation } from './repertoire';
-import { planFenTransition, planMoveTransition, settleDisplayFen, type MoveTransition } from './transition-plans';
+import { planFenAnimation, planMoveAnimation, settleDisplayFen, type MoveAnimation } from './move-animation';
 
 type LinePreviewAdvance = {
-  authored: MoveTransition;
-  reply: MoveTransition | null;
+  authored: MoveAnimation;
+  reply: MoveAnimation | null;
   nextIndex: number | null;
   settledFen: string;
   completed: boolean;
@@ -23,11 +23,11 @@ function planLinePreviewAdvance(positions: PracticePosition[], index: number): L
   const position = positions[index];
   if (!position) return null;
 
-  const authored = planMoveTransition(position.fen, position.expectedMove);
+  const authored = planMoveAnimation(position.fen, position.expectedMove);
   if (!authored) return null;
 
   const next = positions[index + 1];
-  const reply = next ? planFenTransition(authored.afterFen, next.fen) : null;
+  const reply = next ? planFenAnimation(authored.afterFen, next.fen) : null;
   const settledFen = settleDisplayFen(authored.afterFen, reply?.afterFen ?? null, next?.fen ?? null);
   return {
     authored,
@@ -131,12 +131,12 @@ function validateEntry(entry: LinePreviewEntry): PracticePosition[] {
   }
 
   for (const [index, position] of entry.line.positions.entries()) {
-    const authored = planMoveTransition(position.fen, position.expectedMove);
+    const authored = planMoveAnimation(position.fen, position.expectedMove);
     if (!authored) {
       throw new Error(`Line Preview authored move ${index + 1} is not legal from its position.`);
     }
     const next = entry.line.positions[index + 1];
-    if (next && !planFenTransition(authored.afterFen, next.fen)) {
+    if (next && !planFenAnimation(authored.afterFen, next.fen)) {
       throw new Error(`Line Preview positions ${index + 1} and ${index + 2} do not have one connecting reply.`);
     }
   }
@@ -322,7 +322,7 @@ export function createLinePreview(host: HTMLElement, dependencies: LinePreviewDe
       });
     };
 
-    const playPhase = async (plan: MoveTransition, duration: number) => {
+    const playPhase = async (plan: MoveAnimation, duration: number) => {
       animation = { plan, arrived: false, duration };
       drawPreview();
       if (duration === 0) {
