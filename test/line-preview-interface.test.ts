@@ -142,6 +142,8 @@ describe('Line Preview interface', () => {
     expect(host.querySelector('#preview-prev')?.hasAttribute('disabled')).toBe(true);
     expect(host.querySelector('#preview-next')?.hasAttribute('disabled')).toBe(false);
     expect(topbarCalls).toEqual([{ back: { id: 'preview-back', label: 'Browse' } }]);
+    expect(engine.reset).toHaveBeenCalledTimes(1);
+    expect(engine.warm).toHaveBeenCalledTimes(1);
     expect(engine.clearMemo).toHaveBeenCalledTimes(1);
   });
 
@@ -257,6 +259,38 @@ describe('Line Preview interface', () => {
     expect(intents).toEqual([]);
   });
 
+  test('disposes before emitting one semantic intent', () => {
+    const { window, host, controller } = enterPreview();
+    const intents: LinePreviewIntent[] = [];
+    controller.enter({ course, level, line: trainableLine, practiceAvailable: true, onIntent: (intent) => intents.push(intent) });
+
+    const back = host.querySelector<HTMLButtonElement>('#preview-back')!;
+    back.click();
+    back.click();
+    window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight' }));
+
+    expect(intents).toEqual([{ type: 'back' }]);
+    expect(host.querySelector('.preview-move.is-current')?.textContent).toMatch(/^01 /);
+  });
+
+  test('disposes before emitting Practice and ignores a second click', () => {
+    const { window, host } = installDom();
+    const engine = createTestEngine();
+    const intents: LinePreviewIntent[] = [];
+    const controller = createLinePreview(host, dependencies(window, engine, []));
+    controller.enter({ course, level, line: trainableLine, practiceAvailable: true, onIntent: (intent) => {
+      intents.push(intent);
+      window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    } });
+
+    const practice = host.querySelector<HTMLButtonElement>('#preview-practice')!;
+    practice.click();
+    practice.click();
+
+    expect(intents).toEqual([{ type: 'practice' }]);
+    expect(host.querySelector('.preview-move.is-current')?.textContent).toMatch(/^01 /);
+  });
+
   test('validates before replacing a valid active session', () => {
     const { host, controller } = enterPreview();
     const invalidLine = { ...trainableLine, positions: [] };
@@ -295,7 +329,35 @@ describe('Line Preview interface', () => {
     expect(host.querySelector('.preview-move.is-current')?.textContent).toMatch(/^02 /);
   });
 
-  test('plays the last authored move before showing completion, then restores Previous and Restart', async () => {
+  test('keeps a newer entry alive when an older controller is disposed', async () => {
+    const first = enterPreview();
+    const secondHost = first.window.document.createElement('div') as unknown as HTMLDivElement;
+    first.window.document.body.append(secondHost as never);
+    const secondController = createLinePreview(secondHost, dependencies(first.window, createTestEngine(), []));
+    secondController.enter({ course: COURSES[1], level, line: referenceLine, practiceAvailable: false, onIntent: () => undefined });
+
+    first.controller.dispose();
+    first.window.dispatchEvent(new first.window.KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    await flushMicrotasks(4);
+
+    expect(secondHost.querySelector('h1')?.textContent).toContain(referenceLine.title);
+    expect(secondHost.querySelector('.preview-move.is-current')?.textContent).toMatch(/^02 /);
+  });
+
+  test('does not restore focus from a superseded host into the active entry', () => {
+    const first = enterPreview();
+    const firstNext = first.host.querySelector<HTMLButtonElement>('#preview-next')!;
+    firstNext.focus();
+
+    const secondHost = first.window.document.createElement('div') as unknown as HTMLDivElement;
+    first.window.document.body.append(secondHost as never);
+    const secondController = createLinePreview(secondHost, dependencies(first.window, createTestEngine(), []));
+    secondController.enter({ course: COURSES[1], level, line: referenceLine, practiceAvailable: false, onIntent: () => undefined });
+
+    expect(secondHost.querySelector<HTMLButtonElement>('#preview-next')).not.toBe(first.window.document.activeElement);
+  });
+
+  test('plays the last authored move before showing completion, then moves focus from Next to Restart', async () => {
     const { window, host } = installDom();
     const clock = controlledWindow(window);
     const engine = createTestEngine();
@@ -303,16 +365,19 @@ describe('Line Preview interface', () => {
     controller.enter({ course, level, line: trainableLine, practiceAvailable: true, onIntent: () => undefined });
 
     for (let index = 0; index < trainableLine.positions.length - 1; index += 1) {
+      host.querySelector<HTMLButtonElement>('#preview-next')!.focus();
       host.querySelector<HTMLButtonElement>('#preview-next')!.click();
       await flushMicrotasks(4);
     }
     expect(host.querySelector('.preview-move.is-current')?.textContent).toMatch(/^09 /);
 
+    host.querySelector<HTMLButtonElement>('#preview-next')!.focus();
     host.querySelector<HTMLButtonElement>('#preview-next')!.click();
     expect(host.querySelector('.preview-complete')).toBeNull();
     expect(host.querySelector('.preview-move.is-current')?.textContent).toMatch(/^09 /);
     await flushMicrotasks(4);
     expect(host.querySelector('.preview-complete')).not.toBeNull();
+    expect(host.querySelector<HTMLButtonElement>('#preview-restart')).toBe(window.document.activeElement);
 
     host.querySelector<HTMLButtonElement>('#preview-prev')!.click();
     expect(host.querySelector('.preview-complete')).toBeNull();
@@ -371,5 +436,53 @@ describe('Line Preview interface', () => {
     controller.dispose();
     expect(previewWindow.flushTimer()).toBe(false);
     expect(host.querySelector('.preview-move.is-current')?.textContent).toMatch(/^01 /);
+  });
+
+  test('rejects a stale score from a previous position after replacement', async () => {
+    const { window, host } = installDom();
+    const requests: { progress?: (score: { kind: 'cp'; cp: number }) => void; resolve: (score: { kind: 'cp'; cp: number }) => void }[] = [];
+    const engine = {
+      status: 'ready' as const,
+      reset: vi.fn(),
+      warm: vi.fn(),
+      clearMemo: vi.fn(),
+      evaluate: vi.fn((_fen: string, _color: 'w' | 'b', progress?: (score: { kind: 'cp'; cp: number }) => void) => new Promise<{ kind: 'cp'; cp: number }>((resolve) => {
+        requests.push({ progress, resolve });
+      })),
+    };
+    const controller = createLinePreview(host, dependencies(window, engine, []));
+    controller.enter({ course, level, line: trainableLine, practiceAvailable: true, onIntent: () => undefined });
+    controller.enter({ course: COURSES[1], level, line: referenceLine, practiceAvailable: false, onIntent: () => undefined });
+
+    requests[0].progress?.({ kind: 'cp', cp: 900 });
+    requests[0].resolve({ kind: 'cp', cp: 900 });
+    await flushMicrotasks(3);
+    expect(host.querySelector('.eval-value')?.textContent).toBe('--');
+
+    requests[1].progress?.({ kind: 'cp', cp: 100 });
+    requests[1].resolve({ kind: 'cp', cp: 100 });
+    await flushMicrotasks(3);
+    expect(host.querySelector('.eval-value')?.textContent).toBe('+1.0');
+  });
+
+  test('renders the existing unavailable Eval Bar state when evaluation fails', async () => {
+    const { window, host } = installDom();
+    let unavailable = false;
+    const engine = {
+      get status() { return unavailable ? 'unavailable' as const : 'ready' as const; },
+      reset: vi.fn(),
+      warm: vi.fn(),
+      clearMemo: vi.fn(),
+      evaluate: vi.fn(async () => {
+        unavailable = true;
+        return null;
+      }),
+    };
+    const controller = createLinePreview(host, dependencies(window, engine, []));
+    controller.enter({ course, level, line: trainableLine, practiceAvailable: true, onIntent: () => undefined });
+    await flushMicrotasks(3);
+
+    expect(host.querySelector('.eval-note')?.textContent).toBe('Engine unavailable');
+    expect(host.querySelector('.eval-bar')).toBeNull();
   });
 });

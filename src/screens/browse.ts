@@ -111,8 +111,6 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
     app.querySelectorAll<HTMLButtonElement>('[data-line]').forEach((button, index) => button.addEventListener('click', () => {
       const row = visible[index];
       if (!row) return;
-      const returnCourseId = filters.course === 'all' ? undefined : filters.course;
-      openPreview(row, returnCourseId ?? null);
       void navigate({ name: 'browse', courseId: row.course.id, lineId: row.variation.id });
     }));
   };

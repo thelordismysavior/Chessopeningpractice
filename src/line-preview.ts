@@ -92,6 +92,25 @@ type PreviewSession = {
   disposed: boolean;
 };
 
+type PreviewEvaluation = {
+  active: boolean;
+  publish: ((score: EvalScore | null) => void) | null;
+  settle: ((score: EvalScore | null) => void) | null;
+};
+
+function publishPreviewScore(evaluation: PreviewEvaluation, score: EvalScore): void {
+  if (!evaluation.active) return;
+  evaluation.publish?.(score);
+}
+
+function settlePreviewScore(evaluation: PreviewEvaluation, score: EvalScore | null): void {
+  if (!evaluation.active) return;
+  evaluation.settle?.(score);
+  evaluation.active = false;
+  evaluation.publish = null;
+  evaluation.settle = null;
+}
+
 let activeLinePreviewDisposer: LinePreviewDisposer | null = null;
 
 export function disposeActiveLinePreview(): void {
@@ -151,6 +170,7 @@ export function createLinePreview(host: HTMLElement, dependencies: LinePreviewDe
     let evalFen: string | null = null;
     let evaluationToken = 0;
     let previewFocusId: string | null = null;
+    const evaluations = new Set<PreviewEvaluation>();
     const pendingTimers = new Map<number, () => void>();
     const pendingFrames = new Map<number, () => void>();
     const moveDuration = dependencies.timing.loadMoveDuration();
@@ -160,6 +180,9 @@ export function createLinePreview(host: HTMLElement, dependencies: LinePreviewDe
     const dispose = () => {
       if (session.disposed) return;
       session.disposed = true;
+      const ownsActiveSession = activeSession?.id === session.id;
+      if (ownsActiveSession) activeSession = null;
+      if (activeLinePreviewDisposer === dispose) activeLinePreviewDisposer = null;
       dependencies.timing.window.removeEventListener('keydown', onKey);
       previewMain.querySelector<HTMLButtonElement>('#preview-back')?.removeEventListener('click', onBack);
       previewCopy.removeEventListener('click', onPreviewClick);
@@ -173,12 +196,20 @@ export function createLinePreview(host: HTMLElement, dependencies: LinePreviewDe
         pendingFrames.delete(frame);
         resolve();
       }
+      pendingTimers.clear();
+      pendingFrames.clear();
+      for (const evaluation of evaluations) {
+        evaluation.active = false;
+        evaluation.publish = null;
+        evaluation.settle = null;
+      }
+      evaluations.clear();
       animation = null;
       busy = false;
       evaluationToken += 1;
       previewFocusId = null;
-      if (activeSession?.id === session.id) activeSession = null;
-      if (activeLinePreviewDisposer === dispose) activeLinePreviewDisposer = null;
+      boardEl = null;
+      evalEl = null;
     };
     session.dispose = dispose;
     activeLinePreviewDisposer = dispose;
@@ -201,7 +232,7 @@ export function createLinePreview(host: HTMLElement, dependencies: LinePreviewDe
     const drawPreview = () => {
       if (!isCurrent()) return;
       const activeElement = document.activeElement;
-      if (activeElement instanceof HTMLElement && activeElement.closest('.line-preview-page') && activeElement.id) {
+      if (activeElement instanceof HTMLElement && previewMain.contains(activeElement) && activeElement.id) {
         previewFocusId = activeElement.id;
       }
       const completed = isCompleted();
@@ -252,17 +283,24 @@ export function createLinePreview(host: HTMLElement, dependencies: LinePreviewDe
         evalFen = fen;
         evalScore = null;
         const token = ++evaluationToken;
-        const paint = (score: EvalScore | null) => {
+        const evaluation: PreviewEvaluation = { active: true, publish: null, settle: null };
+        evaluations.add(evaluation);
+        evaluation.publish = (score) => {
           if (!stillCurrent(token, fen)) return;
           dependencies.updateEvalBar(panel, score, dependencies.engine.status);
           evalEl = panel.querySelector<HTMLElement>('.eval-bar, .eval-note');
         };
-        void dependencies.engine.evaluate(fen, selectableColor, dependencies.timing.reducedMotion() ? undefined : paint).then((score) => {
+        evaluation.settle = (score) => {
           if (!stillCurrent(token, fen)) return;
           if (score === null && dependencies.engine.status !== 'unavailable') return;
           evalScore = score;
-          paint(score);
-        });
+          evaluation.publish?.(score);
+        };
+        void dependencies.engine.evaluate(
+          fen,
+          selectableColor,
+          dependencies.timing.reducedMotion() ? undefined : (score) => publishPreviewScore(evaluation, score),
+        ).then((score) => settlePreviewScore(evaluation, score));
       }
     };
 
@@ -389,5 +427,8 @@ export function createLinePreview(host: HTMLElement, dependencies: LinePreviewDe
     return dispose;
   };
 
-  return { enter, dispose: disposeActiveLinePreview };
+  return {
+    enter,
+    dispose: () => activeSession?.dispose(),
+  };
 }

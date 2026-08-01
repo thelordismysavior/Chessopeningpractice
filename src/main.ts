@@ -24,7 +24,6 @@ let signedInEmail: string | null = null;
 let pendingApprovalUid: string | null = null;
 let signUpInProgress = false;
 let routeGeneration = 0;
-let skipNextHashRender = false;
 
 async function renderScreen(screen: Screen): Promise<void> {
   switch (screen.name) {
@@ -126,7 +125,6 @@ async function renderCurrentRoute(): Promise<void> {
 const navigate: Navigate = async (screen: Screen) => {
   const nextHash = hashForScreen(screen);
   if (window.location.hash !== nextHash) {
-    if (screen.name === 'browse' && screen.lineId && parseHash(window.location.hash).name === 'browse') skipNextHashRender = true;
     window.location.hash = nextHash;
     return;
   }
@@ -206,10 +204,6 @@ function watchAuthentication() {
 }
 
 window.addEventListener('hashchange', () => {
-  if (skipNextHashRender) {
-    skipNextHashRender = false;
-    return;
-  }
   if (signedInEmail) void renderCurrentRoute();
 });
 
