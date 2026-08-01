@@ -14,9 +14,11 @@ export const productionLinePreview: LinePreviewController = createLinePreview(ap
   escapeHtml,
   levelNames,
   sideNames,
-  loadMoveDuration,
-  effectiveMoveDuration,
-  moveBeats,
-  reducedMotion: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-  window,
+  timing: {
+    loadMoveDuration,
+    effectiveMoveDuration,
+    moveBeats,
+    reducedMotion: () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    window,
+  },
 });

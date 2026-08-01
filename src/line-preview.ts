@@ -53,6 +53,19 @@ export type LinePreviewEntry = {
 type PreviewWindow = Pick<Window, 'addEventListener' | 'removeEventListener' | 'requestAnimationFrame' | 'cancelAnimationFrame' | 'setTimeout' | 'clearTimeout'>;
 type PreviewEngine = Pick<EngineClient, 'status' | 'clearMemo' | 'evaluate' | 'reset' | 'warm'>;
 
+/**
+ * The Line Preview timing adapter keeps tempo policy and clock scheduling
+ * behind one seam. Production supplies device preferences and browser clocks;
+ * interface tests supply the same shape with controlled clocks.
+ */
+export type LinePreviewTiming = {
+  loadMoveDuration: () => number;
+  effectiveMoveDuration: (storedDuration: number, reducedMotion: boolean) => number;
+  moveBeats: (storedDuration: number, teaching: boolean) => { beforeReply: number; afterReply: number };
+  reducedMotion: () => boolean;
+  window: PreviewWindow;
+};
+
 export type LinePreviewDependencies = {
   engine: PreviewEngine;
   topbarMarkup: (options: { back: { id: string; label: string } }) => string;
@@ -63,11 +76,7 @@ export type LinePreviewDependencies = {
   escapeHtml: (value: string) => string;
   levelNames: Record<LevelKey, string>;
   sideNames: Record<Course['side'], string>;
-  loadMoveDuration: () => number;
-  effectiveMoveDuration: (storedDuration: number, reducedMotion: boolean) => number;
-  moveBeats: (storedDuration: number, teaching: boolean) => { beforeReply: number; afterReply: number };
-  reducedMotion: () => boolean;
-  window: PreviewWindow;
+  timing: LinePreviewTiming;
 };
 
 export type LinePreviewDisposer = () => void;
@@ -144,23 +153,23 @@ export function createLinePreview(host: HTMLElement, dependencies: LinePreviewDe
     let previewFocusId: string | null = null;
     const pendingTimers = new Map<number, () => void>();
     const pendingFrames = new Map<number, () => void>();
-    const moveDuration = dependencies.loadMoveDuration();
+    const moveDuration = dependencies.timing.loadMoveDuration();
     const document = host.ownerDocument;
 
     const isCurrent = () => !session.disposed && activeSession?.id === session.id;
     const dispose = () => {
       if (session.disposed) return;
       session.disposed = true;
-      dependencies.window.removeEventListener('keydown', onKey);
+      dependencies.timing.window.removeEventListener('keydown', onKey);
       previewMain.querySelector<HTMLButtonElement>('#preview-back')?.removeEventListener('click', onBack);
       previewCopy.removeEventListener('click', onPreviewClick);
       for (const [timer, resolve] of pendingTimers) {
-        dependencies.window.clearTimeout(timer);
+        dependencies.timing.window.clearTimeout(timer);
         pendingTimers.delete(timer);
         resolve();
       }
       for (const [frame, resolve] of pendingFrames) {
-        dependencies.window.cancelAnimationFrame(frame);
+        dependencies.timing.window.cancelAnimationFrame(frame);
         pendingFrames.delete(frame);
         resolve();
       }
@@ -248,7 +257,7 @@ export function createLinePreview(host: HTMLElement, dependencies: LinePreviewDe
           dependencies.updateEvalBar(panel, score, dependencies.engine.status);
           evalEl = panel.querySelector<HTMLElement>('.eval-bar, .eval-note');
         };
-        void dependencies.engine.evaluate(fen, selectableColor, dependencies.reducedMotion() ? undefined : paint).then((score) => {
+        void dependencies.engine.evaluate(fen, selectableColor, dependencies.timing.reducedMotion() ? undefined : paint).then((score) => {
           if (!stillCurrent(token, fen)) return;
           if (score === null && dependencies.engine.status !== 'unavailable') return;
           evalScore = score;
@@ -258,19 +267,22 @@ export function createLinePreview(host: HTMLElement, dependencies: LinePreviewDe
     };
 
     const nextFrame = () => new Promise<void>((resolve) => {
-      const frame = dependencies.window.requestAnimationFrame(() => {
+      const frame = dependencies.timing.window.requestAnimationFrame(() => {
         pendingFrames.delete(frame);
         resolve();
       });
       pendingFrames.set(frame, resolve);
     });
-    const wait = (milliseconds: number) => new Promise<void>((resolve) => {
-      const timer = dependencies.window.setTimeout(() => {
-        pendingTimers.delete(timer);
-        resolve();
-      }, milliseconds);
-      pendingTimers.set(timer, resolve);
-    });
+    const wait = (milliseconds: number) => {
+      if (milliseconds <= 0) return Promise.resolve();
+      return new Promise<void>((resolve) => {
+        const timer = dependencies.timing.window.setTimeout(() => {
+          pendingTimers.delete(timer);
+          resolve();
+        }, milliseconds);
+        pendingTimers.set(timer, resolve);
+      });
+    };
 
     const playPhase = async (plan: MoveTransition, duration: number) => {
       animation = { plan, arrived: false, duration };
@@ -302,8 +314,8 @@ export function createLinePreview(host: HTMLElement, dependencies: LinePreviewDe
       evalScore = null;
       evaluationToken += 1;
       drawPreview();
-      const duration = dependencies.effectiveMoveDuration(moveDuration, dependencies.reducedMotion());
-      const beats = dependencies.moveBeats(moveDuration, false);
+      const duration = dependencies.timing.effectiveMoveDuration(moveDuration, dependencies.timing.reducedMotion());
+      const beats = dependencies.timing.moveBeats(moveDuration, false);
       await playPhase(plan.authored, duration);
       if (!isCurrent()) return;
       if (plan.reply) {
@@ -369,7 +381,7 @@ export function createLinePreview(host: HTMLElement, dependencies: LinePreviewDe
     };
     previewCopy.addEventListener('click', onPreviewClick);
 
-    dependencies.window.addEventListener('keydown', onKey);
+    dependencies.timing.window.addEventListener('keydown', onKey);
     dependencies.engine.reset();
     dependencies.engine.warm();
     dependencies.engine.clearMemo();
