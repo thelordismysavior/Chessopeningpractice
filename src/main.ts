@@ -17,6 +17,7 @@ import { renderReviewQueue } from './screens/review-queue';
 import { renderBrowse } from './screens/browse';
 import { renderResult } from './screens/result';
 import { loadResultSummary } from './result';
+import { disposeActiveLinePreview } from './line-preview';
 import type { Navigate, Screen } from './screens/navigation';
 
 let signedInEmail: string | null = null;
@@ -106,6 +107,7 @@ async function screenForRoute(route: HashRoute): Promise<Screen> {
 
 async function renderCurrentRoute(): Promise<void> {
   const generation = ++routeGeneration;
+  disposeActiveLinePreview();
   const route = parseHash(window.location.hash);
   const canonicalHash = hashForRoute(route);
   document.title = `LINE/64 · ${route.name === 'dashboard' ? 'Home' : route.name === 'review-queue' ? 'Review queue' : route.name[0].toUpperCase() + route.name.slice(1)}`;
@@ -132,6 +134,7 @@ const navigate: Navigate = async (screen: Screen) => {
 };
 
 function renderAuthError(message: string, retry: () => void) {
+  disposeActiveLinePreview();
   resetPageScroll();
   document.title = 'LINE/64 · Error';
   app.innerHTML = `<main class="error-page" role="alert"><p class="eyebrow">Authentication unavailable</p><h1>We lost the signal.</h1><p class="lede">${escapeHtml(message)}</p><button id="retry-auth">Try again</button></main>`;
@@ -186,12 +189,14 @@ function watchAuthentication() {
   watchUser((user) => {
     if (signUpInProgress) return;
     if (!user) {
+      disposeActiveLinePreview();
       signedInEmail = null;
       if (window.location.hash !== HOME_HASH) window.history.replaceState(null, '', HOME_HASH);
       if (pendingApprovalUid) return renderPendingApproval(pendingApprovalUid, clearPending);
       return renderAuth('signin', authOptions);
     }
     if (user.email !== import.meta.env.VITE_APPROVED_EMAIL) {
+      disposeActiveLinePreview();
       void signOutUnapprovedUser();
       return;
     }

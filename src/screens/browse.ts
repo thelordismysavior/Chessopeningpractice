@@ -1,14 +1,9 @@
-import { Chess } from 'chess.js';
 import { COURSES, LEVELS, type Course, type LevelKey, type Variation } from '../courses';
-import { renderBoard, renderEvalBar, updateBoard, updateEvalBar, type BoardAnimation, type BoardState } from '../board-view';
-import { engine } from '../engine/engine-client';
-import type { EvalScore } from '../engine/eval-scale';
 import { lineState, type LineState } from '../mastery';
-import { effectiveMoveDuration, loadMoveDuration, moveBeats } from '../move-settings';
-import { planLinePreviewAdvance } from '../line-preview';
+import { productionLinePreview } from '../line-preview-production';
 import { loadProgress, type CourseProgress } from '../progress';
 import { isTrainableVariation, roleNames } from '../repertoire';
-import { app, escapeHtml, levelNames, resetPageScroll, sideNames, topbarMarkup } from './shell';
+import { app, escapeHtml, levelNames, resetPageScroll, topbarMarkup } from './shell';
 import type { BrowseScreen, Navigate } from './navigation';
 
 type Row = { course: Course; level: LevelKey; variation: Variation; state: LineState | null };
@@ -43,8 +38,6 @@ function rowMarkup(row: Row): string {
 
 export async function renderBrowse(navigate: Navigate, email: string | null, screen: BrowseScreen): Promise<void> {
   resetPageScroll();
-  engine.reset();
-  engine.warm();
   app.innerHTML = '<main class="loading-page" aria-busy="true" aria-live="polite"><p class="eyebrow">Reading your repertoire</p><div class="loading-line"></div></main>';
 
   let progressByCourse: Record<Course['id'], CourseProgress> | null = null;
@@ -57,13 +50,30 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
 
   const rows = buildRows(progressByCourse);
   const filters: Filters = { course: screen.courseId ?? 'all', state: 'all', query: '' };
-  let previewGeneration = 0;
-  let removePreviewKeyListener: (() => void) | null = null;
+  let disposeActivePreview: (() => void) | null = null;
 
   const disposePreview = () => {
-    previewGeneration += 1;
-    removePreviewKeyListener?.();
-    removePreviewKeyListener = null;
+    disposeActivePreview?.();
+    disposeActivePreview = null;
+  };
+
+  const openPreview = (row: Row, returnCourseId: Course['id'] | null = row.course.id) => {
+    disposeActivePreview = productionLinePreview.enter({
+      course: row.course,
+      level: row.level,
+      line: row.variation,
+      practiceAvailable: Boolean(progressByCourse) && isTrainableVariation(row.variation),
+      onIntent: (intent) => {
+        if (intent.type === 'back') {
+          disposePreview();
+          void navigate({ name: 'browse', ...(returnCourseId ? { courseId: returnCourseId } : {}) });
+          return;
+        }
+        if (!progressByCourse) return;
+        disposePreview();
+        void navigate({ name: 'practice', course: row.course, level: row.level, progress: progressByCourse[row.course.id], variationId: row.variation.id });
+      },
+    });
   };
 
   const drawIndex = () => {
@@ -105,210 +115,6 @@ export async function renderBrowse(navigate: Navigate, email: string | null, scr
       openPreview(row, returnCourseId ?? null);
       void navigate({ name: 'browse', courseId: row.course.id, lineId: row.variation.id });
     }));
-  };
-
-  const openPreview = (row: Row, returnCourseId: Course['id'] | null = row.course.id) => {
-    disposePreview();
-    const generation = previewGeneration;
-    engine.clearMemo();
-    const positions = row.variation.positions;
-    const idea = row.course.lessons[row.level].lessonIdea;
-    const selectableColor = row.course.side === 'white' ? 'w' : 'b';
-    let index = 0;
-    let busy = false;
-    let leaving = false;
-    let displayFen: string | null = null;
-    let animation: BoardAnimation | null = null;
-    let boardEl: HTMLDivElement | null = null;
-    let evalEl: HTMLElement | null = null;
-    let evalScore: EvalScore | null = null;
-    let evalFen: string | null = null;
-    let evaluationToken = 0;
-    const moveDuration = loadMoveDuration();
-    let previewFocusId: string | null = null;
-
-    app.innerHTML = `<main class="app-shell line-preview-page"><div class="line-preview-shell">${topbarMarkup({ email, back: { id: 'preview-back', label: 'Browse' } })}<section class="line-preview-layout"><div class="line-preview-copy"></div><div class="board-panel"><div class="eval-host"></div><div class="board-frame"></div><div class="board-caption" aria-live="polite"><span data-preview-status></span><span data-preview-progress></span></div></div></section></div></main>`;
-    const previewMain = app.querySelector<HTMLElement>('.line-preview-page')!;
-    const previewCopy = previewMain.querySelector<HTMLElement>('.line-preview-copy')!;
-    const panel = previewMain.querySelector<HTMLElement>('.board-panel')!;
-    const evalHost = panel.querySelector<HTMLElement>('.eval-host')!;
-    const frame = panel.querySelector<HTMLDivElement>('.board-frame')!;
-    const captionStatus = panel.querySelector<HTMLElement>('[data-preview-status]')!;
-    const captionProgress = panel.querySelector<HTMLElement>('[data-preview-progress]')!;
-
-    const currentFen = () => displayFen ?? positions[Math.min(index, positions.length - 1)].fen;
-    const isCompleted = () => index >= positions.length;
-    const stillCurrent = (token: number, fen: string) => !leaving && generation === previewGeneration && token === evaluationToken && currentFen() === fen;
-
-    const drawPreview = () => {
-      if (generation !== previewGeneration || leaving) return;
-      const activeElement = document.activeElement;
-      if (activeElement instanceof HTMLElement && activeElement.closest('.line-preview-page') && activeElement.id) {
-        previewFocusId = activeElement.id;
-      }
-      const completed = isCompleted();
-      const position = positions[Math.min(index, positions.length - 1)];
-      const fen = currentFen();
-      const chess = new Chess(animation?.plan.fromFen ?? fen);
-      const guide = !busy && !completed ? { from: position.expectedMove.slice(0, 2), to: position.expectedMove.slice(2, 4) } : null;
-      const moveList = positions.map((entry, entryIndex) => `<li class="preview-move ${entryIndex === index ? 'is-current' : ''}"${entryIndex === index ? ' aria-current="step"' : ''}>${String(entryIndex + 1).padStart(2, '0')} ${escapeHtml(entry.expectedSan)}</li>`).join('');
-      const boardState: BoardState = {
-        chess,
-        selected: null,
-        side: row.course.side,
-        guide,
-        route: null,
-        animation,
-        dragging: false,
-        settling: busy,
-        interactive: false,
-        selectableColor,
-      };
-      const status = busy ? 'Playing move' : completed ? 'Preview complete' : `${position.expectedSan} is the move`;
-      const controls = completed
-        ? `<button id="preview-prev" class="quiet-button"${index === 0 ? ' disabled' : ''}>Previous</button><button id="preview-restart">Restart Preview</button>`
-        : `<button id="preview-prev" class="quiet-button"${index === 0 || busy ? ' disabled' : ''}>Previous</button><button id="preview-next"${busy ? ' disabled' : ''}>Next</button>`;
-      const practice = isTrainableVariation(row.variation)
-        ? '<button id="preview-practice" class="quiet-button">Practice This Line</button>'
-        : '';
-      const completeCopy = completed
-        ? '<div class="preview-complete" role="status" aria-live="polite"><strong>Line Preview complete.</strong><span>You can restart the walkthrough or begin practice.</span></div>'
-        : `<div class="preview-guide"><span class="explanation-mark">Current authored move</span><strong>${escapeHtml(position.expectedSan)}</strong><p>${escapeHtml(position.explanation)}</p></div>`;
-      previewCopy.innerHTML = `<p class="eyebrow">Line Preview &middot; ${escapeHtml(row.course.name)} &middot; ${levelNames[row.level]}${completed ? '' : ` &middot; move ${index + 1} of ${positions.length}`}</p><span class="side-tag">${sideNames[row.course.side]}</span><h1>${escapeHtml(row.variation.title)}</h1><p class="lede">${escapeHtml(row.variation.summary)}</p><article class="lesson-idea"><div><p class="eyebrow">Lesson idea</p><h2>Anchor: ${escapeHtml(idea.anchorSan)}</h2><p>${escapeHtml(idea.plan)}</p></div><dl><div><dt>Opponent trigger</dt><dd>${escapeHtml(idea.opponentTrigger)}</dd></div><div><dt>Resulting plan</dt><dd>${escapeHtml(idea.resultingPlan)}</dd></div></dl></article>${completeCopy}<ol class="preview-moves" aria-label="Authored move guide">${moveList}</ol><div class="preview-actions" aria-busy="${busy}">${controls}${practice}</div><p class="preview-note">Preview only. Nothing here changes your progress.</p>`;
-      captionStatus.textContent = status;
-      captionProgress.textContent = completed ? 'Complete' : `Move ${index + 1} of ${positions.length}`;
-
-      if (!evalEl) evalEl = document.createRange().createContextualFragment(renderEvalBar(evalScore, engine.status)).firstElementChild as HTMLElement;
-      if (!evalEl.parentElement) evalHost.append(evalEl);
-      updateEvalBar(panel, evalScore, engine.status);
-      evalEl = panel.querySelector<HTMLElement>('.eval-bar, .eval-note');
-      if (!boardEl) boardEl = document.createRange().createContextualFragment(renderBoard(boardState)).firstElementChild as HTMLDivElement;
-      if (!boardEl.parentElement) frame.append(boardEl);
-      updateBoard(boardEl, boardState);
-
-      if (!busy && previewFocusId) {
-        const focusId = completed && previewFocusId === 'preview-next' ? 'preview-restart' : previewFocusId;
-        previewMain.querySelector<HTMLElement>(`#${focusId}`)?.focus({ preventScroll: true });
-        previewFocusId = null;
-      }
-
-      if (!busy && evalFen !== fen) {
-        evalFen = fen;
-        evalScore = null;
-        const token = ++evaluationToken;
-        const paint = (score: EvalScore | null) => {
-          if (!stillCurrent(token, fen)) return;
-          updateEvalBar(panel, score, engine.status);
-          evalEl = panel.querySelector<HTMLElement>('.eval-bar, .eval-note');
-        };
-        void engine.evaluate(fen, selectableColor, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? undefined : paint).then((score) => {
-          if (!stillCurrent(token, fen)) return;
-          if (score === null && engine.status !== 'unavailable') return;
-          evalScore = score;
-          paint(score);
-        });
-      }
-    };
-
-    const nextFrame = () => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-    const wait = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
-
-    const playPhase = async (plan: NonNullable<ReturnType<typeof planLinePreviewAdvance>>['authored'], duration: number) => {
-      animation = { plan, arrived: false, duration };
-      drawPreview();
-      if (duration === 0) {
-        animation = null;
-        displayFen = plan.afterFen;
-        drawPreview();
-        return;
-      }
-      await nextFrame();
-      if (leaving || generation !== previewGeneration) return;
-      animation.arrived = true;
-      boardEl?.querySelectorAll<HTMLElement>('.animated-piece').forEach((piece) => piece.classList.add('is-arrived'));
-      await wait(duration);
-      if (leaving || generation !== previewGeneration) return;
-      animation = null;
-      displayFen = plan.afterFen;
-      drawPreview();
-    };
-
-    const advance = async () => {
-      if (busy || isCompleted()) return;
-      const plan = planLinePreviewAdvance(positions, index);
-      if (!plan) return;
-      busy = true;
-      displayFen = null;
-      evalFen = null;
-      evalScore = null;
-      evaluationToken += 1;
-      drawPreview();
-      const duration = effectiveMoveDuration(moveDuration, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-      const beats = moveBeats(moveDuration, false);
-      await playPhase(plan.authored, duration);
-      if (leaving || generation !== previewGeneration) return;
-      if (plan.reply) {
-        await wait(beats.beforeReply);
-        if (leaving || generation !== previewGeneration) return;
-        await playPhase(plan.reply, duration);
-        if (leaving || generation !== previewGeneration) return;
-        await wait(beats.afterReply);
-      }
-      if (leaving || generation !== previewGeneration) return;
-      displayFen = plan.settledFen;
-      index = plan.nextIndex ?? positions.length;
-      animation = null;
-      busy = false;
-      drawPreview();
-    };
-
-    previewMain.querySelector<HTMLButtonElement>('#preview-back')?.addEventListener('click', () => {
-      leaving = true;
-      disposePreview();
-      void navigate({ name: 'browse', ...(returnCourseId ? { courseId: returnCourseId } : {}) });
-    });
-    previewCopy.addEventListener('click', (event) => {
-      const target = event.target instanceof Element ? event.target.closest<HTMLButtonElement>('button') : null;
-      if (!target) return;
-      if (target.id === 'preview-prev') {
-        if (busy || index <= 0) return;
-        index -= 1;
-        displayFen = null;
-        evalFen = null;
-        evalScore = null;
-        evaluationToken += 1;
-        drawPreview();
-      } else if (target.id === 'preview-next') {
-        void advance();
-      } else if (target.id === 'preview-restart') {
-        if (busy) return;
-        index = 0;
-        displayFen = null;
-        evalFen = null;
-        evalScore = null;
-        evaluationToken += 1;
-        drawPreview();
-      } else if (target.id === 'preview-practice') {
-        if (!progressByCourse) return;
-        leaving = true;
-        disposePreview();
-        void navigate({ name: 'practice', course: row.course, level: row.level, progress: progressByCourse[row.course.id], variationId: row.variation.id });
-      }
-    });
-
-    const onKey = (event: KeyboardEvent) => {
-      if (!previewMain.isConnected || event.defaultPrevented) return;
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        previewCopy.querySelector<HTMLButtonElement>('#preview-prev')?.click();
-      } else if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        previewCopy.querySelector<HTMLButtonElement>('#preview-next')?.click();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    removePreviewKeyListener = () => window.removeEventListener('keydown', onKey);
-    drawPreview();
   };
 
   if (screen.lineId) {
