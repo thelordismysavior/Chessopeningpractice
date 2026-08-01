@@ -1,7 +1,7 @@
 import { Chess, type Square } from 'chess.js';
 import { parseUciMove } from './move-notation';
 
-export type PieceTransition = {
+export type PieceAnimation = {
   from: Square;
   to: Square;
   piece: string;
@@ -9,10 +9,10 @@ export type PieceTransition = {
   captureSquare?: Square;
 };
 
-export type MoveTransition = {
+export type MoveAnimation = {
   fromFen: string;
   afterFen: string;
-  pieces: PieceTransition[];
+  pieces: PieceAnimation[];
   isCastle: boolean;
 };
 
@@ -30,7 +30,11 @@ function castleRook(move: { from: Square; to: Square }): { from: Square; to: Squ
   return rooks[`${move.from}${move.to}`] ?? null;
 }
 
-export function planMoveTransition(fromFen: string, move: string): MoveTransition | null {
+/**
+ * Internal Move Animation support shared by practice and Line Preview.
+ * Authored walkthrough decisions remain private to Line Preview.
+ */
+export function planMoveAnimation(fromFen: string, move: string): MoveAnimation | null {
   const parsed = parseUciMove(move);
   if (!parsed) return null;
   const chess = new Chess(fromFen);
@@ -47,7 +51,7 @@ export function planMoveTransition(fromFen: string, move: string): MoveTransitio
   }
 
   const rook = result.isKingsideCastle() || result.isQueensideCastle() ? castleRook(parsed) : null;
-  const pieces: PieceTransition[] = [{
+  const pieces: PieceAnimation[] = [{
     from: parsed.from,
     to: parsed.to,
     piece: pieceName(movingPiece.color, movingPiece.type),
@@ -60,14 +64,14 @@ export function planMoveTransition(fromFen: string, move: string): MoveTransitio
   return { fromFen, afterFen: chess.fen(), pieces, isCastle: Boolean(rook) };
 }
 
-export function planFenTransition(fromFen: string, afterFen: string): MoveTransition | null {
+export function planFenAnimation(fromFen: string, afterFen: string): MoveAnimation | null {
   const chess = new Chess(fromFen);
   const candidate = chess.moves({ verbose: true }).find((move) => {
     const next = new Chess(fromFen);
     next.move(move);
     return next.fen() === afterFen;
   });
-  return candidate ? planMoveTransition(fromFen, `${candidate.from}${candidate.to}${candidate.promotion ?? ''}`) : null;
+  return candidate ? planMoveAnimation(fromFen, `${candidate.from}${candidate.to}${candidate.promotion ?? ''}`) : null;
 }
 
 export function settleDisplayFen(learnerAfterFen: string, replyAfterFen: string | null, nextPositionFen: string | null): string {
