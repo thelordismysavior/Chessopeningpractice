@@ -16,13 +16,13 @@ test('Practice Mode changes assistance without changing teach and recall progres
   const [firstLine] = lineMoves();
   await startFirstCoursePractice(page);
 
-  await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Learn the line');
+  await expect(page.locator('.practice-meta > .eyebrow')).toContainText('Learn the line');
   await expect(page.locator('.guide-overlay .route-arrow')).toBeVisible();
   await expect(page.locator('#show-hint')).toHaveCount(0);
 
   for (const move of firstLine) await playMove(page, move);
 
-  await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Recall');
+  await expect(page.locator('.practice-meta > .eyebrow')).toContainText('Recall');
   await page.getByRole('tab', { name: 'Drill', exact: true }).click();
   await expect(page.locator('.guide-overlay .route-arrow')).toHaveCount(0);
   await expect(page.locator('.explanation')).toHaveCount(0);
@@ -125,7 +125,7 @@ test('first core bank asks one branch question before Result and restores after 
   await startFirstCoursePractice(page);
   await playLineTwice(page, firstLine);
   const branch = firstBranchPoint(lesson, core)!;
-  await expect(page.locator('.lesson-copy')).toContainText('Branch review');
+  await expect(page.locator('.practice-meta')).toContainText('Branch review');
   await expect(page.locator('.lesson-copy')).toContainText(branch.opponentTrigger);
   await playMove(page, branch.position.expectedMove);
   await page.locator('#proceed').click();
@@ -134,7 +134,7 @@ test('first core bank asks one branch question before Result and restores after 
   await expect(page.locator('.result-actions button')).toHaveCount(1);
   await page.goBack();
   await expect(page.locator('.practice-shell')).toBeVisible();
-  await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Recall');
+  await expect(page.locator('.practice-meta > .eyebrow')).toContainText('Recall');
   await page.goto('/#/result');
   await expect(page.locator('.result-page')).toBeVisible();
   await page.reload();

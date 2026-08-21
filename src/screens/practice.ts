@@ -142,11 +142,17 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     const budgetMarkup = snapshot.mistakeBudget === null
       ? ''
       : `<p class="mistake-budget" aria-label="${snapshot.mistakes} of ${snapshot.mistakeBudget} mistakes used">${Array.from({ length: snapshot.mistakeBudget }, (_, slot) => `<span class="budget-slot ${slot < snapshot.mistakes ? 'is-spent' : ''}"></span>`).join('')}<small>${snapshot.mistakes} of ${snapshot.mistakeBudget} slips used</small></p>`;
-    const copyHeader = snapshot.branchReview
-      ? `<p class="eyebrow">Branch review &middot; recognize the change</p><p class="line-title">${escapeHtml(snapshot.branchReview.variationTitle)}</p><h1>What is the resulting plan?</h1><p class="lesson-summary"><strong>Opponent trigger:</strong> ${escapeHtml(snapshot.branchReview.opponentTrigger)} <strong>Resulting plan:</strong> ${escapeHtml(snapshot.branchReview.resultingPlan)} Produce the move that starts it.</p>`
+    const metaHeader = `<p class="eyebrow">${snapshot.branchReview ? 'Branch review' : phaseLabel}</p>`;
+    const progressHeader = snapshot.branchReview
+      ? '<p class="eyebrow">Recognize the change</p>'
       : session.reviewMode || !snapshot.lineTitle
-      ? `<p class="eyebrow">${levelNames[level]} review - ${moveOrdinal} of ${moveCount}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lede">${escapeHtml(lesson.summary)}</p>`
-      : `<p class="eyebrow">${phaseLabel} &middot; line ${snapshot.lineIndex + 1} of ${snapshot.lineCount} &middot; move ${moveOrdinal} of ${moveCount}</p><p class="line-title">${escapeHtml(snapshot.lineTitle)}</p><p class="lede">${escapeHtml(snapshot.lineSummary)}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lesson-summary">${escapeHtml(lesson.summary)}</p>${budgetMarkup}`;
+        ? `<p class="eyebrow">${levelNames[level]} review &middot; move ${moveOrdinal} of ${moveCount}</p>`
+        : `<p class="eyebrow">Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount} &middot; move ${moveOrdinal} of ${moveCount}</p>`;
+    const copyHeader = snapshot.branchReview
+      ? `${progressHeader}<p class="line-title">${escapeHtml(snapshot.branchReview.variationTitle)}</p><h1>What is the resulting plan?</h1><p class="lesson-summary"><strong>Opponent trigger:</strong> ${escapeHtml(snapshot.branchReview.opponentTrigger)} <strong>Resulting plan:</strong> ${escapeHtml(snapshot.branchReview.resultingPlan)} Produce the move that starts it.</p>`
+      : session.reviewMode || !snapshot.lineTitle
+        ? `${progressHeader}<h1>${escapeHtml(lesson.title)}</h1><p class="lede">${escapeHtml(lesson.summary)}</p>`
+        : `${progressHeader}<p class="line-title">${escapeHtml(snapshot.lineTitle)}</p><p class="lede">${escapeHtml(snapshot.lineSummary)}</p><h1>${escapeHtml(lesson.title)}</h1><p class="lesson-summary">${escapeHtml(lesson.summary)}</p>${budgetMarkup}`;
     const handoffMarkup = handoff
       ? `<div class="line-handoff" role="status" aria-live="polite"><strong>${escapeHtml(handoff.verb ?? 'Banked')}: ${escapeHtml(handoff.banked)}</strong><span>Next up: ${escapeHtml(handoff.next)}</span></div>`
       : '';
@@ -200,7 +206,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
     if (settledFen && settledFen !== evalFen) evalScore = null;
     const boardState: BoardState = { chess, selected, side: course.side, guide: expectedRoute, hintSquare: snapshot.hintLevel === 2 ? position.expectedMove.slice(2, 4) : null, route: routeFlash, animation, dragging, settling: sequenceActive, interactive: !busy || sequenceActive, selectableColor };
     const modeMarkup = `<div class="mode-switch" role="tablist" aria-label="Practice Mode"><button type="button" role="tab" data-practice-mode="learn" aria-selected="${practiceMode === 'learn'}">Learn</button><button type="button" role="tab" data-practice-mode="drill" aria-selected="${practiceMode === 'drill'}">Drill</button></div>`;
-    const nextMain = document.createRange().createContextualFragment(`<main class="practice-shell shell"><header class="topbar has-back practice-appbar"><div class="topbar-start"><button id="back-dashboard" class="back-button icon-button" aria-label="Dashboard">${backIcon}</button></div><a class="wordmark" href="#/home">${brandMarkup()}</a><div class="topbar-end"><button id="settings" class="icon-button" type="button" aria-label="Settings">${settingsIcon}</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><section class="lesson-copy">${copyHeader}</section>${modeMarkup}<section class="board-panel"><div class="eval-host"></div><div class="board-frame"></div><div class="board-caption" aria-live="polite"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section><section class="practice-details"><div class="explanation"><span class="explanation-mark">Why this move</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section></div>${settingsDialogMarkup(moveDuration)}</main>`).firstElementChild!;
+    const nextMain = document.createRange().createContextualFragment(`<main class="practice-shell shell"><header class="topbar has-back practice-appbar"><div class="topbar-start"><button id="back-dashboard" class="back-button icon-button" aria-label="Dashboard">${backIcon}</button></div><a class="wordmark" href="#/home">${brandMarkup()}</a><div class="topbar-end"><button id="settings" class="icon-button" type="button" aria-label="Settings">${settingsIcon}</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><div class="practice-board-column"><section class="practice-meta">${metaHeader}</section>${modeMarkup}<section class="board-panel"><div class="eval-host"></div><div class="board-frame"></div><div class="board-caption" aria-live="polite"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div><div class="practice-copy-column"><section class="lesson-copy">${copyHeader}</section><section class="practice-details"><div class="explanation"><span class="explanation-mark">Why this move</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section></div></div>${settingsDialogMarkup(moveDuration)}</main>`).firstElementChild!;
     if (practiceMode === 'drill' && feedback?.kind !== 'incorrect') nextMain.querySelector('.explanation')?.remove();
     app.append(nextMain);
     const panel = nextMain.querySelector<HTMLElement>('.board-panel');
@@ -221,7 +227,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       }
       const focused = boardEl.contains(document.activeElement) ? document.activeElement as HTMLElement : null;
       frame.appendChild(boardEl);
-      if (focused && document.activeElement !== focused) focused.focus();
+      if (focused && document.activeElement !== focused) focused.focus({ preventScroll: true });
       updateBoard(boardEl, boardState);
     }
     Array.from(app.children).forEach((child) => {

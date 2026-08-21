@@ -129,6 +129,8 @@ button:disabled, input:disabled { cursor: not-allowed; opacity: .55; }
 
 .practice-shell { width: min(100%, 1180px); }
 .practice-layout { display: grid; grid-template-columns: 1fr; gap: 0; width: min(100%, 650px); margin: clamp(24px, 5vh, 56px) auto 0; }
+.practice-board-column, .practice-copy-column { display: contents; }
+.lesson-copy { margin-top: 28px; }
 .lesson-copy h1 { margin: 6px 0 0; font-size: clamp(28px, 4vw, 36px); }
 .lesson-copy .line-title { margin: 0; font-size: 21px; font-weight: 700; }
 .lesson-summary, .move-hint { color: var(--muted); }
@@ -210,6 +212,13 @@ dialog { width: min(calc(100% - 32px), 480px); padding: 24px; border: 1px solid 
 dialog::backdrop { background: color-mix(in oklch, var(--bg) 76%, transparent); }
 .reset-progress { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
 [hidden] { display: none !important; }
+
+@media (min-width: 1024px) {
+  .practice-layout { grid-template-columns: minmax(0, min(680px, calc(100dvh - 230px))) minmax(280px, 1fr); gap: clamp(32px, 4vw, 64px); width: 100%; }
+  .practice-board-column, .practice-copy-column { display: block; min-width: 0; }
+  .practice-board-column { position: sticky; top: 16px; }
+  .lesson-copy { margin-top: 0; }
+}
 
 @media (max-width: 920px) {
   .dashboard-grid { grid-template-columns: 1fr; }

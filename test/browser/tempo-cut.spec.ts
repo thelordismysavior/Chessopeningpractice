@@ -18,7 +18,7 @@ test.describe('Tempo Cut', () => {
     await page.goto('/');
     await expect(page.locator('.dashboard-intro')).toBeVisible();
     await startFirstCoursePractice(page);
-    await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Learn the line');
+    await expect(page.locator('.practice-meta > .eyebrow')).toContainText('Learn the line');
 
     const move = COURSES[0].lessons.beginner.variations[0].positions[0].expectedMove;
     await page.locator(`[data-square="${move.slice(0, 2)}"]`).click();
@@ -87,7 +87,7 @@ test.describe('Tempo Cut', () => {
     await startFirstCoursePractice(page);
     const line = COURSES[0].lessons.beginner.variations[0].positions;
     for (const position of line) await playMove(page, position.expectedMove);
-    await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Recall');
+    await expect(page.locator('.practice-meta > .eyebrow')).toContainText('Recall');
     await setMoveDuration(page);
 
     const move = line[0].expectedMove;

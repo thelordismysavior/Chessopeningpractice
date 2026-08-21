@@ -189,7 +189,7 @@ test('banked line rows enter one-line Recall directly', async ({ page }) => {
   await page.goto('/#/lines');
   await page.locator('.lines-section').filter({ hasText: 'Banked and mastered' }).locator('.line-selection-row').first().click();
   await expect(page.locator('.practice-shell')).toBeVisible();
-  await expect(page.locator('.lesson-copy > .eyebrow')).toContainText('Recall');
+  await expect(page.locator('.practice-meta > .eyebrow')).toContainText('Recall');
   await expect(page.locator('.guide-overlay .route-arrow')).toHaveCount(0);
 });
 
