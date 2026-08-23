@@ -1,21 +1,36 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   auth: { currentUser: { uid: 'owner' } as { uid: string } | null },
   commit: vi.fn<() => Promise<void>>(),
   delete: vi.fn(),
+  getDoc: vi.fn(),
   writeBatch: vi.fn(),
 }));
 
 vi.mock('../src/firebase', () => ({ auth: mocks.auth, db: {} }));
 vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, ...segments: string[]) => segments.join('/'),
-  getDoc: vi.fn(),
+  getDoc: mocks.getDoc,
   runTransaction: vi.fn(),
   writeBatch: mocks.writeBatch,
 }));
 
-import { resetAllProgress } from '../src/progress';
+import { loadProgress, resetAllProgress } from '../src/progress';
+
+describe('progress loading', () => {
+  afterEach(() => vi.useRealTimers());
+
+  test('stops waiting when Firestore never responds', async () => {
+    vi.useFakeTimers();
+    mocks.auth.currentUser = { uid: 'owner' };
+    mocks.getDoc.mockReturnValue(new Promise(() => undefined));
+
+    const result = expect(loadProgress('london')).rejects.toThrow('Progress took too long to load.');
+    await vi.runAllTimersAsync();
+    await result;
+  });
+});
 
 describe('reset all progress', () => {
   beforeEach(() => {

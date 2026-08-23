@@ -139,10 +139,26 @@ export function mergeProgress(stored: CourseProgress, delta: ProgressDelta): Cou
   };
 }
 
+const PROGRESS_LOAD_TIMEOUT_MS = 10_000;
+
+async function loadWithTimeout<T>(request: Promise<T>): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      request,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error('Progress took too long to load. Check your connection and try again.')), PROGRESS_LOAD_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+  }
+}
+
 export async function loadProgress(courseId: string): Promise<CourseProgress> {
   const user = auth.currentUser;
   if (!user) throw new Error('Sign in before loading progress.');
-  const snapshot = await getDoc(doc(db, 'users', user.uid, 'courses', courseId));
+  const snapshot = await loadWithTimeout(getDoc(doc(db, 'users', user.uid, 'courses', courseId)));
   return migrateProgress(snapshot.exists() ? (snapshot.data() as StoredProgress) : undefined);
 }
 
