@@ -252,15 +252,15 @@ export const COURSES: Course[] = [
         {
           kind: 'alternative',
           title: 'Meet 3...c6',
-          summary: 'Against 3...c6 and ...Qb6, stay calm with e3 and a3, then develop against the bishop.',
+          summary: 'Against 3...c6 and ...Qb6, stay calm with e3 and Qc1, then develop against the bishop.',
           evalCp: 8,
-          moves: ['d4', 'd5', 'Nc3', 'Nf6', 'Bf4', 'c6', 'e3', 'Qb6', 'a3', 'Bf5'],
+          moves: ['d4', 'd5', 'Nc3', 'Nf6', 'Bf4', 'c6', 'e3', 'Qb6', 'Qc1', 'Bf5'],
           explanations: [
             'Claim the centre with a pawn and prepare active piece play.',
             'Develop the queen knight to pressure d5 immediately.',
             'Develop the bishop outside the pawn chain before e3.',
             'Support the centre and blunt ...Qb6 ideas against b2.',
-            'Prevent ...Bb4 pins and prepare to meet ...Bf5 with a solid setup.',
+            'Defend b2 against ...Qxb2 and keep the position solid before ...Bf5.',
           ],
         },
         {

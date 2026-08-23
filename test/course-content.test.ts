@@ -27,6 +27,20 @@ describe('course content', () => {
     expect(issues).toEqual([]);
   });
 
+  test('answers ...Qb6 without leaving b2 hanging', () => {
+    const variation = COURSES[0].lessons.intermediate.variations.find(({ title }) => title === 'Meet 3...c6');
+    const position = variation?.positions.find(({ expectedSan }) => expectedSan === 'a3' || expectedSan === 'Qc1');
+
+    expect(position).toBeDefined();
+    if (!position) return;
+
+    const chess = new Chess(position.fen);
+    const move = chess.move(position.expectedMove);
+    expect(move.san).toBe('Qc1');
+    expect(chess.isAttacked('b2', 'w')).toBe(true);
+    expect(position.explanation).toContain('...Qxb2');
+  });
+
   test('connects consecutive learner positions with exactly one opponent reply', () => {
     const issues: string[] = [];
 
