@@ -151,7 +151,8 @@ button:disabled, input:disabled { cursor: not-allowed; opacity: .55; }
 .board-square.is-selected::after { position: absolute; inset: 3px; z-index: 2; border: 3px solid var(--fg); content: ""; }
 .board-square:disabled { cursor: default; opacity: 1; }
 .piece { position: relative; z-index: 2; }
-.piece-side-white, .piece-side-black { color: var(--fg); }
+.piece-side-white { color: var(--fg); -webkit-text-stroke: 1.35px var(--bg); paint-order: stroke fill; }
+.piece-side-black { color: var(--bg); -webkit-text-stroke: 1.2px var(--fg); paint-order: stroke fill; }
 .coord-file, .coord-rank { display: none; }
 .piece-layer, .board-route { position: absolute; inset: 0; pointer-events: none; }
 .guide-overlay { z-index: 1; }
