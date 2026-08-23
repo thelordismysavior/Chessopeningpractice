@@ -368,25 +368,26 @@ describe('Line Preview interface', () => {
     const engine = createTestEngine();
     const controller = createLinePreview(host, dependencies(window, engine, [], clock, { duration: 0, beats: { beforeReply: 0, afterReply: 0 } }));
     controller.enter({ course, level, line: trainableLine, practiceAvailable: true, onIntent: () => undefined });
+    const lastMove = new RegExp(`^${String(trainableLine.positions.length).padStart(2, '0')} `);
 
     for (let index = 0; index < trainableLine.positions.length - 1; index += 1) {
       host.querySelector<HTMLButtonElement>('#preview-next')!.focus();
       host.querySelector<HTMLButtonElement>('#preview-next')!.click();
       await flushMicrotasks(4);
     }
-    expect(host.querySelector('.preview-move.is-current')?.textContent).toMatch(/^09 /);
+    expect(host.querySelector('.preview-move.is-current')?.textContent).toMatch(lastMove);
 
     host.querySelector<HTMLButtonElement>('#preview-next')!.focus();
     host.querySelector<HTMLButtonElement>('#preview-next')!.click();
     expect(host.querySelector('.preview-complete')).toBeNull();
-    expect(host.querySelector('.preview-move.is-current')?.textContent).toMatch(/^09 /);
+    expect(host.querySelector('.preview-move.is-current')?.textContent).toMatch(lastMove);
     await flushMicrotasks(4);
     expect(host.querySelector('.preview-complete')).not.toBeNull();
     expect(host.querySelector<HTMLButtonElement>('#preview-restart')).toBe(window.document.activeElement);
 
     host.querySelector<HTMLButtonElement>('#preview-prev')!.click();
     expect(host.querySelector('.preview-complete')).toBeNull();
-    expect(host.querySelector('.preview-move.is-current')?.textContent).toMatch(/^09 /);
+    expect(host.querySelector('.preview-move.is-current')?.textContent).toMatch(lastMove);
     host.querySelector<HTMLButtonElement>('#preview-next')?.click();
     await flushMicrotasks(4);
     expect(host.querySelector('.preview-complete')).not.toBeNull();

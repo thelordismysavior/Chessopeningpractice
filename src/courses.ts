@@ -151,9 +151,9 @@ export const COURSES: Course[] = [
         {
           kind: 'core',
           title: 'Main line 3...e6',
-          summary: 'Black plays the solid 3...e6; support with e3, hit c7 with Nb5, develop Bd3, and castle into a playable middlegame.',
+          summary: 'Against 3...e6, use Nb5 to provoke ...Na6; if ...Bd6 blocks the knight, take both bishops with Nxd6+ and Nxc8 before consolidating.',
           evalCp: 18,
-          moves: ['d4', 'd5', 'Nc3', 'Nf6', 'Bf4', 'e6', 'e3', 'c5', 'Nb5', 'Na6', 'c3', 'Bd6', 'Bd3', 'O-O', 'Nf3', 'Re8', 'O-O'],
+          moves: ['d4', 'd5', 'Nc3', 'Nf6', 'Bf4', 'e6', 'e3', 'c5', 'Nb5', 'Na6', 'c3', 'Bd6', 'Nxd6+', 'Kf8', 'Nxc8', 'Rxc8', 'Be2', 'cxd4', 'exd4'],
           explanations: [
             'Claim the centre with a pawn and prepare active piece play.',
             'Develop the queen knight to pressure d5 and make the opening immediately active.',
@@ -161,9 +161,10 @@ export const COURSES: Course[] = [
             'Support the centre and open the f1 bishop without losing flexibility.',
             'Jump to b5 and threaten the fork on c7 while Black’s knight is still on b8.',
             'Reinforce d4 with c3 once the c7 idea is answered, keeping a normal Jobava shape.',
-            'Develop the bishop to d3 and prepare safe castling.',
-            'Bring the king knight toward the centre and keep castling available.',
-            'Castle before launching a flank plan; the king is ready for the middlegame.',
+            'Take on d6 with check; with Black’s c-pawn on c5, the knight cannot be safely recaptured.',
+            'Take the second bishop on c8 before Black can save it.',
+            'Develop the bishop and prepare to recover the central pawn.',
+            'Recapture on d4 and consolidate the extra material.',
           ],
         },
         {
@@ -359,7 +360,7 @@ export const COURSES: Course[] = [
             'Place the bishop outside the pawn chain before Black settles.',
             'Build a strong centre before Black can recapture on d4.',
             'Jump to b5 and combine c7 pressure with the queen recapture.',
-            'Recover the pawn with tempo and keep the pieces active.',
+            'Recover the pawn and keep the pieces active.',
           ],
         },
         {
@@ -475,7 +476,7 @@ export const COURSES: Course[] = [
         {
           kind: 'punish',
           title: 'Punish 3...Bf5?!',
-          summary: 'Early ...Bf5 lets you strike with c4 and develop with tempo against the loose setup.',
+          summary: 'Early ...Bf5 lets you strike with c4 while Black has spent a tempo developing the bishop before the centre is fixed.',
           evalCp: 95,
           moves: ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'Bf5', 'c4', 'e6', 'Nc3'],
           explanations: [
@@ -509,7 +510,7 @@ export const COURSES: Course[] = [
         {
           kind: 'alternative',
           title: 'Meet 3...c5',
-          summary: 'Against an early ...c5 and ...Qb6, support the centre and develop without panic.',
+          summary: 'Against an early ...c5 and ...Qb6, support the centre, develop with Nc3, and stay ready for active play against ...Qxb2.',
           evalCp: 4,
           moves: ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'c5', 'e3', 'Qb6', 'Nc3'],
           explanations: [
@@ -517,7 +518,7 @@ export const COURSES: Course[] = [
             'Develop the king knight to control e5 and support the centre.',
             'Place the bishop outside the pawn chain before e3.',
             'Support d4 when Black hits the centre immediately.',
-            'Develop the queen knight and cover b2 without abandoning the London plan.',
+            'Develop the queen knight and prepare Nb5 if ...Qxb2 arrives.',
           ],
         },
         {
@@ -555,15 +556,15 @@ export const COURSES: Course[] = [
         {
           kind: 'punish',
           title: 'Punish 3...Bf5?!',
-          summary: 'Meet early ...Bf5 with c4 and rapid development while Black’s bishop is exposed.',
+          summary: 'Meet early ...Bf5 with c4 and rapid development while Black has spent a tempo on the bishop.',
           evalCp: 100,
           moves: ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'Bf5', 'c4', 'c6', 'Nc3', 'e6'],
           explanations: [
             'Start with a stable central pawn and keep the plan flexible.',
             'Develop the king knight to control e5 and support the centre.',
             'Place the bishop outside the pawn chain before e3.',
-            'Open the centre with c4 while the f5 bishop is an early target.',
-            'Develop the queen knight and keep pressure on the loose structure.',
+            'Open the centre with c4 while Black has spent a tempo developing the bishop early.',
+            'Develop the queen knight and keep pressure on the centre.',
           ],
         },
       ]),
@@ -571,9 +572,9 @@ export const COURSES: Course[] = [
         {
           kind: 'core',
           title: 'Main line 3...e6',
-          summary: 'Complete the London setup against 3...e6 and place the queen where the middlegame plan starts.',
+          summary: 'Complete the London setup against 3...e6, then move the f4 bishop when ...Qc7 attacks it.',
           evalCp: 18,
-          moves: ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'e6', 'e3', 'Bd6', 'Bd3', 'O-O', 'O-O', 'c5', 'c3', 'Nc6', 'Nbd2', 'Qc7', 'Qe2', 'Re8'],
+          moves: ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'e6', 'e3', 'Bd6', 'Bd3', 'O-O', 'O-O', 'c5', 'c3', 'Nc6', 'Nbd2', 'Qc7', 'Bg5', 'Re8'],
           explanations: [
             'Start with a stable central pawn while keeping options against ...Nf6.',
             'Develop the king knight and prepare the dark-square bishop’s route.',
@@ -583,13 +584,13 @@ export const COURSES: Course[] = [
             'Castle before ...c5 opens the centre; the common mistake is leaving the king in the middle.',
             'Use c3 to reinforce d4 and prepare e4 after ...c5 and ...d5.',
             'Develop the queen knight and support the centre.',
-            'Place the queen on e2 so the rooks can connect and the e-file plan begins.',
+            'Move the bishop before ...Bxf4 can force structural concessions; keep the queen flexible for the middlegame.',
           ],
         },
         {
           kind: 'alternative',
           title: 'Meet 3...c5',
-          summary: 'Against 3...c5 and ...Qb6, keep the triangle and refuse to panic over b2.',
+          summary: 'Against 3...c5 and ...Qb6, keep the triangle and prepare a concrete answer to the pressure on b2.',
           evalCp: 2,
           moves: ['d4', 'd5', 'Nf3', 'Nf6', 'Bf4', 'c5', 'e3', 'Nc6', 'c3', 'Qb6'],
           explanations: [
@@ -597,7 +598,7 @@ export const COURSES: Course[] = [
             'Develop the king knight and prepare the dark-square bishop’s route.',
             'Place the bishop outside the pawn chain before e3.',
             'Support d4 when Black hits the centre with ...c5.',
-            'Reinforce the London triangle and leave ...Qb6 without a real target.',
+            'Reinforce the London triangle, knowing ...Qb6 will put concrete pressure on b2.',
           ],
         },
         {
@@ -1237,9 +1238,9 @@ export const COURSES: Course[] = [
         {
           kind: 'core',
           title: 'Main line Classical',
-          summary: 'Push the Classical into queenside castling territory and meet it with ...Bb4.',
+          summary: 'Push the Classical into a flexible middlegame, centralise with ...Nd5, and finish development.',
           evalCp: 15,
-          moves: ['e4', 'c6', 'd4', 'd5', 'Nc3', 'dxe4', 'Nxe4', 'Bf5', 'Ng3', 'Bg6', 'N1e2', 'Nd7', 'Bf4', 'e6', 'Qd2', 'Ngf6', 'O-O-O', 'Bb4'],
+          moves: ['e4', 'c6', 'd4', 'd5', 'Nc3', 'dxe4', 'Nxe4', 'Bf5', 'Ng3', 'Bg6', 'N1e2', 'Nd7', 'Bf4', 'e6', 'Qd2', 'Ngf6', 'O-O-O', 'Nd5'],
           explanations: [
             'Use the Caro-Kann to build a durable centre and keep the c8 bishop active.',
             'Establish the central pawn before White can choose a quieter setup.',
@@ -1249,7 +1250,7 @@ export const COURSES: Course[] = [
             'Place the queen knight on d7 to support ...e6 and control e5.',
             'Play ...e6 only after the bishop is safe, preserving the opening’s central logic.',
             'Develop the king knight without blocking the c8 bishop or the queen.',
-            'Use ...Bb4 to pin the knight and make White spend time on the queenside.',
+            'Centralise the knight on d5 before White consolidates; with the c3 knight moved, ...Bb4 would hang the bishop to Qxb4.',
           ],
         },
         {

@@ -82,7 +82,7 @@ async function readProgress(page: Page): Promise<string> {
 }
 
 type PreviewGeometry = {
-  layout: { left: number; right: number; top: number };
+  layout: { left: number; right: number; top: number; width: number };
   copy: { left: number; right: number; bottom: number };
   board: { left: number; right: number; top: number; width: number };
   evalBar: { left: number; right: number; width: number } | null;
@@ -133,7 +133,9 @@ test('Line Preview keeps its board-led composition across the supported widths',
   await expect(page.locator('.preview-moves')).toHaveAttribute('aria-label', 'Authored move guide');
 
   const wide = await geometry(page);
-  expect(wide.board.width).toBeLessThanOrEqual(521);
+  expect(wide.layout.width).toBeGreaterThan(1116);
+  expect(wide.board.width).toBeGreaterThan(520);
+  expect(wide.board.width).toBeLessThanOrEqual(581);
   expect(wide.copy.right).toBeLessThanOrEqual(wide.board.left + 1);
   expect(wide.evalBar?.width).toBeCloseTo(wide.board.width, 0);
   expectControlsInViewport(wide.controls, 1440);

@@ -194,4 +194,55 @@ describe('course content', () => {
       'Jump to b5 and make Black spend a tempo with ...Na6 while the queen stays exposed.',
     );
   });
+
+  test('takes the trapped bishop in the Jobava ...c5 line', () => {
+    const variation = COURSES[0].lessons.beginner.variations.find(({ id }) => id === 'beginner-main');
+    expect(variation?.positions[6]?.expectedSan).toBe('Nxd6+');
+    expect(variation?.positions[7]?.expectedSan).toBe('Nxc8');
+  });
+
+  test('moves the London bishop before ...Qc7 can exchange it for a pawn', () => {
+    const variation = COURSES[1].lessons.advanced.variations.find(({ id }) => id === 'advanced-main');
+    const position = variation?.positions.at(-1);
+    expect(position?.expectedSan).toBe('Bg5');
+    expect(position?.explanation).toContain('...Bxf4');
+  });
+
+  test('centralises in the Caro-Kann instead of hanging the bishop to Qxb4', () => {
+    const variation = COURSES[3].lessons.advanced.variations.find(({ id }) => id === 'advanced-main');
+    const position = variation?.positions.at(-1);
+    expect(position?.expectedSan).toBe('Nd5');
+    expect(position?.explanation).toContain('...Bb4');
+    if (!position) return;
+
+    const afterBb4 = new Chess(position.fen);
+    afterBb4.move('Bb4');
+    expect(afterBb4.moves({ verbose: true }).some(({ from, to }) => from === 'd2' && to === 'b4')).toBe(true);
+  });
+
+  test('describes ...Qb6 as a b2 threat in the London branch', () => {
+    const variation = COURSES[1].lessons.intermediate.variations.find(({ id }) => id === 'intermediate-alternative');
+    const explanation = variation?.positions.at(-1)?.explanation ?? '';
+    expect(explanation).not.toContain('cover b2');
+    expect(explanation).toContain('...Qxb2');
+  });
+
+  test('does not call b2 safe after the advanced London ...Qb6 trigger', () => {
+    const variation = COURSES[1].lessons.advanced.variations.find(({ id }) => id === 'advanced-alternative');
+    const explanation = variation?.positions.at(-1)?.explanation ?? '';
+    expect(explanation).not.toContain('without a real target');
+    expect(explanation).toContain('b2');
+  });
+
+  test('describes early London ...Bf5 as a tempo choice, not a bishop attack', () => {
+    const beginner = COURSES[1].lessons.beginner.variations.find(({ id }) => id === 'beginner-punish');
+    const intermediate = COURSES[1].lessons.intermediate.variations.find(({ id }) => id === 'intermediate-punish');
+    expect(beginner?.summary).toContain('spent a tempo');
+    expect(intermediate?.summary).toContain('spent a tempo');
+  });
+
+  test('does not call the Jobava queen recapture a tempo gain', () => {
+    const variation = COURSES[0].lessons.advanced.variations.find(({ id }) => id === 'advanced-meet-c5');
+    expect(variation?.positions.at(-1)?.explanation).not.toContain('with tempo');
+  });
 });
