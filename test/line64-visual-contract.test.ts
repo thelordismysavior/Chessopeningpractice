@@ -18,6 +18,14 @@ describe('tracked LINE/64 visual contract', () => {
     }
   });
 
+  test('Course Review keeps the exported due-review control treatment', () => {
+    const reference = readFileSync('Line_64/line-64-course.html', 'utf8');
+    const production = readFileSync('src/screens/course.ts', 'utf8');
+    expect(reference).toContain('id="practice-due-reviews"');
+    expect(reference).toContain('class="button ghost"');
+    expect(production).toContain('id="course-review" class="button ghost"');
+  });
+
   test('production uses the canonical exported color tokens', () => {
     const production = readFileSync('src/style.css', 'utf8');
     const reference = readFileSync('Line_64/colors_and_type.css', 'utf8');

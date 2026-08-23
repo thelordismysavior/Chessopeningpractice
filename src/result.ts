@@ -1,8 +1,8 @@
 import type { EvalScore } from './engine/eval-scale';
 import { coursesById, LEVELS, type Course, type LevelKey } from './courses';
 import type { CourseProgress } from './progress';
-import { recommendedLines } from './repertoire';
-import { reviewQueue } from './review-queue';
+import { courseRepertoireLines, recommendedLines, sortRepertoireLines } from './repertoire';
+import { courseReview, reviewQueue } from './review-queue';
 
 export const RESULT_STORAGE_KEY = 'chess-practice.latest-result';
 
@@ -33,7 +33,8 @@ export type ResultSummary = {
 
 export type ResultAction =
   | { kind: 'continue'; courseId: Course['id']; level: LevelKey; variationId: string }
-  | { kind: 'review' }
+  | { kind: 'review'; courseId?: Course['id'] }
+  | { kind: 'course'; courseId: Course['id'] }
   | { kind: 'home' };
 
 type ResultStorage = Pick<Storage, 'getItem' | 'setItem'>;
@@ -72,7 +73,13 @@ export function loadResultSummary(target: ResultStorage | null = storage()): Res
   }
 }
 
-export function nextResultAction(progressByCourse: Record<Course['id'], CourseProgress>, now = Date.now()): ResultAction {
+export function nextResultAction(progressByCourse: Record<Course['id'], CourseProgress>, course?: Course, now = Date.now()): ResultAction {
+  if (course) {
+    const next = sortRepertoireLines(courseRepertoireLines(course, progressByCourse[course.id], now)).find((line) => line.state === 'untouched');
+    if (next) return { kind: 'continue', courseId: course.id, level: next.level, variationId: next.variation.id };
+    if (courseReview(course, progressByCourse[course.id], now).total) return { kind: 'review', courseId: course.id };
+    return { kind: 'course', courseId: course.id };
+  }
   const next = recommendedLines(progressByCourse, now).find((line) => line.state === 'untouched');
   if (next) return { kind: 'continue', courseId: next.course.id, level: next.level, variationId: next.variation.id };
   if (reviewQueue(progressByCourse, now).total) return { kind: 'review' };

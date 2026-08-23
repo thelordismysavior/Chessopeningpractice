@@ -95,6 +95,8 @@ test('summary, timed queue, and Proceed route to Intermediate', async ({ page })
   await expect(page.locator('#review-now')).toBeVisible();
 
   await page.locator('#back-dashboard').click();
+  await expect(page.locator('.course-page')).toBeVisible();
+  await page.locator('#back-dashboard').click();
   await expect(page.locator('#review-queue')).toHaveCount(0);
   await page.locator('#queue-nav').click();
   await expect(page.locator('.queue-empty')).toBeVisible();

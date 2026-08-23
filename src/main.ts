@@ -2,7 +2,8 @@ import './style.css';
 import { signOutUser, watchUser } from './firebase';
 import { COURSES, coursesById } from './courses';
 import { loadProgress } from './progress';
-import { reviewQueue } from './review-queue';
+import { courseReview, reviewQueue } from './review-queue';
+import { positionIsDue } from './review-schedule';
 import { hashForRoute, hashForScreen, HOME_HASH, parseHash, type HashRoute } from './router';
 import { app, escapeHtml, resetPageScroll } from './screens/shell';
 import { renderAuth, renderPendingApproval, type AuthOptions } from './screens/auth';
@@ -88,18 +89,30 @@ async function screenForRoute(route: HashRoute): Promise<Screen> {
       entryHandoff: route.entryHandoff,
     };
   }
+  const scope = route.runScope ?? 'queue';
   const entries = await Promise.all(COURSES.map(async (candidate) => [candidate.id, await loadProgress(candidate.id)] as const));
   const progressByCourse = Object.fromEntries(entries) as Parameters<typeof reviewQueue>[0];
-  const groups = route.runGroups ?? reviewQueue(progressByCourse).dueGroups;
-  const group = groups[route.runIndex];
+  const storedGroups = route.runGroups ?? (scope === 'course' ? courseReview(course, progress).groups : reviewQueue(progressByCourse).dueGroups);
+  const runIndex = route.runIndex ?? 0;
+  const groups = scope === 'course'
+    ? storedGroups.map((group) => ({
+      ...group,
+      positionIds: group.courseId === course.id ? group.positionIds.filter((id) => positionIsDue(progress.positions[id])) : [],
+    }))
+    : storedGroups;
+  const index = scope === 'course'
+    ? groups.findIndex((group, candidateIndex) => candidateIndex >= runIndex && group.positionIds.length > 0)
+    : runIndex;
+  if (scope === 'course' && index < 0) return { name: 'course', course, progress };
+  const group = groups[index];
   return {
     name: 'practice',
     course,
     level: route.level,
     progress,
-    variationId: route.variationId,
-    reviewPositionIds: route.reviewPositionIds ?? group?.positionIds,
-    run: group ? { groups, index: route.runIndex } : undefined,
+    variationId: scope === 'course' ? group?.variationId : route.variationId,
+    reviewPositionIds: scope === 'course' ? group?.positionIds : route.reviewPositionIds ?? group?.positionIds,
+    run: group ? { groups, index, scope } : undefined,
     entryHandoff: route.entryHandoff,
   };
 }

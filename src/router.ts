@@ -14,7 +14,7 @@ export type HashRoute =
   | { name: 'review-queue' }
   | { name: 'result' }
   | { name: 'browse'; courseId?: Course['id']; lineId?: string; study?: boolean }
-  | { name: 'practice'; courseId: Course['id']; level: LevelKey; variationId?: string; reviewPositionIds?: string[]; runIndex?: number; runGroups?: ReviewGroup[]; entryHandoff?: { banked: string; next: string; verb?: string } };
+  | { name: 'practice'; courseId: Course['id']; level: LevelKey; variationId?: string; reviewPositionIds?: string[]; runIndex?: number; runGroups?: ReviewGroup[]; runScope?: 'course' | 'queue'; entryHandoff?: { banked: string; next: string; verb?: string } };
 
 function decode(value: string): string {
   try {
@@ -94,6 +94,7 @@ export function parseHash(hash: string): HashRoute {
     const reviewPositionIds = review ? review.split(',').map(decode).filter(Boolean) : undefined;
     const banked = query.get('banked');
     const next = query.get('next');
+    const runScope = query.get('scope');
     return {
       name: 'practice',
       courseId: selectedCourse,
@@ -102,6 +103,7 @@ export function parseHash(hash: string): HashRoute {
       ...(reviewPositionIds?.length ? { reviewPositionIds } : {}),
       ...(Number.isInteger(run) && run >= 0 ? { runIndex: run } : {}),
       ...(groups ? { runGroups: groups } : {}),
+      ...(runScope === 'course' || runScope === 'queue' ? { runScope } : {}),
       ...(banked && next ? { entryHandoff: { banked, next, verb: query.get('verb') ?? undefined } } : {}),
     };
   }
@@ -146,6 +148,7 @@ function routeForScreen(screen: Screen): HashRoute {
         reviewPositionIds: screen.reviewPositionIds,
         runIndex: screen.run?.index,
         runGroups: screen.run?.groups,
+        runScope: screen.run?.scope,
         entryHandoff: screen.entryHandoff,
       };
   }
@@ -181,6 +184,7 @@ export function hashForRoute(route: HashRoute): string {
         review: route.reviewPositionIds?.join(','),
         run: route.runIndex === undefined ? undefined : String(route.runIndex),
         groups: route.runGroups ? JSON.stringify(route.runGroups) : undefined,
+        scope: route.runScope,
         banked: route.entryHandoff?.banked,
         next: route.entryHandoff?.next,
         verb: route.entryHandoff?.verb,

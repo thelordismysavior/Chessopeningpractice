@@ -258,6 +258,8 @@ test('a phone viewport never scrolls sideways, from an empty dashboard to a fini
   await expectNoOverflow(page);
 
   await page.locator('#back-dashboard').click();
+  await expect(page.locator('.course-page')).toBeVisible();
+  await page.locator('#back-dashboard').click();
   await seedProgress(page, COURSES[0].id, completedProgress(0));
   await page.reload();
   await expect(page.locator('.course-count').first()).toHaveText('03 / 03');

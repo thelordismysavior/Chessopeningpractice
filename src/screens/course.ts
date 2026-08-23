@@ -1,6 +1,7 @@
 import { LEVELS, type Course, type LevelKey, type Variation } from '../courses';
 import { loadProgress, type CourseProgress } from '../progress';
 import { courseRepertoireLines, isTrainableVariation, lineStatusLabel, roleNames, sortRepertoireLines, type LineSort, type RepertoireLine } from '../repertoire';
+import { courseReview } from '../review-queue';
 import { app, escapeHtml, levelNames, resetPageScroll, sideNames, topbarMarkup } from './shell';
 import type { Navigate, Screen } from './navigation';
 
@@ -30,6 +31,7 @@ export async function renderCourse(navigate: Navigate, email: string | null, scr
 
   const render = () => {
     const lines = sortRepertoireLines(courseRepertoireLines(course, progress), sort);
+    const review = courseReview(course, progress);
     const bankedCount = lines.filter((line) => line.state === 'banked' || line.state === 'mastered').length;
     const lessonIdea = course.lessons.beginner.lessonIdea;
     const levelSections = LEVELS.map((level) => {
@@ -40,9 +42,14 @@ export async function renderCourse(navigate: Navigate, email: string | null, scr
     }).join('');
     app.innerHTML = `<main class="app-shell course-page-shell">${topbarMarkup({ email, back: { id: 'back-dashboard', label: 'Dashboard' }, links: [{ id: 'lines', label: 'Lines' }, { id: 'browse', label: 'Browse' }, { id: 'sources', label: 'Sources' }] })}<section class="course-page"><header class="course-hero"><div><p class="eyebrow">Course &middot; ${escapeHtml(course.eco)}</p><h1>${escapeHtml(course.name)}</h1><p class="lede">${escapeHtml(course.promise)}</p><p class="course-description">${escapeHtml(course.description)}</p></div><div class="course-hero-meta"><span class="side-tag">${sideNames[course.side]}</span><code>${escapeHtml(course.coreLine)}</code></div></header><section class="lesson-idea" aria-labelledby="lesson-idea-title"><div><p class="eyebrow">Lesson idea</p><h2 id="lesson-idea-title">Start from ${escapeHtml(lessonIdea.anchorSan)}.</h2><p>${escapeHtml(lessonIdea.plan)}</p></div><dl><div><dt>Opponent trigger</dt><dd>${escapeHtml(lessonIdea.opponentTrigger)}</dd></div><div><dt>Resulting plan</dt><dd>${escapeHtml(lessonIdea.resultingPlan)}</dd></div></dl></section><section class="course-levels"><div class="toolbar"><div><span class="state">${course.name.toUpperCase()}</span><h2>Named lines.</h2></div><div class="sort-field"><label class="sort-label" for="course-line-sort">Sort by</label><select class="sort-control" id="course-line-sort"><option value="recommended"${sort === 'recommended' ? ' selected' : ''}>Recommended</option><option value="level"${sort === 'level' ? ' selected' : ''}>Level</option><option value="category"${sort === 'category' ? ' selected' : ''}>Category</option><option value="status"${sort === 'status' ? ' selected' : ''}>Status</option><option value="name"${sort === 'name' ? ' selected' : ''}>Name</option></select></div></div><p class="course-sort-note">Core, alternative, and punish lines are trainable. Reference lines are for Study and never enter review.</p>${levelSections}</section></section></main>`;
     app.querySelector('.course-hero .eyebrow')?.replaceChildren(`Course · ${course.name}`);
-    app.querySelector('.course-hero')?.insertAdjacentHTML('afterend', `<p class="course-summary">${lines.length} lines in this Course · ${bankedCount} banked</p>`);
+    app.querySelector('.course-hero')?.insertAdjacentHTML('afterend', `<p class="course-summary">${lines.length} lines in this Course · ${bankedCount} banked</p><div class="course-review-action">${review.total ? `<button id="course-review" class="button ghost">Review ${escapeHtml(course.name)}</button><span>${review.total} position${review.total === 1 ? '' : 's'} due now.</span>` : `<p id="course-review-empty">No due work in ${escapeHtml(course.name)}.</p>`}</div>`);
     app.querySelector('#back-dashboard')?.addEventListener('click', () => void navigate({ name: 'dashboard' }));
     app.querySelector('#browse')?.addEventListener('click', () => void navigate({ name: 'browse', courseId: course.id }));
+    app.querySelector('#course-review')?.addEventListener('click', () => {
+      const group = review.groups[0];
+      if (!group) return;
+      void navigate({ name: 'practice', course, level: group.level, progress, variationId: group.variationId, reviewPositionIds: group.positionIds, run: { groups: review.groups, index: 0, scope: 'course' } });
+    });
     app.querySelectorAll<HTMLButtonElement>('[data-start-level]').forEach((button) => button.addEventListener('click', () => {
       const level = button.dataset.startLevel as LevelKey;
       const variation = levelStart(course, level);

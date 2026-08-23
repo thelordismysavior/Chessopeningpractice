@@ -2,6 +2,7 @@ import { evalLabel } from '../engine/eval-scale';
 import { COURSES, coursesById } from '../courses';
 import { loadProgress, type CourseProgress } from '../progress';
 import { nextResultAction, type ResultSummary } from '../result';
+import { courseReview } from '../review-queue';
 import { app, escapeHtml, levelNames, resetPageScroll, topbarMarkup } from './shell';
 import type { Navigate } from './navigation';
 
@@ -9,8 +10,9 @@ export async function renderResult(navigate: Navigate, email: string | null, sum
   resetPageScroll();
   const entries = await Promise.all(COURSES.map(async (course) => [course.id, await loadProgress(course.id)] as const));
   const progressByCourse = Object.fromEntries(entries) as Record<typeof COURSES[number]['id'], CourseProgress>;
-  const action = nextResultAction(progressByCourse);
-  const actionLabel = action.kind === 'continue' ? 'Continue' : action.kind === 'review' ? 'Review due positions' : 'Return home';
+  const activeCourse = coursesById[summary.courseId];
+  const action = nextResultAction(progressByCourse, activeCourse);
+  const actionLabel = action.kind === 'continue' ? `Continue ${activeCourse.name}` : action.kind === 'review' ? `Review ${activeCourse.name}` : `Return to ${activeCourse.name}`;
   const branch = summary.branch
     ? `<article class="result-branch"><p class="eyebrow">Branch review</p><h2>${escapeHtml(summary.branch.variationTitle)}</h2><p><strong>Opponent trigger:</strong> ${escapeHtml(summary.branch.opponentTrigger)}</p><p><strong>Resulting plan:</strong> ${escapeHtml(summary.branch.resultingPlan)}</p><p><strong>Authored correction:</strong> ${escapeHtml(summary.branch.explanation)} Expected ${escapeHtml(summary.branch.expectedSan)}.</p></article>`
     : '';
@@ -25,8 +27,14 @@ export async function renderResult(navigate: Navigate, email: string | null, sum
   app.querySelector('#back-practice')?.addEventListener('click', () => void navigate({ name: 'practice', course: coursesById[summary.courseId], level: summary.level, progress: progressByCourse[summary.courseId], variationId: summary.lineId }));
   app.querySelector('#settings')?.addEventListener('click', () => void navigate({ name: 'settings' }));
   app.querySelector('#result-next-action')?.addEventListener('click', () => {
+    if (action.kind === 'course') return void navigate({ name: 'course', course: activeCourse, progress: progressByCourse[activeCourse.id] });
+    if (action.kind === 'review') {
+      const review = courseReview(activeCourse, progressByCourse[activeCourse.id]);
+      const group = review.groups[0];
+      if (!group) return void navigate({ name: 'course', course: activeCourse, progress: progressByCourse[activeCourse.id] });
+      return void navigate({ name: 'practice', course: activeCourse, level: group.level, progress: progressByCourse[activeCourse.id], variationId: group.variationId, reviewPositionIds: group.positionIds, run: { groups: review.groups, index: 0, scope: 'course' } });
+    }
     if (action.kind === 'home') return void navigate({ name: 'dashboard' });
-    if (action.kind === 'review') return void navigate({ name: 'review-queue' });
     const course = coursesById[action.courseId];
     void navigate({ name: 'practice', course, level: action.level, progress: progressByCourse[action.courseId], variationId: action.variationId });
   });

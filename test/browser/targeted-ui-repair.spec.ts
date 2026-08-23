@@ -176,6 +176,8 @@ test('click and drag moves work in Chromium', async ({ page }) => {
   await expect(page.locator('.board')).toHaveAttribute('aria-busy', 'false');
 
   await page.locator('.back-button').click();
+  await expect(page.locator('.course-page')).toBeVisible();
+  await page.locator('#back-dashboard').click();
   await expect(page.locator('.dashboard-intro')).toBeVisible();
   await startFirstCoursePractice(page);
   await playMove(page, firstMove, 'drag');
@@ -237,6 +239,8 @@ test('Dashboard settings confirm reset and preserve move duration', async ({ pag
   await page.locator('#settings').click();
   await expect(page.locator('#show-reset-progress')).toHaveCount(0);
   await page.locator('#settings-dialog').getByRole('button', { name: 'Done' }).click();
+  await page.locator('#back-dashboard').click();
+  await expect(page.locator('.course-page')).toBeVisible();
   await page.locator('#back-dashboard').click();
   await expect(page.locator('.course-count')).toHaveText(['01 / 03', '01 / 03', '01 / 03', '01 / 03']);
 

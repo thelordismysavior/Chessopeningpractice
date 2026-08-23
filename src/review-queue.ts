@@ -3,7 +3,9 @@ import type { CourseProgress } from './progress';
 import { isTrainableVariation } from './repertoire';
 import { duePositionIds, positionIsScheduled, positionIsDue } from './review-schedule';
 
-export type ReviewGroup = { courseId: Course['id']; level: LevelKey; positionIds: string[]; kind?: 'due' | 'upcoming'; nextReviewAt?: number };
+export type ReviewGroup = { courseId: Course['id']; level: LevelKey; positionIds: string[]; variationId?: string; kind?: 'due' | 'upcoming'; nextReviewAt?: number };
+
+export type CourseReview = { groups: ReviewGroup[]; total: number };
 
 export type ReviewQueueSummary = {
   groups: ReviewGroup[];
@@ -14,7 +16,24 @@ export type ReviewQueueSummary = {
 };
 
 /** An in-progress run through several groups. `index` is the group being drilled. */
-export type ReviewRun = { groups: ReviewGroup[]; index: number };
+export type ReviewRun = { groups: ReviewGroup[]; index: number; scope: 'course' | 'queue' };
+
+export function courseReview(course: Course, progress: CourseProgress, now = Date.now()): CourseReview {
+  const groups = LEVELS.flatMap((level) => course.lessons[level].variations
+    .filter((variation) => isTrainableVariation(variation) && progress.completedVariationIds.includes(variation.id))
+    .map((variation) => ({
+      courseId: course.id,
+      level,
+      variationId: variation.id,
+      positionIds: duePositionIds(progress.positions, variation.positions.map((position) => position.id), now),
+      oldestDueAt: Math.min(...variation.positions
+        .filter((position) => positionIsDue(progress.positions[position.id], now))
+        .map((position) => progress.positions[position.id].nextReviewAt ?? now)),
+    }))
+    .filter((group) => group.positionIds.length));
+  groups.sort((left, right) => left.oldestDueAt - right.oldestDueAt);
+  return { groups: groups.map(({ oldestDueAt: _, ...group }) => group), total: groups.reduce((total, group) => total + group.positionIds.length, 0) };
+}
 
 export function reviewQueue(progressByCourse: Record<Course['id'], CourseProgress>, now = Date.now()): ReviewQueueSummary {
   const dueGroups: ReviewGroup[] = [];
