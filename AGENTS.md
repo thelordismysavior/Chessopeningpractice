@@ -2,11 +2,7 @@
 
 ### Issue tracker
 
-Issues live as local markdown under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Default triage roles (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+Issues live as GitHub issues; use the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Domain docs
 

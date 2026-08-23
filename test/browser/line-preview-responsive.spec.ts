@@ -384,9 +384,13 @@ test('Line Preview keeps Eval Bar orientation on the learner side', async ({ pag
   await expect(page.locator('.line-preview-page')).toBeVisible();
   await expect(page.locator('.side-tag')).toHaveText('W / WHITE');
   await expect(page.locator('.eval-value')).toHaveText('+1.2');
+  const whiteOrder = await page.locator('.board-square').evaluateAll((squares) => squares.map((square) => square.getAttribute('data-square')));
+  expect(whiteOrder.indexOf('e1')).toBeGreaterThan(whiteOrder.indexOf('e8'));
 
   await page.goto(`/#/browse/${black.id}/${black.lessons.beginner.variations[0].id}`);
   await expect(page.locator('.line-preview-page')).toBeVisible();
   await expect(page.locator('.side-tag')).toHaveText('B / BLACK');
   await expect(page.locator('.eval-value')).toHaveText('-1.2');
+  const blackOrder = await page.locator('.board-square').evaluateAll((squares) => squares.map((square) => square.getAttribute('data-square')));
+  expect(blackOrder.indexOf('e8')).toBeGreaterThan(blackOrder.indexOf('e1'));
 });

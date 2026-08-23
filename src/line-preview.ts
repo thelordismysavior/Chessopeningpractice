@@ -1,6 +1,6 @@
 import { Chess } from 'chess.js';
 import type { Course, LevelKey, PracticePosition, Variation } from './courses';
-import type { BoardAnimation, BoardState } from './board-view';
+import { boardPerspectiveForSide, type BoardAnimation, type BoardState } from './board-view';
 import type { EngineClient, EngineStatus } from './engine/engine-client';
 import type { EvalScore } from './engine/eval-scale';
 import { isTrainableVariation } from './repertoire';
@@ -159,7 +159,8 @@ export function createLinePreview(host: HTMLElement, dependencies: LinePreviewDe
     activeSession = session;
 
     const { course, level, line } = entry;
-    const selectableColor = course.side === 'white' ? 'w' : 'b';
+    const boardPerspective = boardPerspectiveForSide(course.side);
+    const { side: boardSide, selectableColor } = boardPerspective;
     let index = 0;
     let busy = false;
     let displayFen: string | null = null;
@@ -244,7 +245,7 @@ export function createLinePreview(host: HTMLElement, dependencies: LinePreviewDe
       const boardState: BoardState = {
         chess,
         selected: null,
-        side: course.side,
+        side: boardSide,
         guide,
         route: null,
         animation,
@@ -261,7 +262,7 @@ export function createLinePreview(host: HTMLElement, dependencies: LinePreviewDe
       const completeCopy = completed
         ? '<div class="preview-complete" role="status" aria-live="polite"><strong>Line Preview complete.</strong><span>You can restart the walkthrough or begin practice.</span></div>'
         : `<div class="preview-guide"><span class="explanation-mark">Current authored move</span><strong>${dependencies.escapeHtml(position.expectedSan)}</strong><p>${dependencies.escapeHtml(position.explanation)}</p></div>`;
-      previewCopy.innerHTML = `<p class="eyebrow">Line Preview &middot; ${dependencies.escapeHtml(course.name)} &middot; ${dependencies.levelNames[level]}${completed ? '' : ` &middot; move ${index + 1} of ${positions.length}`}</p><span class="side-tag">${dependencies.sideNames[course.side]}</span><h1>${dependencies.escapeHtml(line.title)}</h1><p class="lede">${dependencies.escapeHtml(line.summary)}</p><article class="lesson-idea"><div><p class="eyebrow">Lesson idea</p><h2>Anchor: ${dependencies.escapeHtml(course.lessons[level].lessonIdea.anchorSan)}</h2><p>${dependencies.escapeHtml(course.lessons[level].lessonIdea.plan)}</p></div><dl><div><dt>Opponent trigger</dt><dd>${dependencies.escapeHtml(course.lessons[level].lessonIdea.opponentTrigger)}</dd></div><div><dt>Resulting plan</dt><dd>${dependencies.escapeHtml(course.lessons[level].lessonIdea.resultingPlan)}</dd></div></dl></article>${completeCopy}<ol class="preview-moves" aria-label="Authored move guide">${moveList}</ol><div class="preview-actions" aria-busy="${busy}">${controls}${practice}</div><p class="preview-note">Preview only. Nothing here changes your progress.</p>`;
+      previewCopy.innerHTML = `<p class="eyebrow">Line Preview &middot; ${dependencies.escapeHtml(course.name)} &middot; ${dependencies.levelNames[level]}${completed ? '' : ` &middot; move ${index + 1} of ${positions.length}`}</p><span class="side-tag">${dependencies.sideNames[boardSide]}</span><h1>${dependencies.escapeHtml(line.title)}</h1><p class="lede">${dependencies.escapeHtml(line.summary)}</p><article class="lesson-idea"><div><p class="eyebrow">Lesson idea</p><h2>Anchor: ${dependencies.escapeHtml(course.lessons[level].lessonIdea.anchorSan)}</h2><p>${dependencies.escapeHtml(course.lessons[level].lessonIdea.plan)}</p></div><dl><div><dt>Opponent trigger</dt><dd>${dependencies.escapeHtml(course.lessons[level].lessonIdea.opponentTrigger)}</dd></div><div><dt>Resulting plan</dt><dd>${dependencies.escapeHtml(course.lessons[level].lessonIdea.resultingPlan)}</dd></div></dl></article>${completeCopy}<ol class="preview-moves" aria-label="Authored move guide">${moveList}</ol><div class="preview-actions" aria-busy="${busy}">${controls}${practice}</div><p class="preview-note">Preview only. Nothing here changes your progress.</p>`;
       captionStatus.textContent = status;
       captionProgress.textContent = completed ? 'Complete' : `Move ${index + 1} of ${positions.length}`;
 

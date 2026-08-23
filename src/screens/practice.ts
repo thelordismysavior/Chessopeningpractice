@@ -10,7 +10,7 @@ import { diffProgress, loadProgress, saveProgress, type CourseProgress } from '.
 import { duePositionIds } from '../review-schedule';
 import { saveResultSummary, type ResultSummary } from '../result';
 import { planFenAnimation, planMoveAnimation, settleDisplayFen, type MoveAnimation } from '../move-animation';
-import { renderBoard, renderEvalBar, updateBoard, updateEvalBar, type BoardAnimation, type BoardState, type SquareRoute } from '../board-view';
+import { boardPerspectiveForSide, renderBoard, renderEvalBar, updateBoard, updateEvalBar, type BoardAnimation, type BoardState, type SquareRoute } from '../board-view';
 import { engine } from '../engine/engine-client';
 import { centipawnLoss, costPhrase, type EvalScore } from '../engine/eval-scale';
 import { app, backIcon, bindSettings, brandMarkup, escapeHtml, levelNames, resetPageScroll, settingsDialogMarkup, settingsIcon } from './shell';
@@ -66,7 +66,8 @@ export async function startPractice(navigate: Navigate, email: string | null, op
   let costGeneration = 0;
   let practiceMode: PracticeMode = session.reviewMode || session.snapshot.phase !== 'teach' ? 'drill' : 'learn';
   let assistedPositionKey: string | null = null;
-  const selectableColor = course.side === 'white' ? 'w' : 'b';
+  const boardPerspective = boardPerspectiveForSide(course.side);
+  const { side: boardSide, selectableColor } = boardPerspective;
 
   const persist = () => {
     const write = saveQueue.catch(() => undefined).then(async () => {
@@ -206,7 +207,7 @@ export async function startPractice(navigate: Navigate, email: string | null, op
       : chess.fen());
     const settledFen = sequenceActive || animation ? null : chess.fen();
     if (settledFen && settledFen !== evalFen) evalScore = null;
-    const boardState: BoardState = { chess, selected, side: course.side, guide: expectedRoute, hintSquare: snapshot.hintLevel === 2 ? position.expectedMove.slice(2, 4) : null, route: routeFlash, animation, dragging, settling: sequenceActive, interactive: !busy || sequenceActive, selectableColor };
+    const boardState: BoardState = { chess, selected, side: boardSide, guide: expectedRoute, hintSquare: snapshot.hintLevel === 2 ? position.expectedMove.slice(2, 4) : null, route: routeFlash, animation, dragging, settling: sequenceActive, interactive: !busy || sequenceActive, selectableColor };
     const modeMarkup = `<div class="mode-switch" role="tablist" aria-label="Practice Mode"><button type="button" role="tab" data-practice-mode="learn" aria-selected="${practiceMode === 'learn'}">Learn</button><button type="button" role="tab" data-practice-mode="drill" aria-selected="${practiceMode === 'drill'}">Drill</button></div>`;
     const nextMain = document.createRange().createContextualFragment(`<main class="practice-shell shell"><header class="topbar has-back practice-appbar"><div class="topbar-start"><button id="back-dashboard" class="back-button icon-button" aria-label="${escapeHtml(course.name)}">${backIcon}</button></div><a class="wordmark" href="#/home">${brandMarkup()}</a><div class="topbar-end"><button id="settings" class="icon-button" type="button" aria-label="Settings">${settingsIcon}</button></div></header>${saveError ? '<div class="save-alert" role="alert"><span>Progress could not be saved.</span><button id="retry-save">Retry save</button></div>' : ''}<div class="practice-layout"><div class="practice-board-column"><section class="practice-meta">${metaHeader}</section>${modeMarkup}<section class="board-panel"><div class="eval-host"></div><div class="board-frame"></div><div class="board-caption" aria-live="polite"><span>${status}</span><span>${snapshot.lineCount ? `Line ${snapshot.lineIndex + 1} of ${snapshot.lineCount}` : 'Review'}</span></div></section></div><div class="practice-copy-column"><section class="lesson-copy">${copyHeader}</section><section class="practice-details"><div class="explanation"><span class="explanation-mark">Why this move</span><p>${escapeHtml(position.explanation)}</p></div>${handoffMarkup}${feedbackMarkup}<div class="practice-actions">${actionMarkup}</div></section></div></div>${settingsDialogMarkup(moveDuration)}</main>`).firstElementChild!;
     if (practiceMode === 'drill' && feedback?.kind !== 'incorrect') nextMain.querySelector('.explanation')?.remove();

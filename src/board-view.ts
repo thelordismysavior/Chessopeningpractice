@@ -16,6 +16,15 @@ export function squareName(row: number, column: number, side: Course['side']): s
 
 export type SquareRoute = { from: string; to: string };
 export type BoardAnimation = { plan: MoveAnimation; arrived: boolean; duration: number };
+export type BoardPerspective = {
+  side: Course['side'];
+  selectableColor: 'w' | 'b';
+};
+
+export function boardPerspectiveForSide(side: Course['side']): BoardPerspective {
+  return { side, selectableColor: side === 'white' ? 'w' : 'b' };
+}
+
 export type BoardState = {
   chess: Chess;
   selected: string | null;

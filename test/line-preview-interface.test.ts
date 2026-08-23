@@ -1,7 +1,7 @@
 import { Window } from 'happy-dom';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { COURSES, LEVELS } from '../src/courses';
-import { renderBoard, renderEvalBar, updateBoard, updateEvalBar } from '../src/board-view';
+import { boardPerspectiveForSide, renderBoard, renderEvalBar, updateBoard, updateEvalBar } from '../src/board-view';
 import { effectiveMoveDuration, moveBeats } from '../src/move-settings';
 import { createLinePreview, disposeActiveLinePreview, type LinePreviewDependencies, type LinePreviewIntent } from '../src/line-preview';
 
@@ -126,6 +126,11 @@ async function flushMicrotasks(count = 1): Promise<void> {
 
 describe('Line Preview interface', () => {
   afterEach(() => disposeActiveLinePreview());
+
+  test('maps the repertoire side to the matching board perspective', () => {
+    expect(boardPerspectiveForSide('white')).toEqual({ side: 'white', selectableColor: 'w' });
+    expect(boardPerspectiveForSide('black')).toEqual({ side: 'black', selectableColor: 'b' });
+  });
 
   test('owns the complete progress-neutral surface at the first authored position', () => {
     const { host, engine, topbarCalls } = enterPreview();

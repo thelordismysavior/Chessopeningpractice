@@ -23,6 +23,15 @@ A line saved automatically after the learner completes a clean recall pass. It c
 review but is not necessarily mastered.
 _Avoid_: Saved line, completed line, mastered line
 
+**Course Review**:
+A return to due Banked Lines from one Course across its level bands. It preserves the learner's
+Course context and never substitutes work from another Course.
+_Avoid_: Review now, local review, filtered review
+
+**Review Queue**:
+The learner's explicit cross-Course collection of due review work.
+_Avoid_: Global review, Course Review
+
 **Line Preview**:
 A progress-neutral, board-led walkthrough of a line's authored positions. The learner advances it
 manually through visible piece movement while the authored move guide and explanation remain

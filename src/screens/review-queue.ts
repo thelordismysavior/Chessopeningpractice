@@ -41,7 +41,7 @@ export async function renderReviewQueue(navigate: Navigate, email: string | null
         level: group.level as LevelKey,
         progress: progressByCourse[group.courseId],
         reviewPositionIds: group.positionIds,
-        run: run ? { groups: queue.dueGroups, index } : undefined,
+        run: run ? { groups: queue.dueGroups, index, scope: 'queue' } : undefined,
       });
     };
 

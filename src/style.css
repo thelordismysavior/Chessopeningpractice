@@ -128,7 +128,7 @@ button:disabled, input:disabled { cursor: not-allowed; opacity: .55; }
 .account-links, .account-actions, .account-reset { margin-top: 28px; }
 
 .practice-shell { width: min(100%, 1180px); }
-.practice-layout { display: grid; grid-template-columns: 1fr; gap: 0; width: min(100%, 650px); margin: clamp(24px, 5vh, 56px) auto 0; }
+.practice-layout { display: grid; grid-template-columns: 1fr; align-items: stretch; gap: 0; width: min(100%, 650px); margin: clamp(24px, 5vh, 56px) auto 0; }
 .practice-board-column, .practice-copy-column { display: contents; }
 .lesson-copy { margin-top: 28px; }
 .lesson-copy h1 { margin: 6px 0 0; font-size: clamp(28px, 4vw, 36px); }
@@ -216,8 +216,9 @@ dialog::backdrop { background: color-mix(in oklch, var(--bg) 76%, transparent); 
 
 @media (min-width: 1024px) {
   .practice-layout { grid-template-columns: minmax(0, min(680px, calc(100dvh - 230px))) minmax(280px, 1fr); gap: clamp(32px, 4vw, 64px); width: 100%; }
-  .practice-board-column, .practice-copy-column { display: block; min-width: 0; }
+  .practice-board-column, .practice-copy-column { display: block; min-width: 0; align-self: stretch; }
   .practice-board-column { position: sticky; top: 16px; }
+  .practice-copy-column { display: flex; flex-direction: column; }
   .lesson-copy { margin-top: 0; }
 }
 

@@ -15,6 +15,13 @@ test('LINE/64 practice keeps a larger board fixed beside the lesson on desktop',
   await startFirstCoursePractice(page);
   await expect(page.locator('.eval-bar')).toBeVisible();
 
+  const expectCompactDetails = async () => {
+    const gap = await page.evaluate(() => document.querySelector<HTMLElement>('.practice-details')!.getBoundingClientRect().top
+      - document.querySelector<HTMLElement>('.lesson-copy')!.getBoundingClientRect().bottom);
+    expect(gap).toBeGreaterThanOrEqual(0);
+    expect(gap).toBeLessThanOrEqual(24);
+  };
+
   const geometry = await page.evaluate(() => {
     const boardColumn = document.querySelector<HTMLElement>('.practice-board-column')!.getBoundingClientRect();
     const copyColumn = document.querySelector<HTMLElement>('.practice-copy-column')!.getBoundingClientRect();
@@ -22,20 +29,29 @@ test('LINE/64 practice keeps a larger board fixed beside the lesson on desktop',
     const mode = document.querySelector<HTMLElement>('.mode-switch')!.getBoundingClientRect();
     return {
       boardColumnLeft: boardColumn.left,
+      boardColumnTop: boardColumn.top,
       boardWidth: board.width,
       boardBottom: board.bottom,
       copyColumnLeft: copyColumn.left,
+      copyColumnTop: copyColumn.top,
       modeLeft: mode.left,
     };
   });
 
   expect(Math.abs(geometry.modeLeft - geometry.boardColumnLeft)).toBeLessThanOrEqual(1);
+  expect(Math.abs(geometry.copyColumnTop - geometry.boardColumnTop)).toBeLessThanOrEqual(1);
+  await expectCompactDetails();
   expect(geometry.copyColumnLeft).toBeGreaterThan(geometry.boardColumnLeft + geometry.boardWidth);
   expect(geometry.boardWidth).toBeGreaterThan(650);
   expect(geometry.boardWidth).toBeLessThanOrEqual(680);
   expect(geometry.boardBottom).toBeLessThanOrEqual(1000);
 
+  await page.setViewportSize({ width: 1209, height: 900 });
+  await expectCompactDetails();
+  await expectNoOverflow(page);
+
   await page.setViewportSize({ width: 1024, height: 768 });
+  await expectCompactDetails();
   const shortDesktop = await page.evaluate(() => {
     const board = document.querySelector<HTMLElement>('.board')!.getBoundingClientRect();
     const copy = document.querySelector<HTMLElement>('.practice-copy-column')!.getBoundingClientRect();
